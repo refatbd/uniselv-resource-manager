@@ -1,0 +1,51 @@
+# Bytecode and environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Internal handoff, audit, and validation documents
+REVIEW-HANDOFF.md
+IMPLEMENTATION-MATRIX.md
+RELEASE-ACCEPTANCE.md
+RELEASE-SCOPE.md
+LIFECYCLE-VALIDATION*
+WORDPRESS-CAPACITY-REPORT.md
+TEST-REPORT.json
+baseline/
+
+# Test harnesses, load stress, & investigation scripts
+test_*
+load_stress.php
+cgroup_*.php
+run_*.py
+runner.py
+remote_*.py
+deploy_plugin.py
+investigate_*.py
+inspect_*.py
+find_*.py
+debug_*.py
+check_*.py
+check_*.php
+download_*.py
+create_*.py
+monitor_*.py
+monitor_result.json
+sync_files.py
+restart_and_verify.py
+discover.py
+audit_and_fix_slices.py
+install_ub3_wp_woo.py
+
+# Databases, logs & local temp files
+*.sqlite
+*.sqlite3
+*.db
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Distribution zip archives (hosted on GitHub Releases, not inside source git tree)
+*.zip
+*.zip.sha256

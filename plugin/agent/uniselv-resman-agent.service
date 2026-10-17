@@ -1,0 +1,22 @@
+[Unit]
+Description=UNISELV Resource Manager Daemon Agent
+After=network.target webuzo.service mariadb.service
+Wants=webuzo.service
+
+[Service]
+Type=simple
+RuntimeDirectory=uniselv-resman
+RuntimeDirectoryMode=0750
+Group=webuzo
+ExecStart=/usr/bin/python3 /usr/local/uniselv-resman/agent/agent_daemon.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+CPUWeight=100
+MemoryHigh=96M
+MemoryMax=128M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target
