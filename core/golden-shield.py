@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 """Golden Shield v2: kernel aggregate CPU quota for managed web hosting."""
 import argparse,fcntl,hashlib,json,os,pathlib,pwd,re,shlex,signal,subprocess,sys,time
-DEFAULT_POLICY = {'hostingMemoryMaxMiB': 6210, 'mode': 'shared-aggregate-cpu', 'hostCpuCount': 4, 'reservedCpuPercent': 60, 'customerCpuPercent': 340, 'headroomMiB': 1280, 'panelLowMiB': 768, 'sshLowMiB': 128, 'recoveryMarginMiB': 512, 'recoverySeconds': 30, 'guardMemoryLowMiB': 64, 'guardMemoryMaxMiB': 192}
 BASE=pathlib.Path('/etc/golden-shield');STATE=pathlib.Path('/var/lib/golden-shield');RUN=pathlib.Path('/run/golden-shield')
 UNITS=pathlib.Path('/etc/systemd/system');SELF=pathlib.Path('/usr/local/sbin/golden-shield.py')
 ISO=pathlib.Path('/usr/local/sbin/webuzo-isolation.py');SCANNER=pathlib.Path('/usr/local/webuzo/bin/cgroup.sh')
@@ -21,21 +20,73 @@ def properties(unit,keys):
  return dict(x.split('=',1) for x in command(['systemctl','show',unit]+[v for k in keys for v in ['-p',k]]).stdout.splitlines())
 def files():return json.loads((STATE/'shared-files.json').read_text()) if (STATE/'shared-files.json').exists() else {}
 def managed(path,text,mode=0o600):
- data=files();key=str(path)
- if key not in data:
-  if path.exists():
-   backup=STATE/'backups'/(hashlib.sha256(key.encode()).hexdigest()+'-'+str(time.time_ns()));atomic(backup,path.read_text(),path.stat().st_mode&0o777)
-   data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777}
-  else:data[key]={'backup':None,'mode':mode}
- elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:
-  raise RuntimeError('Managed file changed; review before overwriting: '+key)
- atomic(path,text,mode);data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
+ STATE.mkdir(parents=True,exist_ok=True,mode=0o700)
+ with open(STATE/'managed-files.lock','a') as registry_lock:
+  fcntl.flock(registry_lock,fcntl.LOCK_EX)
+  data=files();key=str(path)
+  if key not in data:
+   if path.exists():
+    backup=STATE/'backups'/(hashlib.sha256(key.encode()).hexdigest()+'-'+str(time.time_ns()));atomic(backup,path.read_text(),path.stat().st_mode&0o777)
+    data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777}
+   else:data[key]={'backup':None,'mode':mode}
+  elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:
+   raise RuntimeError('Managed file changed; review before overwriting: '+key)
+  atomic(path,text,mode);data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
+
+def derive_auto_policy(cpus, total_ram):
+ if total_ram < 1024:
+  raise RuntimeError(f"Unsupported Hardware: >= 1024 MiB RAM required (detected {total_ram} MiB)")
+ customer_cpu = int(round(cpus * 85))
+ reserved_cpu = (cpus * 100) - customer_cpu
+ if total_ram <= 2048:
+  headroom = 512
+ elif total_ram <= 4096:
+  headroom = 768
+ elif total_ram <= 8192:
+  headroom = 1280
+ else:
+  headroom = max(1536, int(total_ram * 0.15))
+ hosting_ram = max(512, total_ram - headroom)
+ if hosting_ram + headroom > total_ram:
+  headroom = max(384, total_ram - hosting_ram)
+ panel_low = min(768, max(256, int(headroom * 0.5)))
+ return {
+  'mode': 'shared-aggregate-cpu',
+  'hostCpuCount': cpus,
+  'customerCpuPercent': customer_cpu,
+  'reservedCpuPercent': reserved_cpu,
+  'hostingMemoryMaxMiB': hosting_ram,
+  'headroomMiB': headroom,
+  'recoveryMarginMiB': 512,
+  'recoverySeconds': 30,
+  'panelLowMiB': panel_low,
+  'sshLowMiB': 128,
+  'guardMemoryLowMiB': 32,
+  'guardMemoryMaxMiB': 128
+ }
+
 def policy():
- p=json.loads((BASE/'policy.json').read_text())
- if p.get('mode')!='shared-aggregate-cpu':raise RuntimeError('Not a shared-mode policy; uninstall the previous mode before installing v2.')
- if not isinstance(p.get('headroomMiB'),int) or p['headroomMiB']<512:raise RuntimeError('Invalid memory policy.')
- if not 0<p['customerCpuPercent']<p['hostCpuCount']*100:raise RuntimeError('Invalid aggregate CPU budget.')
- return p
+ cpus = len(os.sched_getaffinity(0))
+ total_ram = int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemTotal:')))//1024
+ if (BASE/'policy.json').exists():
+  try:
+   p = json.loads((BASE/'policy.json').read_text())
+  except Exception as e:
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: unparseable JSON ({e})")
+  if not isinstance(p, dict):
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: must be a JSON object")
+  if p.get('mode') != 'shared-aggregate-cpu':
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: mode must be 'shared-aggregate-cpu', got {p.get('mode')}")
+  if not isinstance(p.get('headroomMiB'), int) or p['headroomMiB'] < 512:
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: headroomMiB must be integer >= 512")
+  if not isinstance(p.get('customerCpuPercent'), int) or not (0 < p['customerCpuPercent'] < cpus * 100):
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: customerCpuPercent out of range")
+  if not isinstance(p.get('hostingMemoryMaxMiB'), int) or p['hostingMemoryMaxMiB'] < 512:
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: hostingMemoryMaxMiB must be integer >= 512")
+  if p['hostingMemoryMaxMiB'] + p['headroomMiB'] > total_ram:
+   raise RuntimeError(f"Invalid policy in {BASE/'policy.json'}: hostingMemoryMaxMiB + headroomMiB exceeds physical RAM ({total_ram} MiB)")
+  return p
+ return derive_auto_policy(cpus, total_ram)
 def available():return int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))//1024
 def aggregate_unit(p):
  cap=p['hostingMemoryMaxMiB']
@@ -71,10 +122,33 @@ def account_units():
   except KeyError:continue
   if uid>=1000 and (UNITS/(str(uid)+'.slice')).is_file():result.append(str(uid)+'.slice')
  return sorted(set(result))
+def prepare_initial_registry():
+ if (STATE/'installed.json').exists():return
+ data=files(); mirrors={}; restored=False
+ for name,row in data.items():
+  path=pathlib.Path(name)
+  if path.is_symlink():raise RuntimeError('Unsafe pre-install recovery path: '+name)
+  current=hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+  is_mirror=path.parent==UNITS and re.fullmatch(r'golden-\d+\.slice',path.name)
+  if is_mirror and current==row.get('hash'):
+   mirrors[name]=row;continue
+  original=hashlib.sha256(pathlib.Path(row['backup']).read_bytes()).hexdigest() if row.get('backup') else None
+  if current!=original:raise RuntimeError('Prior restoration is incomplete; review before installation: '+name)
+  restored=True
+ if restored:
+  if not list(STATE.glob('uninstalled-shared-*.json')):raise RuntimeError('No completed prior uninstall record; preserve recovery before retry.')
+  atomic(STATE/('shared-files.previous-'+str(time.time_ns())+'.json'),json.dumps(data))
+  atomic(STATE/'shared-files.json',json.dumps(mirrors))
+  props=STATE/'shared-properties.json'
+  if props.exists():props.rename(STATE/('shared-properties.previous-'+str(time.time_ns())+'.json'))
+ elif (STATE/'shared-properties.json').exists() and json.loads((STATE/'shared-properties.json').read_text()):raise RuntimeError('Existing shared property recovery requires review before installation.')
+
 def prepare_account(uid):
  if not re.fullmatch(r'\d+',uid) or uid+'.slice' not in account_units():raise RuntimeError('Not a native account slice.')
+ STATE.mkdir(parents=True,exist_ok=True,mode=0o700)
  with open(STATE/'shared.lock','a') as lock:
   fcntl.flock(lock,fcntl.LOCK_EX)
+  prepare_initial_registry()
   source=(UNITS/(uid+'.slice')).read_text()
   values=dict(re.findall(r'^(CPUQuota|IOReadBandwidthMax|IOWriteBandwidthMax|IOReadIOPSMax|IOWriteIOPSMax|MemoryMax|MemoryHigh|TasksMax)=(.+)$',source,re.M))
   if len(values)!=8 or any(v.strip() in ['','infinity'] for v in values.values()):raise RuntimeError('Missing finite native plan limits for UID '+uid)
@@ -87,24 +161,27 @@ def prepare_account(uid):
   else:command(['systemctl','start',unit])
 def patch_isolation():
  source=ISO.read_text()
- helper="\ndef account_slice(uid):\n    return 'golden-'+str(uid)+'.slice'\n\ndef account_cgroup(uid):\n    return '/golden.slice/'+account_slice(uid)\n\n"
- if 'def account_slice(' in source:raise RuntimeError('An existing slice integration needs manual review.')
- source=source.replace('def ensure_limits(user,uid):',helper+'def ensure_limits(user,uid):')
- anchor='    return root\n'
- if source.count(anchor)!=1:raise RuntimeError('Unsupported ensure_limits layout.')
- source=source.replace(anchor,"    execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)])\n"+anchor)
- source=source.replace("str(args[:3])+': '+r.stderr[-1200:]", "str(args)+': exit='+str(r.returncode)+' '+r.stdout[-1200:]+r.stderr[-1200:]")
- source=source.replace("Slice='+str(row['uid'])+'.slice\\n", "Slice='+account_slice(row['uid'])+'\\n")
- old="    if not (pathlib.Path('/proc/self/cgroup').read_text().strip()=='0::/'+str(actual_uid)+'.slice' or pathlib.Path('/proc/self/cgroup').read_text().strip().startswith('0::/'+str(actual_uid)+'.slice/')):"
- new="    if not (pathlib.Path('/proc/self/cgroup').read_text().strip()=='0::'+account_cgroup(actual_uid) or pathlib.Path('/proc/self/cgroup').read_text().strip().startswith('0::'+account_cgroup(actual_uid)+'/')):"
- if old not in source:raise RuntimeError('Unsupported admission layout.')
- source=source.replace(old,new)
- source=source.replace("startswith('/'+str(row['uid'])+'.slice/')", "startswith(account_cgroup(row['uid'])+'/')")
+ helper="\ndef account_slice(uid):\n    return ('golden-' if (pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()) else '')+str(uid)+'.slice'\n\ndef account_cgroup(uid):\n    return ('/golden.slice/' if (pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()) else '/')+account_slice(uid)\n\n"
+ if 'def account_slice(' in source:
+  required=[helper.strip(), "execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)])", "Slice='+account_slice(row['uid'])+'\\n", "'0::'+account_cgroup(actual_uid)", "startswith(account_cgroup(row['uid'])+'/')"]
+  if not all(item in source for item in required):raise RuntimeError('Unsupported existing slice integration; refusing mutation.')
+ else:
+  source=source.replace('def ensure_limits(user,uid):',helper+'def ensure_limits(user,uid):')
+  anchor='    return root\n'
+  if source.count(anchor)!=1:raise RuntimeError('Unsupported ensure_limits layout.')
+  source=source.replace(anchor,"    if (pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()):\n        execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)])\n"+anchor)
+  source=source.replace("str(args[:3])+': '+r.stderr[-1200:]", "str(args)+': exit='+str(r.returncode)+' '+r.stdout[-1200:]+r.stderr[-1200:]")
+  source=source.replace("Slice='+str(row['uid'])+'.slice\\n", "Slice='+account_slice(row['uid'])+'\\n")
+  old="    if not (pathlib.Path('/proc/self/cgroup').read_text().strip()=='0::/'+str(actual_uid)+'.slice' or pathlib.Path('/proc/self/cgroup').read_text().strip().startswith('0::/'+str(actual_uid)+'.slice/')):"
+  new="    if not (pathlib.Path('/proc/self/cgroup').read_text().strip()=='0::'+account_cgroup(actual_uid) or pathlib.Path('/proc/self/cgroup').read_text().strip().startswith('0::'+account_cgroup(actual_uid)+'/')):"
+  if old not in source:raise RuntimeError('Unsupported admission layout.')
+  source=source.replace(old,new)
+  source=source.replace("startswith('/'+str(row['uid'])+'.slice/')", "startswith(account_cgroup(row['uid'])+'/')")
  # Socket proxies are hosting work too; keep them inside the same aggregate parent.
  compile(source,str(ISO),'exec');managed(ISO,source,0o755)
  scanner=SCANNER.read_text();needle='\t\t\t\techo $pid >>'
  if needle not in scanner:raise RuntimeError('Unsupported native process scanner.')
- scanner=scanner.replace(needle,"\t\t\t\t# Golden Shield: never move already-contained workers out of the aggregate group.\n\t\t\t\tgrep -q '/golden.slice/' /proc/$pid/cgroup 2>/dev/null && continue\n"+needle)
+ scanner=scanner if "grep -q '/golden.slice/' /proc/$pid/cgroup 2>/dev/null && continue" in scanner else scanner.replace(needle,"\t\t\t\t# Golden Shield: never move already-contained workers out of the aggregate group.\n\t\t\t\tgrep -q '/golden.slice/' /proc/$pid/cgroup 2>/dev/null && continue\n"+needle)
  managed(SCANNER,scanner,0o755)
 def remember(unit,settings):
  path=STATE/'shared-properties.json';data=json.loads(path.read_text()) if path.exists() else {}
@@ -226,16 +303,17 @@ def resume_install():
 
 def install():
  if (STATE/'installed.json').exists():raise RuntimeError('Already installed. Uninstall the current version first during maintenance; original backups must not be overwritten.')
- p=effective_memory_cap(dict(DEFAULT_POLICY)) if DEFAULT_POLICY else None
- if not p or p.get('mode')!='shared-aggregate-cpu':raise RuntimeError('Download a generated shared-mode script.')
+ # The plugin writes the validated hardware-scaled Auto/Manual policy first.
+ # Never replace it with a policy embedded for a different VPS.
+ p=effective_memory_cap(policy())
+ if not p or p.get('mode')!='shared-aggregate-cpu':raise RuntimeError('Configure a shared-mode policy through the plugin before installation.')
  prerequisites(p)
  if available()<p['headroomMiB']+p['recoveryMarginMiB']:raise RuntimeError('Not enough RAM headroom for installation.')
  command(['/usr/bin/python3',str(ISO),'verify'])
  for unit in ['golden.slice','golden-apache.service','golden-shield.service']:
   if (UNITS/unit).exists():raise RuntimeError('Existing custom unit needs review: '+unit)
  for folder in [BASE,STATE,RUN]:folder.mkdir(parents=True,exist_ok=True);os.chmod(folder,0o700)
- for name in ['shared-files.json','shared-properties.json']:
-  if (STATE/name).exists():(STATE/name).rename(STATE/(name+'.previous-'+str(time.time_ns())))
+ prepare_initial_registry()
  atomic(BASE/'policy.json',json.dumps(p,indent=2));atomic(SELF,pathlib.Path(__file__).read_text(),0o700)
  atomic(STATE/'installed.json',json.dumps({'version':2,'mode':p['mode'],'installedAt':time.time()}))
  managed(UNITS/'golden.slice',aggregate_unit(p))
@@ -316,12 +394,17 @@ def uninstall():
    command(['systemctl','set-property','--runtime',unit]+[k+'='+('100' if v=='[not set]' else v) for k,v in values.items()])
  command(['systemctl','daemon-reload']);command(['systemctl','restart','mariadb.service'])
  command([str(APACHE),'start']);command(['systemctl','restart','cgroup.service'])
+ # Switch routing before restart, but retain the installation marker until all
+ # restoration steps finish so a failed uninstall cannot masquerade as removed.
+ atomic(STATE/'disabling.json',json.dumps({'startedAt':time.time()}))
  for version in versions:restart_coordinator(version)
  command(['/usr/bin/python3',str(ISO),'reconcile'])
  for name in data:
   if re.fullmatch(r'/etc/systemd/system/golden-\d+\.slice',name):command(['systemctl','stop',pathlib.Path(name).name],False)
  command(['systemctl','stop','golden.slice'],False)
  (STATE/'installed.json').rename(STATE/('uninstalled-shared-'+str(time.time_ns())+'.json'))
+ (STATE/'disabling.json').unlink(missing_ok=True)
+
  print('Shared Golden Shield removed. Native launchers, placement and recorded properties restored; verify HTTP and services.')
 
 def main():
@@ -329,7 +412,7 @@ def main():
  parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap'],nargs='?',default='install');parser.add_argument('uid',nargs='?');args=parser.parse_args()
  if args.action=='install':install()
  elif args.action=='resume':resume_install()
- elif args.action=='preflight':prerequisites(DEFAULT_POLICY);print('New policy preflight passed.')
+ elif args.action=='preflight':p=effective_memory_cap(policy());prerequisites(p);print('New policy preflight passed.')
  elif args.action=='serve':serve()
  elif args.action=='prepare-account':prepare_account(args.uid or '')
  elif args.action=='uninstall':uninstall()

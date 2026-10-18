@@ -1,0 +1,47 @@
+{
+  "cold_and_warm_php": [
+    {
+      "user": "ub1",
+      "attempt": 1,
+      "php": "8.1.34",
+      "euid": 1004,
+      "contained": true
+    },
+    {
+      "user": "ub1",
+      "attempt": 2,
+      "php": "8.1.34",
+      "euid": 1004,
+      "contained": true
+    },
+    {
+      "user": "ub3",
+      "attempt": 1,
+      "php": "8.2.34",
+      "euid": 1006,
+      "contained": true
+    },
+    {
+      "user": "ub3",
+      "attempt": 2,
+      "php": "8.2.34",
+      "euid": 1006,
+      "contained": true
+    }
+  ],
+  "apache": {
+    "configured": true,
+    "config": "/usr/local/apps/apache2/etc/conf.d/zz-uniselv-fcgi-retry.conf",
+    "sha256": "e5835ad34facda0326f473e36f75a4d0417847957b6d0096d4ca104800c29ab4"
+  },
+  "remaining_load_units": "",
+  "services": [
+    "active",
+    "active",
+    "active"
+  ],
+  "cpu_max": "340000 100000",
+  "memory_events": "low 0\nhigh 12006\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+  "proxy_pids_events": "max 0",
+  "passed": true
+}

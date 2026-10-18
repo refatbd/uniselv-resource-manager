@@ -1,0 +1,1 @@
+PASS six concurrent processes / 120 managed writes: all ownership records and hashes retained

@@ -446,6 +446,38 @@ class IpcRequestHandler:
             # Resolve target user: Admin can inspect any user; Enduser is strictly scoped to authenticated session
             target_user = params.get('username') if (is_admin and params.get('username')) else user
 
+            # A reseller's administrator-panel access is not server-root authority.
+            restricted_reseller = is_admin and user != 'root'
+            if restricted_reseller:
+                inventory = self.collector.get_webuzo_users()
+                if not inventory.get(user, {}).get('reseller'):
+                    return {'error': 'Forbidden: Non-root administrator identity is not a reseller', 'status_code': 403}
+                is_reseller, reseller_actor = True, user
+                owned = {name for name, data in inventory.items() if data.get('owner') == user or name == user}
+                if target_user not in owned:
+                    return {'error': 'Forbidden: Account is outside reseller ownership', 'status_code': 403}
+                reseller_common = {'get_enduser_dashboard', 'get_enduser_history', 'get_enduser_processes',
+                    'stop_enduser_process', 'get_enduser_snapshots', 'get_snapshots_index', 'get_snapshot_detail',
+                    'get_enduser_notifications', 'mark_notification', 'get_enduser_support_export', 'get_branding_settings'}
+                reseller_admin = {'get_admin_accounts', 'get_admin_account_detail', 'set_temporary_override', 'cancel_temporary_override', 'get_audit_log', 'get_admin_audit_limits', 'audit_limits'}
+                if action not in reseller_common | reseller_admin:
+                    return {'error': 'Forbidden: Server-wide action requires root', 'status_code': 403}
+                if action in {'set_temporary_override', 'cancel_temporary_override'} and not self.is_permission_granted(user, 'reseller', 'can_set_overrides'):
+                    return {'error': 'Forbidden: Reseller overrides permission denied', 'status_code': 403}
+                if action == 'get_audit_log':
+                    if not self.is_permission_granted(user, 'reseller', 'can_view_audit_log'):
+                        return {'error': 'Forbidden: Reseller audit permission denied', 'status_code': 403}
+                    return self.action_get_audit_log(params, allowed_targets=owned, actor_scope=user)
+                if action in {'get_admin_audit_limits', 'audit_limits'}:
+                    result = self.action_admin_audit_limits()
+                    result['audit'] = [row for row in result.get('audit', []) if row.get('username') in owned]
+                    return result
+                if action == 'get_enduser_support_export' and not self.is_permission_granted(user, 'reseller', 'can_export_diagnostics'):
+                    return {'error': 'Forbidden: Reseller export permission denied', 'status_code': 403}
+                # Keep tenant self-service policies in force for reseller process operations.
+                if action == 'stop_enduser_process':
+                    return self.action_stop_enduser_process(target_user, params, is_admin=False)
+
             # Common / Enduser endpoints
             if action == 'get_enduser_dashboard':
                 return self.action_enduser_dashboard(target_user)
@@ -553,9 +585,9 @@ class IpcRequestHandler:
                 mode = str(params.get('mode', 'auto')).lower()
                 overrides = {}
                 if 'customer_cpu_pct' in params and params['customer_cpu_pct']:
-                    overrides['customerCpuPercent'] = int(params['customer_cpu_pct'])
+                    overrides['customerCpuPercent'] = params['customer_cpu_pct']
                 if 'hosting_mem_mib' in params and params['hosting_mem_mib']:
-                    overrides['hostingMemoryMaxMiB'] = int(params['hosting_mem_mib'])
+                    overrides['hostingMemoryMaxMiB'] = params['hosting_mem_mib']
                 if 'overrides' in params and isinstance(params['overrides'], dict):
                     overrides.update(params['overrides'])
                 return self.golden_shield.reconfigure_or_enable(mode, overrides if overrides else None)
@@ -926,7 +958,7 @@ class IpcRequestHandler:
 
         if throttled > 0 or avg_cpu > 65.0:
             bottlenecks.append("PHP CPU Execution Bound")
-            actionable_steps.append("Enable PHP OPcache (opcache.enable=1) and ensure JIT is active where supported.")
+            actionable_steps.append("Verify PHP OPcache is enabled. Benchmark optional JIT against your application before enabling it.")
             actionable_steps.append("Offload WordPress wp-cron.php from front-end pageviews to a scheduled system crontab.")
             actionable_steps.append("Audit third-party plugins and themes for recursive database lookups and unindexed queries.")
 
@@ -1163,7 +1195,7 @@ class IpcRequestHandler:
                 WHERE username = ? AND timestamp >= ? AND timestamp <= ?
                 ORDER BY timestamp ASC
             """, (username, start_ts, end_ts))
-            rows = cur.fetchall()
+            rows = [dict(row) for row in cur.fetchall()]
         finally:
             conn.close()
 
@@ -1248,9 +1280,6 @@ class IpcRequestHandler:
             avg_iops = sum(float(r['read_iops_sec'] or 0) + float(r['write_iops_sec'] or 0) for r in h_rows) / c
             lim_iops = _to_int(h_last['limit_io_read_iops']) + _to_int(h_last['limit_io_write_iops'])
 
-            avg_ep = round(avg_nproc * 0.4, 1)
-            lim_ep = min(20, lim_nproc)
-
             hourly_usage.append({
                 'from_time': time.strftime('%m-%d %H:00', time.localtime(h_start)),
                 'to_time': time.strftime('%m-%d %H:00', time.localtime(h_start + 3600)),
@@ -1259,7 +1288,7 @@ class IpcRequestHandler:
                 'speed': {'a': f"{avg_cpu:.1f}%", 'l': f"{lim_cpu}%", 'f': fault_cpu},
                 'pmem': {'a': format_bytes(avg_mem), 'l': format_bytes(lim_mem), 'f': fault_mem},
                 'io': {'a': f"{format_bytes(avg_io)}/s", 'l': f"{format_bytes(lim_io)}/s" if lim_io > 0 else 'Unlimited', 'f': 0},
-                'ep': {'a': str(round(avg_ep, 1)), 'l': str(lim_ep), 'f': 0},
+                'ep': {'a': 'N/A', 'l': 'N/A', 'f': 0, 'status': 'unavailable'},
                 'nproc': {'a': str(int(round(avg_nproc))), 'l': str(lim_nproc), 'f': fault_nproc},
                 'iops': {'a': str(int(round(avg_iops))), 'l': str(lim_iops) if lim_iops > 0 else 'Unlimited', 'f': 0}
             })
@@ -1271,7 +1300,6 @@ class IpcRequestHandler:
         cur_limit_tasks = _to_int(last_sample['limit_tasks_max']) if last_sample else 64
         cur_limit_io = (_to_int(last_sample['limit_io_read_bps']) + _to_int(last_sample['limit_io_write_bps'])) if last_sample else 0
         cur_limit_iops = (_to_int(last_sample['limit_io_read_iops']) + _to_int(last_sample['limit_io_write_iops'])) if last_sample else 0
-        cur_limit_ep = min(20, cur_limit_tasks)
 
         tot_cpu_faults = sum(int(r['cpu_throttled_events'] or 0) for r in rows)
         tot_oom_faults = sum(int(r['oom_kill_events'] or 0) for r in rows)
@@ -1282,14 +1310,13 @@ class IpcRequestHandler:
         avg_io_tot = (read_sum + write_sum) / max(1, total_len)
         avg_iops_tot = iops_sum / max(1, total_len)
         avg_tasks_tot = tasks_sum / max(1, total_len)
-        avg_ep_tot = round(avg_tasks_tot * 0.4, 1)
 
         account_total = [
             {'desc': 'SPEED', 'usage': f"{round(avg_cpu_tot, 1)}%", 'limit': f"{cur_limit_cpu}%", 'fault': tot_cpu_faults},
             {'desc': 'I/O', 'usage': f"{format_bytes(avg_io_tot)}/s", 'limit': f"{format_bytes(cur_limit_io)}/s" if cur_limit_io > 0 else 'Unlimited', 'fault': 0},
             {'desc': 'IOPS', 'usage': str(int(round(avg_iops_tot))), 'limit': str(cur_limit_iops) if cur_limit_iops > 0 else 'Unlimited', 'fault': 0},
             {'desc': 'NPROC', 'usage': str(int(round(avg_tasks_tot))), 'limit': str(cur_limit_tasks), 'fault': tot_task_faults},
-            {'desc': 'Entry Processes', 'usage': str(int(round(avg_ep_tot))), 'limit': str(cur_limit_ep), 'fault': 0},
+            {'desc': 'Entry Processes', 'usage': 'N/A', 'limit': 'N/A', 'fault': 0, 'status': 'unavailable', 'note': 'Unenforced under Linux cgroups v2; concurrency governed via NPROC'},
             {'desc': 'Physical Memory', 'usage': format_bytes(int(avg_mem_tot)), 'limit': format_bytes(cur_limit_mem), 'fault': tot_oom_faults}
         ]
 
@@ -1317,6 +1344,7 @@ class IpcRequestHandler:
 
             lim_c_cpu = _to_int(last_c['limit_cpu_quota']) or 100
             lim_c_mem = _to_int(last_c['limit_mem_max_bytes']) or (1024 * 1024 * 1024)
+            lim_c_swap = None  # Historical swap ceilings were not stored in this schema.
             lim_c_tasks = _to_int(last_c['limit_tasks_max']) or 64
             lim_c_io = _to_int(last_c['limit_io_read_bps']) + _to_int(last_c['limit_io_write_bps'])
             lim_c_iops = _to_int(last_c['limit_io_read_iops']) + _to_int(last_c['limit_io_write_iops'])
@@ -1334,7 +1362,8 @@ class IpcRequestHandler:
                 'limit_mem': lim_c_mem,
                 'limit_pmem': round(lim_c_mem / (1024 * 1024), 1),
                 'vmem': round((c_mem + c_swap) / (1024 * 1024), 1),
-                'limit_vmem': round(lim_c_mem / (1024 * 1024), 1),
+                'limit_vmem': None,
+                'vmem_label': 'RAM + Swap (historical combined limit unavailable)',
                 'read_bytes': round(c_rb, 1),
                 'write_bytes': round(c_wb, 1),
                 'io': round((c_rb + c_wb) / 1024, 1),  # KiB/s
@@ -1347,8 +1376,8 @@ class IpcRequestHandler:
                 'nproc': int(round(c_tasks)),
                 'limit_tasks': lim_c_tasks,
                 'limit_nproc': lim_c_tasks,
-                'ep': round(c_tasks * 0.4, 1),
-                'limit_ep': min(20, lim_c_tasks),
+                'ep': None,
+                'limit_ep': None,
                 'faults': c_faults
             })
 
@@ -1776,7 +1805,7 @@ class IpcRequestHandler:
         points = history.get('points', [])
         export_data = {
             'report_metadata': {
-                'generator': 'UNISELV Resource Manager v1.1.3',
+                'generator': 'UNISELV Resource Manager v1.1.13',
                 'account': username,
                 'exported_at': int(time.time()),
                 'exported_iso': time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime()),
@@ -1819,18 +1848,7 @@ class IpcRequestHandler:
         finally:
             conn.close()
 
-        sys_dict = dict(sys_m) if sys_m else {
-            'cpu_percent': 0.0,
-            'mem_used_bytes': 0,
-            'mem_available_bytes': 8 * 1024 * 1024 * 1024,
-            'swap_used_bytes': 0,
-            'golden_slice_cpu_percent': 0.0,
-            'golden_slice_mem_bytes': 0,
-            'load1': 0.0,
-            'load5': 0.0,
-            'load15': 0.0,
-            'timestamp': int(time.time())
-        }
+        sys_dict = dict(sys_m) if sys_m else {}
 
         # Real-time kernel load averages directly from /proc/loadavg
         try:
@@ -1848,14 +1866,14 @@ class IpcRequestHandler:
 
         tot_mem = sys_dict.get('mem_used_bytes', 0) + sys_dict.get('mem_available_bytes', 0)
         mem_pct = round((sys_dict.get('mem_used_bytes', 0) / tot_mem * 100), 2) if tot_mem > 0 else 0.0
-        cpu_count = os.cpu_count() or 4
+        cpu_count = os.cpu_count()
 
         host_dict = {
             'cpu_count': cpu_count,
             'cpu_cores': cpu_count,
             'cpu_percent': sys_dict.get('cpu_percent', 0.0),
-            'mem_total_formatted': format_bytes(tot_mem),
-            'total_ram_formatted': format_bytes(tot_mem),
+            'mem_total_formatted': format_bytes(tot_mem) if sys_m else 'Unavailable',
+            'total_ram_formatted': format_bytes(tot_mem) if sys_m else 'Unavailable',
             'mem_used_formatted': format_bytes(sys_dict.get('mem_used_bytes', 0)),
             'mem_percent': mem_pct,
             'swap_used_formatted': format_bytes(sys_dict.get('swap_used_bytes', 0)),
@@ -1867,17 +1885,26 @@ class IpcRequestHandler:
 
         gs_status = self.golden_shield.get_status()
         calc = gs_status.get('calculated_policy') or gs_status.get('configured_policy') or {}
-        gs_status['customer_cpu_percent'] = calc.get('customerCpuPercent', 340)
-        gs_status['reserved_cpu_percent'] = calc.get('reservedCpuPercent', 60)
-        host_mem_max_mib = calc.get('hostingMemoryMaxMiB', 6471)
+        # Display configured policy, not an unapplied Auto recommendation in Manual mode.
+        policy = gs_status.get('configured_policy') or {}
+        gs_status['customer_cpu_percent'] = policy.get('customerCpuPercent')
+        gs_status['reserved_cpu_percent'] = policy.get('reservedCpuPercent')
+        host_mem_max_mib = policy.get('hostingMemoryMaxMiB')
         gs_status['hosting_memory_max_mib'] = host_mem_max_mib
-        gs_status['golden_mem_max_formatted'] = f"{round(host_mem_max_mib / 1024, 2)} GiB"
-        gs_status['headroom_mib'] = calc.get('headroomMiB', 1280)
-
-        # Sum of active tenant memory from latest samples
-        active_tenant_mem_bytes = sum(s.get('mem_bytes', 0) for s in latest_user_samples.values())
-        gs_status['golden_mem_current_bytes'] = active_tenant_mem_bytes
-        gs_status['golden_mem_current_formatted'] = format_bytes(active_tenant_mem_bytes)
+        gs_status['golden_mem_max_formatted'] = (f"{round(host_mem_max_mib / 1024, 2)} GiB"
+                                                 if host_mem_max_mib is not None else 'Unavailable')
+        gs_status['headroom_mib'] = policy.get('headroomMiB')
+        # The aggregate includes MariaDB/Apache as well as accounts; summing a
+        # nonexistent samples.mem_bytes field previously fabricated zero usage.
+        try:
+            aggregate_mem = int(pathlib.Path('/sys/fs/cgroup/golden.slice/memory.current').read_text().strip())
+        except (OSError, ValueError):
+            aggregate_mem = None
+        gs_status['golden_mem_current_bytes'] = aggregate_mem
+        gs_status['golden_mem_current_formatted'] = format_bytes(aggregate_mem) if aggregate_mem is not None else 'Unavailable'
+        gs_status['memory_measurement'] = 'golden.slice/memory.current' if aggregate_mem is not None else 'unavailable'
+        host_dict['telemetry_available'] = bool(sys_m)
+        host_dict['last_sample_epoch'] = sys_dict.get('timestamp')
 
         return {
             'server': host_dict,
@@ -2551,24 +2578,30 @@ class IpcRequestHandler:
             err_msg = out.get('error') or res.stderr or "Webuzo API rejected plan update"
             return {'error': f'Failed to save native plan: {err_msg}', 'webuzo_response': out}
 
-        # Immediately update slices of accounts on this plan
+        # Native save may have succeeded even when a mirror update fails. Report
+        # that partial state explicitly; do not silently return full success.
         users = self.collector.get_webuzo_users()
+        sync_errors = []
         for uname, udata in users.items():
             if udata['plan_name'] == plan_name:
                 try:
-                    subprocess.run(['python3', '/usr/local/sbin/golden-shield.py', 'prepare-account', str(udata['uid'])], capture_output=True, timeout=15)
-                except Exception:
-                    pass
-
+                    mirrored = subprocess.run(['python3', '/usr/local/sbin/golden-shield.py', 'prepare-account', str(udata['uid'])], capture_output=True, text=True, timeout=20)
+                    if mirrored.returncode:
+                        sync_errors.append({'username': uname, 'error': mirrored.stderr or mirrored.stdout or 'Mirror command failed'})
+                except Exception as exc:
+                    sync_errors.append({'username': uname, 'error': str(exc)})
         conn = self.get_db()
         try:
             conn.execute("""
                 INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
                 VALUES (?, ?, 'save_plan', ?, ?)
-            """, (int(time.time()), admin_user, plan_name, json.dumps(params)))
+            """, (int(time.time()), admin_user, plan_name, json.dumps({**params, "synchronization_errors": sync_errors})))
             conn.commit()
         finally:
             conn.close()
+
+        if sync_errors:
+            return {'success': False, 'native_saved': True, 'error': 'Native plan was saved, but account enforcement synchronization failed. Review affected accounts before retrying.', 'sync_errors': sync_errors}
 
         return {'success': True, 'webuzo_response': out, 'message': f'Plan {plan_name} updated successfully.'}
 
@@ -2626,13 +2659,20 @@ class IpcRequestHandler:
 
         tot_storage_bytes = db_size_bytes + wal_size_bytes + shm_size_bytes
 
+        try:
+            cap = pathlib.Path('/sys/fs/cgroup/system.slice/uniselv-resman-agent.service/memory.max').read_text().strip()
+            cap_display = format_bytes(int(cap)) if cap.isdigit() else ('Unlimited' if cap == 'max' else 'Unavailable')
+            cap_bytes = int(cap) if cap.isdigit() else None
+        except (OSError, ValueError):
+            cap_display, cap_bytes = 'Unavailable', None
         return {
+            'memory_cap_formatted': cap_display,
             'agent_pid': daemon_pid,
             'agent_status': 'active_running',
             'agent_rss_bytes': rss_bytes,
             'agent_rss_formatted': f"{round(rss_bytes / 1024 / 1024, 2)} MiB",
-            'memory_cap_bytes': 64 * 1024 * 1024,
-            'memory_health': 'HEALTHY' if rss_bytes < 48 * 1024 * 1024 else 'WARNING',
+            'memory_cap_bytes': cap_bytes,
+            'memory_health': ('UNAVAILABLE' if cap_bytes is None else ('WARNING' if rss_bytes >= cap_bytes * 0.8 else 'HEALTHY')),
             'db_size_bytes': db_size_bytes,
             'wal_size_bytes': wal_size_bytes,
             'shm_size_bytes': shm_size_bytes,
@@ -2773,9 +2813,35 @@ class IpcRequestHandler:
         }
 
     def action_get_storage_settings(self) -> Dict[str, Any]:
-        return self.collector.get_retention_settings()
+        settings = self.collector.get_retention_settings()
+        health = self.action_get_agent_health()
+        conn = self.get_db()
+        try:
+            counts = {table: conn.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0]
+                      for table in ('samples', 'snapshots', 'events', 'audit_log')}
+        finally:
+            conn.close()
+        return {'settings': settings, 'storage': {
+            'total_formatted': format_bytes(health['total_storage_bytes']),
+            'used_percent': round(health['total_storage_bytes'] / (settings['max_storage_mib'] * 1024 * 1024) * 100, 2),
+            'samples_count': counts['samples'], 'snapshots_count': counts['snapshots'],
+            'events_count': counts['events'], 'audit_count': counts['audit_log'],
+            'size_limit_kind': 'warning_threshold_not_hard_quota'}}
 
     def action_save_storage_settings(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        bounds = {'samples_days': (1, 90), 'snapshots_days': (1, 90),
+                  'events_days': (1, 180), 'audit_days': (7, 365), 'max_storage_mib': (10, 102400)}
+        validated = {}
+        for key, (low, high) in bounds.items():
+            if key in params:
+                try:
+                    value = int(str(params[key]))
+                except (ValueError, TypeError):
+                    return {'error': f'{key} must be an integer between {low} and {high}'}
+                if not low <= value <= high:
+                    return {'error': f'{key} must be between {low} and {high}'}
+                validated[key] = value
+        params = validated
         conn = self.get_db()
         try:
             for k in ['samples_days', 'snapshots_days', 'events_days', 'audit_days', 'max_storage_mib']:
@@ -3733,7 +3799,18 @@ class IpcRequestHandler:
                     'updated_at': r['updated_at'],
                     'updated_formatted': time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(r['updated_at']))
                 })
-            return {'success': True, 'mappings': mappings}
+            native_plans = []
+            for plan_path in sorted(pathlib.Path('/var/webuzo/cgroups').glob('*')):
+                if not plan_path.is_file() or not re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', plan_path.name):
+                    continue
+                try:
+                    json.loads(plan_path.read_text())  # Ignore non-plan files and malformed configuration.
+                    limits = self.collector.get_plan_limits(plan_path.name)
+                    native_plans.append({'name': plan_path.name,
+                                         'label': f"{plan_path.name} ({limits['cpuquota']}% CPU, {format_bytes(limits['mem_max'])} RAM)"})
+                except (OSError, ValueError, TypeError, KeyError):
+                    continue
+            return {'success': True, 'mappings': mappings, 'native_plans': native_plans}
         finally:
             conn.close()
 
@@ -3745,6 +3822,10 @@ class IpcRequestHandler:
         if not pkg or not plan:
             return {'error': 'Both billing_package and resource_plan are required.'}
 
+        if not re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', plan):
+            return {'error': 'Invalid resource plan name'}
+        if len(pkg) > 120:
+            return {'error': 'Billing package name must be at most 120 characters'}
         # Validate that the resource plan exists in Webuzo cgroups
         plan_file = f"/var/webuzo/cgroups/{plan}"
         if not os.path.exists(plan_file):
@@ -3806,7 +3887,27 @@ class IpcRequestHandler:
             conn.close()
 
     def action_save_branding_settings(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """B02: Save branding colors, logo, and links."""
+        """B02: Save validated branding colors, logo, and links atomically."""
+        from urllib.parse import urlsplit
+        for key in ('brand_logo_url', 'brand_support_url', 'brand_docs_url'):
+            if key not in params:
+                continue
+            value = str(params[key]).strip()
+            try:
+                parsed = urlsplit(value)
+                valid = (not value or (parsed.scheme in ('http', 'https') and parsed.hostname
+                         and not parsed.username and not parsed.password and not re.search(r'[\s<>"\\]', value)))
+            except ValueError:
+                valid = False
+            if not valid or len(value) > 2048:
+                return {'error': f'{key} must be blank or an absolute HTTP(S) URL without embedded credentials'}
+            params[key] = value
+        if 'brand_primary_color' in params and not re.fullmatch(r'#[0-9a-fA-F]{6}', str(params['brand_primary_color'])):
+            return {'error': 'Theme color must use #RRGGBB format'}
+        if 'brand_locale' in params and params['brand_locale'] not in ('en', 'bn'):
+            return {'error': 'Unsupported language locale'}
+        if 'brand_name' in params and (not str(params['brand_name']).strip() or len(str(params['brand_name'])) > 120):
+            return {'error': 'Product title must contain 1 to 120 characters'}
         conn = self.get_db()
         try:
             for k in ['brand_name', 'brand_logo_url', 'brand_primary_color', 'brand_support_url', 'brand_docs_url', 'brand_locale']:
@@ -3822,7 +3923,7 @@ class IpcRequestHandler:
 
         return {'success': True, 'branding': self.action_get_branding_settings()}
 
-    def action_get_audit_log(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def action_get_audit_log(self, params: Dict[str, Any], allowed_targets=None, actor_scope=None) -> Dict[str, Any]:
         """B08: Searchable and exportable administrative audit history."""
         search = str(params.get('search', '')).strip().lower()
         actor = str(params.get('actor', '')).strip()
@@ -3835,6 +3936,11 @@ class IpcRequestHandler:
             query = "SELECT * FROM audit_log WHERE 1=1"
             q_args = []
 
+            if allowed_targets is not None:
+                targets = sorted(allowed_targets)
+                placeholders = ','.join('?' for _ in targets) or 'NULL'
+                query += f' AND (actor = ? OR target_account IN ({placeholders}))'
+                q_args.extend([actor_scope] + targets)
             if actor:
                 query += " AND actor = ?"
                 q_args.append(actor)

@@ -1,0 +1,81 @@
+{
+  "adminMobile": [
+    {
+      "section": "All Accounts (7)",
+      "active": "tab-accounts",
+      "viewport": 390,
+      "width": 390
+    },
+    {
+      "section": "Golden Shield Governance",
+      "active": "tab-goldenshield",
+      "viewport": 390,
+      "width": 390
+    },
+    {
+      "section": "System & Agent Health",
+      "active": "tab-health",
+      "viewport": 390,
+      "width": 375
+    },
+    {
+      "section": "Branding & Billing",
+      "active": "tab-integrations",
+      "viewport": 390,
+      "width": 375
+    },
+    {
+      "section": "Help & About",
+      "active": "tab-help",
+      "viewport": 390,
+      "width": 390
+    }
+  ],
+  "enduserMobile": [
+    {
+      "label": "Dashboard",
+      "active": "tab-dashboard",
+      "viewport": 390,
+      "width": 375
+    },
+    {
+      "label": "Current Usage",
+      "active": "tab-processes",
+      "viewport": 390,
+      "width": 390
+    },
+    {
+      "label": "Historical Charts",
+      "viewport": 390,
+      "width": 375,
+      "active": "tab-history",
+      "retested": true
+    },
+    {
+      "label": "Snapshots (10)",
+      "active": "tab-snapshots",
+      "viewport": 390,
+      "width": 375
+    },
+    {
+      "label": "Notifications & Events (50)",
+      "active": "tab-notifications",
+      "viewport": 390,
+      "width": 390
+    },
+    {
+      "label": "Help & About",
+      "active": "tab-help",
+      "viewport": 390,
+      "width": 375
+    }
+  ],
+  "tests": {
+    "retentionSave": "passed",
+    "modalEscapeFocusRestore": "passed",
+    "literalPackageMarkup": "passed",
+    "testMappingRemoved": true,
+    "roleFilteredHelpSearch": "passed",
+    "measuredSparklines": "10 distinct live samples observed"
+  }
+}

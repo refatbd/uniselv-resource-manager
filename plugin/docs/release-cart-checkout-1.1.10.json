@@ -1,0 +1,362 @@
+{
+  "cart": {
+    "concurrency": 4,
+    "timing": {
+      "window_duration_sec": 15.0,
+      "total_elapsed_sec": 16.52
+    },
+    "operations": {
+      "window_attempted": 26,
+      "window_successful": 26,
+      "total_attempted": 29,
+      "total_successful": 29,
+      "total_http_requests": 87
+    },
+    "cache": {
+      "window_cache_hits": 0,
+      "total_cache_hits": 0,
+      "cache_hit_rate": 0.0
+    },
+    "throughput": {
+      "strict_window_successful_ops_sec": 1.73,
+      "strict_window_attempted_ops_sec": 1.73,
+      "total_successful_ops_sec": 1.76,
+      "total_http_requests_sec": 5.27
+    },
+    "latencies_ms": {
+      "p50": 2108.35,
+      "p95": 4645.58,
+      "p99": 4761.12,
+      "min": 1959.44,
+      "max": 4761.12,
+      "avg": 2519.01
+    },
+    "status_distribution": {
+      "200": 29
+    },
+    "recovered_transport_failures": [],
+    "failures": [],
+    "passed": true,
+    "server": {
+      "peak_memory_mb": 355.1,
+      "peak_swap_mb": 0.0,
+      "peak_pids": 9,
+      "cpu_usage_sec": 20.415,
+      "cpu_throttled_sec": 6.093,
+      "oom_kills_in_stage": 0,
+      "admin_probes_count": 7,
+      "admin_latency": {
+        "p50": 1303.36,
+        "p95": 1385.21,
+        "p99": 1385.21,
+        "min": 1279.51,
+        "max": 1385.21,
+        "avg": 1317.13
+      },
+      "slices": {
+        "golden-1006.slice": {
+          "exists": true,
+          "peak_memory_mb": 355.1,
+          "peak_swap_mb": 0.0,
+          "peak_pids": 9,
+          "cpu_usage_sec": 20.415,
+          "cpu_throttled_sec": 6.093,
+          "oom_kills_in_stage": 0
+        }
+      }
+    },
+    "created_orders": []
+  },
+  "checkout": {
+    "concurrency": 2,
+    "timing": {
+      "window_duration_sec": 15.0,
+      "total_elapsed_sec": 16.28
+    },
+    "operations": {
+      "window_attempted": 20,
+      "window_successful": 20,
+      "total_attempted": 22,
+      "total_successful": 22,
+      "total_http_requests": 66
+    },
+    "cache": {
+      "window_cache_hits": 0,
+      "total_cache_hits": 0,
+      "cache_hit_rate": 0.0
+    },
+    "throughput": {
+      "strict_window_successful_ops_sec": 1.33,
+      "strict_window_attempted_ops_sec": 1.33,
+      "total_successful_ops_sec": 1.35,
+      "total_http_requests_sec": 4.05
+    },
+    "latencies_ms": {
+      "p50": 1446.77,
+      "p95": 1707.44,
+      "p99": 1707.44,
+      "min": 1237.66,
+      "max": 1707.44,
+      "avg": 1443.91
+    },
+    "status_distribution": {
+      "200": 22
+    },
+    "recovered_transport_failures": [],
+    "failures": [],
+    "passed": true,
+    "server": {
+      "peak_memory_mb": 359.26,
+      "peak_swap_mb": 0.0,
+      "peak_pids": 6,
+      "cpu_usage_sec": 17.794,
+      "cpu_throttled_sec": 1.802,
+      "oom_kills_in_stage": 0,
+      "admin_probes_count": 7,
+      "admin_latency": {
+        "p50": 1368.3,
+        "p95": 1474.09,
+        "p99": 1474.09,
+        "min": 1327.9,
+        "max": 1474.09,
+        "avg": 1387.31
+      },
+      "slices": {
+        "golden-1006.slice": {
+          "exists": true,
+          "peak_memory_mb": 359.26,
+          "peak_swap_mb": 0.0,
+          "peak_pids": 6,
+          "cpu_usage_sec": 17.794,
+          "cpu_throttled_sec": 1.802,
+          "oom_kills_in_stage": 0
+        }
+      }
+    },
+    "created_orders": [
+      399,
+      398,
+      401,
+      400,
+      402,
+      403,
+      404,
+      405,
+      406,
+      407,
+      408,
+      409,
+      410,
+      411,
+      412,
+      413,
+      414,
+      415,
+      416,
+      417,
+      418,
+      419
+    ]
+  },
+  "orders_verified": [
+    {
+      "persisted": true,
+      "order_id": 399,
+      "status": "wc-processing",
+      "total_amount": 49.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Cotton Hoodie"
+    },
+    {
+      "persisted": true,
+      "order_id": 398,
+      "status": "wc-processing",
+      "total_amount": 19.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Classic T-Shirt"
+    },
+    {
+      "persisted": true,
+      "order_id": 401,
+      "status": "wc-processing",
+      "total_amount": 24.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Desk Lamp"
+    },
+    {
+      "persisted": true,
+      "order_id": 400,
+      "status": "wc-processing",
+      "total_amount": 24.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Desk Lamp"
+    },
+    {
+      "persisted": true,
+      "order_id": 402,
+      "status": "wc-processing",
+      "total_amount": 22.5,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Yoga Mat"
+    },
+    {
+      "persisted": true,
+      "order_id": 403,
+      "status": "wc-processing",
+      "total_amount": 75.0,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Mechanical Keyboard"
+    },
+    {
+      "persisted": true,
+      "order_id": 404,
+      "status": "wc-processing",
+      "total_amount": 49.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Cotton Hoodie"
+    },
+    {
+      "persisted": true,
+      "order_id": 405,
+      "status": "wc-processing",
+      "total_amount": 24.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Desk Lamp"
+    },
+    {
+      "persisted": true,
+      "order_id": 406,
+      "status": "wc-processing",
+      "total_amount": 19.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Classic T-Shirt"
+    },
+    {
+      "persisted": true,
+      "order_id": 407,
+      "status": "wc-processing",
+      "total_amount": 49.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Cotton Hoodie"
+    },
+    {
+      "persisted": true,
+      "order_id": 408,
+      "status": "wc-processing",
+      "total_amount": 22.5,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Yoga Mat"
+    },
+    {
+      "persisted": true,
+      "order_id": 409,
+      "status": "wc-processing",
+      "total_amount": 12.0,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Ceramic Coffee Mug"
+    },
+    {
+      "persisted": true,
+      "order_id": 410,
+      "status": "wc-processing",
+      "total_amount": 22.5,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Yoga Mat"
+    },
+    {
+      "persisted": true,
+      "order_id": 411,
+      "status": "wc-processing",
+      "total_amount": 45.0,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Backpack 25L"
+    },
+    {
+      "persisted": true,
+      "order_id": 412,
+      "status": "wc-processing",
+      "total_amount": 59.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Wireless Earbuds"
+    },
+    {
+      "persisted": true,
+      "order_id": 413,
+      "status": "wc-processing",
+      "total_amount": 22.5,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Yoga Mat"
+    },
+    {
+      "persisted": true,
+      "order_id": 414,
+      "status": "wc-processing",
+      "total_amount": 75.0,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Mechanical Keyboard"
+    },
+    {
+      "persisted": true,
+      "order_id": 415,
+      "status": "wc-processing",
+      "total_amount": 24.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Desk Lamp"
+    },
+    {
+      "persisted": true,
+      "order_id": 416,
+      "status": "wc-processing",
+      "total_amount": 59.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Wireless Earbuds"
+    },
+    {
+      "persisted": true,
+      "order_id": 417,
+      "status": "wc-processing",
+      "total_amount": 49.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Cotton Hoodie"
+    },
+    {
+      "persisted": true,
+      "order_id": 418,
+      "status": "wc-processing",
+      "total_amount": 29.5,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Leather Wallet"
+    },
+    {
+      "persisted": true,
+      "order_id": 419,
+      "status": "wc-processing",
+      "total_amount": 24.99,
+      "billing_email": "capacitytester@example.com",
+      "items_count": 1,
+      "item_names": "Desk Lamp"
+    }
+  ],
+  "passed": true
+}

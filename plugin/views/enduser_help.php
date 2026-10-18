@@ -41,17 +41,17 @@
             <span class="uniselv-help-badge badge-cat-quickstart">Getting Started</span>
             <h4 class="uniselv-help-card-title">Quick Start: Monitoring Your Account Performance</h4>
             <div class="uniselv-help-card-desc">
-                Your hosting account operates in an isolated environment with dedicated allocations for CPU, physical memory, disk bandwidth, and concurrent tasks.<br>
+                Your hosting account has enforced resource ceilings for CPU, memory, disk bandwidth, and tasks within a shared server. These ceilings are not dedicated physical resources.<br>
                 <ol style="margin: 8px 0 10px 20px; padding: 0; line-height: 1.6;">
-                    <li><strong>Real-Time Gauges:</strong> The <em>Dashboard</em> refreshes every 3 seconds, showing current resource consumption with animated sparklines.</li>
+                    <li><strong>Real-Time Gauges:</strong> The <em>Dashboard</em> refreshes every 10 seconds, showing the latest collected sample and its age. Measured sparklines appear after two distinct samples. Fresh samples can be reused across tabs in the same authenticated account; separate accounts and sessions remain isolated. Unavailable connections retain the last values and show their actual age.</li>
                     <li><strong>Color Status Indicators:</strong>
                         <ul style="margin:4px 0 6px 16px; padding:0;">
                             <li><span class="uniselv-badge badge-normal" style="margin-right:6px;">NORMAL</span> Usage is safely within plan thresholds.</li>
-                            <li><span class="uniselv-badge badge-warning" style="margin-right:6px;">ELEVATED</span> Usage has exceeded 60% of capacity.</li>
-                            <li><span class="uniselv-badge badge-critical" style="margin-right:6px;">LIMIT EXCEEDED</span> Usage has reached plan limits; script execution may be throttled.</li>
+                            <li><span class="uniselv-badge badge-warning" style="margin-right:6px;">ELEVATED</span> Usage has reached the warning threshold configured by your hosting provider.</li>
+                            <li><span class="uniselv-badge badge-critical" style="margin-right:6px;">LIMIT EXCEEDED</span> The critical warning threshold has been reached. Check measured throttling events to confirm CPU enforcement.</li>
                         </ul>
                     </li>
-                    <li><strong>Investigating Spikes:</strong> Switch to the <em>Historical Charts</em> tab to identify exactly when spikes occurred over 1 hour, 24 hours, or 30 days.</li>
+                    <li><strong>Investigating Spikes:</strong> Switch to the <em>Historical Charts</em> tab to identify exactly when spikes occurred using Last Hour, Today, Yesterday, Last 7 Days or Last 30 Days.</li>
                 </ol>
             </div>
         </div>
@@ -61,7 +61,7 @@
             <span class="uniselv-help-badge badge-cat-features">Features</span>
             <h4 class="uniselv-help-card-title">Live Resource Dashboard & Sparklines</h4>
             <div class="uniselv-help-card-desc">
-                <strong>What it does:</strong> Displays live meters for CPU, Memory, Active Tasks, and Disk I/O along with 5-minute animated trend sparklines.<br>
+                <strong>What it does:</strong> Displays live meters for CPU, Memory, Active Tasks, and Disk I/O along with measured trend sparklines collected while this page is open (up to 5 minutes). Charts stay blank until two distinct samples arrive; each card uses its own scale.<br>
                 <strong>Menu:</strong> <em>Dashboard</em> tab.<br>
                 <strong>Key Details:</strong> Displays your core equivalent alongside percentage utilization, ensuring you always know how many CPU cores your application is utilizing.
             </div>
@@ -72,8 +72,8 @@
             <h4 class="uniselv-help-card-title">Process Manager & Safe Script Termination</h4>
             <div class="uniselv-help-card-desc">
                 <strong>What it does:</strong> Shows all active PHP-FPM web workers, cron scripts, and CLI processes currently executing inside your account boundary.<br>
-                <strong>Menu:</strong> <em>Current Usage & Processes</em> tab.<br>
-                <strong>Terminating a Process:</strong> If a script is hanging or looping infinitely, click <strong>Stop Process</strong> next to the process entry. UNISELV securely verifies ownership before terminating only the targeted PID, preventing accidental disruption of other visitors.
+                <strong>Menu:</strong> <em>Current Usage</em> tab.<br>
+                <strong>Terminating a Process:</strong> If a script is hanging or looping infinitely, click <strong>Stop</strong> next to the process entry. UNISELV securely verifies ownership before terminating only the targeted PID, preventing accidental disruption of other visitors.
             </div>
         </div>
 
@@ -81,9 +81,9 @@
             <span class="uniselv-help-badge badge-cat-features">Features</span>
             <h4 class="uniselv-help-card-title">Diagnostic Incident Snapshots</h4>
             <div class="uniselv-help-card-desc">
-                <strong>What it does:</strong> Whenever your account experiences high resource pressure (such as reaching 90% CPU allowance or task limit exhaustion), the system automatically captures a diagnostic snapshot.<br>
+                <strong>What it does:</strong> When enabled by the administrator, measured CPU throttling, OOM kills and task-limit events trigger snapshots subject to the configured cooldown. Periodic snapshots may also be present.<br>
                 <strong>Menu:</strong> <em>Snapshots</em> tab.<br>
-                <strong>How to use:</strong> Click <strong>Inspect</strong> on any snapshot to view the exact process command lines, execution state, and memory consumption at the time of the event.
+                <strong>How to use:</strong> Choose a date, then use <strong>Choose snapshot</strong>. Review <strong>Process list</strong>, <strong>Database Queries</strong> and <strong>HTTP Queries</strong>. Unavailable or empty evidence is labelled separately.
             </div>
         </div>
 
@@ -101,15 +101,15 @@
             <span class="uniselv-help-badge badge-cat-metrics">Resource Metrics</span>
             <h4 class="uniselv-help-card-title">Understanding Resource Metrics & Math</h4>
             <div class="uniselv-help-card-desc">
-                <strong>1. CPU % (Core Equivalent):</strong> 100% CPU represents one full physical CPU core. If your plan has a 100% CPU quota and uses 50%, you are using 0.5 cores. If your plan has a 200% CPU quota (2 cores) and consumes 150%, you are utilizing 1.5 cores (which represents 75% of your allowance).<br>
+                <strong>1. CPU % (Core Equivalent):</strong> 100% CPU represents one vCPU of execution time. If your plan has a 100% CPU quota and uses 50%, you are using 0.5 cores. If your plan has a 200% CPU quota (2 cores) and consumes 150%, you are utilizing 1.5 cores (which represents 75% of your allowance).<br>
                 <strong>2. Memory (Anonymous vs Cache):</strong>
                 <ul style="margin:4px 0 6px 16px; padding:0;">
                     <li><strong>Physical Memory (RAM):</strong> Consumed by your active PHP code, WordPress plugins, and opcache.</li>
-                    <li><strong>Page Cache:</strong> Temporary disk reads stored by the operating system. Cache is harmless and freed automatically when your application requires more memory.</li>
+                    <li><strong>Page Cache:</strong> Temporary disk reads stored by the operating system. Cache contributes to accounted memory; reclaimable pages may be freed under pressure, with possible I/O latency.</li>
                     <li><strong>Zero Swap:</strong> The hosting environment enforces zero swap to prevent disk latency from slowing down your website.</li>
                 </ul>
-                <strong>3. Active Tasks (Processes):</strong> The number of concurrent requests being handled by your website. If tasks reach your plan's maximum, incoming requests may temporarily queue or return 503 errors.<br>
-                <strong>4. Disk I/O Throughput:</strong> The volume of data read from or written to high-speed NVMe storage per second.
+                <strong>3. Active Tasks (Processes):</strong> The number of Linux tasks (processes and threads) in the account cgroup. This is not a count of simultaneous HTTP requests. If tasks reach your plan's maximum, incoming requests may temporarily queue or return 503 errors.<br>
+                <strong>4. Disk I/O Throughput:</strong> The volume of data read from or written to the underlying storage per second. Storage hardware varies by server.
             </div>
         </div>
 
@@ -122,7 +122,7 @@
                 <ol style="margin:6px 0 10px 20px; padding:0;">
                     <li>Check the <strong>CPU Usage</strong> gauge on the Dashboard. If it shows <em>ELEVATED</em> or <em>LIMIT EXCEEDED</em>, your site is using all available processing time.</li>
                     <li>Navigate to the <strong>Processes</strong> tab to check if a specific script (like a backup plugin, import tool, or scraper) is consuming CPU.</li>
-                    <li>If an unwanted background script is stuck, click <strong>Stop Process</strong> to terminate it.</li>
+                    <li>If an unwanted background script is stuck, click <strong>Stop</strong> to terminate it.</li>
                 </ol>
                 <strong>Scenario 2: Visitors are seeing "503 Service Unavailable" or "Resource Limit Reached":</strong>
                 <ol style="margin:6px 0 10px 20px; padding:0;">
@@ -144,13 +144,13 @@
             <h4 class="uniselv-help-card-title">Frequently Asked Questions (FAQ)</h4>
             <div class="uniselv-help-card-desc">
                 <p><strong>Q: Why does my CPU usage drop to 0% right after loading my website?</strong><br>
-                A: Web server requests typically execute in 100–300 milliseconds. Once the page is sent to the browser, the PHP worker sleeps, and CPU usage naturally drops to 0%.</p>
+                A: CPU is measured over a sampling interval. A short request may finish between samples; an idle account can legitimately show 0%. Check the sample age to distinguish inactivity from stale data.</p>
 
                 <p><strong>Q: What happens if my script exceeds the memory limit?</strong><br>
-                A: The Linux kernel will terminate the specific worker process that breached the memory ceiling to preserve the stability of your other processes. This event is recorded in your <em>Notifications</em> tab as an Out-Of-Memory (OOM) event.</p>
+                A: The Linux kernel may reclaim memory and then terminate one or more processes in the account cgroup when it cannot satisfy the enforced ceiling. This event is recorded in your <em>Notifications &amp; Events</em> tab as an Out-Of-Memory (OOM) event.</p>
 
                 <p><strong>Q: Is it safe to stop a process?</strong><br>
-                A: Yes. Stopping a web worker terminates only that specific HTTP request or background task. Database integrity is protected by MariaDB/MySQL transactions.</p>
+                A: Stop only an eligible process you recognize as stuck. It interrupts its work and can fail an active request, import, backup or checkout. Database transactions do not guarantee application-level consistency for every interrupted task.</p>
             </div>
         </div>
 
@@ -159,8 +159,8 @@
             <span class="uniselv-help-badge badge-cat-about">About</span>
             <h4 class="uniselv-help-card-title">About Your Hosting Environment</h4>
             <div class="uniselv-help-card-desc">
-                Your account is hosted on high-performance cloud infrastructure utilizing Linux <strong>Cgroups v2</strong> kernel containerization.<br>
-                This ensures complete resource isolation: activities or traffic spikes occurring on other accounts on the server cannot affect your site's performance or allocated resources.<br>
+                Your account is hosted on high-performance cloud infrastructure utilizing Linux <strong>Cgroups v2</strong> resource accounting and controls.<br>
+                Account limits and the shared hosting pool reduce resource contention. Shared database, storage and host pressure can still affect site performance; this is not complete container or filesystem isolation.<br>
                 For questions regarding your plan allocation or upgrading your limits, contact your hosting provider.
             </div>
         </div>

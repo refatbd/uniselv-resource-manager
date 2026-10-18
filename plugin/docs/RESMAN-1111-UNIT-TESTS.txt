@@ -1,0 +1,23 @@
+test_branding_accepts_safe (__main__.Tests.test_branding_accepts_safe) ... ok
+test_branding_rejects_unsafe_urls_and_styles (__main__.Tests.test_branding_rejects_unsafe_urls_and_styles) ... ok
+test_history_with_real_sqlite_rows (__main__.Tests.test_history_with_real_sqlite_rows) ... ok
+test_no_demo_mappings_resurrect_on_restart (__main__.Tests.test_no_demo_mappings_resurrect_on_restart) ... ok
+test_overview_missing_ram_is_unavailable (__main__.Tests.test_overview_missing_ram_is_unavailable) ... ok
+test_overview_reads_aggregate_not_wrong_sample_column (__main__.Tests.test_overview_reads_aggregate_not_wrong_sample_column) ... ok
+test_retention_persists (__main__.Tests.test_retention_persists) ... ok
+test_retention_rejects_entire_invalid_batch (__main__.Tests.test_retention_rejects_entire_invalid_batch) ... ok
+test_storage_contract (__main__.Tests.test_storage_contract) ... ok
+
+----------------------------------------------------------------------
+Ran 9 tests in 0.757s
+
+OK
+PASS malformed hash rejected
+PASS known alias preserved
+PASS overview never invents default hardware
+PASS overview respects manual values and actual zero
+PASS zero capacity commitment is not 1:1
+PASS stale and lost telemetry never appears live
+PASS audit detail JSON is rendered as escaped text
+PASS sparklines use distinct measured samples, expire and never synthesize trends
+8 frontend regressions passed

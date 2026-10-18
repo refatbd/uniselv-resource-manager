@@ -1,6 +1,10 @@
+> Current release: **1.1.13**, 2026-10-18. Frontend polling optimization and evidence: `plugin/docs/FRONTEND-OPTIMIZATION-1.1.13.md`. Previous release records below are historical.
+
+> Current release: **1.1.12**. Installable artifact: `uniselv-resman-1.1.12.zip`. Current scope and evidence: `plugin/docs/LIFECYCLE-REVIEW-1.1.12.md`.
+
 # UNISELV Resource Manager for Webuzo
 
-A production-grade, enterprise resource management and telemetry extension for Webuzo Hosting Panel on Ubuntu Linux (cgroups v2).
+A resource management and telemetry extension for Webuzo Hosting Panel on Ubuntu Linux (cgroups v2). Release validation and its boundaries are recorded in `plugin/docs/RELEASE-VALIDATION-1.1.10.md`.
 
 UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgroups/` and `/bin/webuzo --api act=resource_limits`) with kernel-level cgroups v2 telemetry, hardware-scaled aggregate safety headroom (Golden Shield integration), diagnostic snapshots, and administrative governance.
 

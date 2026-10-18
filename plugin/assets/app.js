@@ -35,8 +35,10 @@ const UniselvNotify = {
     show: function(type, title, message, duration = 4500) {
         this.init();
 
+        const safe = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         const toast = document.createElement('div');
         toast.className = `uniselv-toast uniselv-toast-${type}`;
+        toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
 
         const icons = {
             success: `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>`,
@@ -92,10 +94,7 @@ const UniselvNotify = {
     }
 };
 
-// Override native window.alert with modern toast
-window.alert = function(msg) {
-    UniselvNotify.info(String(msg), 'Webuzo Notification');
-};
+// Notifications remain scoped to this plugin; Webuzo owns window.alert.
 
 // ==================== MODERN MODAL DIALOG SYSTEM ====================
 const UniselvModal = {
@@ -121,10 +120,17 @@ const UniselvModal = {
             </div>
         `;
 
+        const previousFocus = document.activeElement;
+        const dialog = backdrop.querySelector('.uniselv-modal');
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-label', title);
         document.body.appendChild(backdrop);
         setTimeout(() => backdrop.classList.add('show'), 20);
 
         const close = () => {
+            backdrop.removeEventListener('keydown', onKey);
+            previousFocus?.focus();
             backdrop.classList.remove('show');
             setTimeout(() => {
                 if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop);
@@ -143,6 +149,16 @@ const UniselvModal = {
             close();
             if (typeof onConfirm === 'function') onConfirm();
         });
+
+        const onKey = e => {
+            if (e.key === 'Escape') { e.preventDefault(); cancelBtn.click(); }
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                (document.activeElement === cancelBtn ? confirmBtn : cancelBtn).focus();
+            }
+        };
+        backdrop.addEventListener('keydown', onKey);
+        cancelBtn.focus();
 
         // Close on clicking backdrop
         backdrop.addEventListener('click', (e) => {
@@ -224,6 +240,148 @@ const UniselvPagination = {
     }
 };
 
+// Session-scoped, memory-only sharing of read-only telemetry. Never share mutations,
+// CSRF tokens, other accounts, or data through persistent browser storage.
+class UniselvLiveTelemetry {
+    constructor(app) {
+        this.app = app;
+        this.action = app.isAdmin ? 'overview' : 'dashboard';
+        this.interval = 10000;
+        this.reuseMs = 5000;
+        this.cached = null;
+        this.receivedAt = 0;
+        this.pending = false;
+        this.waiters = [];
+        this.subscriber = null;
+        this.retryAt = 0;
+        this.failures = 0;
+        this.closed = false;
+        this.channel = null;
+        this.lockName = null;
+        this.cancelRequest = null;
+        this.ready = this.connect();
+    }
+    async connect() {
+        try {
+            if (!this.app.csrfToken || typeof BroadcastChannel === 'undefined' ||
+                !window.crypto?.subtle || typeof TextEncoder === 'undefined') return;
+            const identity = JSON.stringify([new URL(this.app.apiEndpoint, window.location.origin).toString(),
+                this.app.currentUser, this.app.isAdmin, this.app.csrfToken]);
+            const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(identity));
+            if (this.closed) return;
+            const key = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+            this.lockName = 'uniselv-live-v1-' + key;
+            this.channel = new BroadcastChannel(this.lockName);
+            this.channel.onmessage = event => this.receive(event.data);
+            this.post({kind: 'hello'});
+        } catch (_) { this.lockName = null; }
+    }
+    sampleEpoch(data) {
+        const row = this.action === 'overview' ? (data?.host || data?.server) : data?.current;
+        return Number(row?.last_sample_epoch) || 0;
+    }
+    fresh() {
+        const age = Date.now() - this.receivedAt;
+        return this.cached !== null && age >= 0 && age < this.reuseMs;
+    }
+    post(message) {
+        try { this.channel?.postMessage({...message, action: this.action}); } catch (_) {}
+    }
+    receive(message) {
+        if (this.closed || !message || message.action !== this.action) return;
+        if (message.kind === 'hello') {
+            if (this.fresh()) this.post({kind: 'sample', at: this.receivedAt, data: this.cached});
+            return;
+        }
+        const now = Date.now();
+        if (message.kind === 'failure' && Number.isFinite(message.until) &&
+            message.until > now && message.until <= now + 60000 && !this.fresh()) {
+            this.retryAt = Math.max(this.retryAt, message.until);
+            this.failures = Math.max(this.failures, Math.min(6, Number(message.failures) || 1));
+            const callbacks = this.waiters.splice(0);
+            if (!callbacks.length && this.subscriber && this.app.isLiveTelemetryVisible()) callbacks.push(this.subscriber);
+            this.notify(callbacks, new Error('Telemetry connection unavailable'), null);
+            return;
+        }
+        if (message.kind !== 'sample' || !Number.isFinite(message.at) || message.at <= this.receivedAt ||
+            message.at > now + 1000 || now - message.at >= this.reuseMs ||
+            !message.data || typeof message.data !== 'object' || message.data.error ||
+            this.sampleEpoch(message.data) < this.sampleEpoch(this.cached)) return;
+        this.cached = message.data;
+        this.receivedAt = Math.min(now, message.at);
+        this.failures = 0;
+        this.retryAt = 0;
+        const callbacks = this.waiters.splice(0);
+        if (!callbacks.length && this.subscriber && this.app.isLiveTelemetryVisible()) callbacks.push(this.subscriber);
+        this.notify(callbacks, null, this.cached);
+    }
+    notify(callbacks, error, data) {
+        for (const callback of callbacks) {
+            try { callback(error, data); } catch (error) { console.error('Telemetry render failed', error); }
+        }
+    }
+    read(action, callback) {
+        if (action !== this.action) throw new Error('Telemetry scope mismatch');
+        if (this.closed) return;
+        this.subscriber = callback;
+        if (this.fresh()) { callback(null, this.cached); return; }
+        if (Date.now() < this.retryAt) { callback(new Error('Telemetry reconnect pending'), null); return; }
+        this.waiters.push(callback);
+        if (this.pending) return;
+        this.pending = true;
+        const run = async () => {
+            // Process any queued cross-tab sample before issuing another request.
+            await new Promise(resolve => setTimeout(resolve, 0));
+            if (this.closed) return;
+            if (this.fresh()) { this.finish(null, this.cached, false); return; }
+            if (Date.now() < this.retryAt) { this.finish(new Error('Telemetry reconnect pending'), null, false); return; }
+            await new Promise(resolve => {
+                this.cancelRequest = this.app.callApi(action, {}, (error, data) => {
+                    this.finish(error || (data?.error ? new Error('Telemetry request failed') : null), data, true);
+                    resolve();
+                }, {timeoutMs: 15000});
+            });
+        };
+        this.ready.then(() => {
+            if (this.closed) return;
+            const locks = typeof navigator !== 'undefined' ? navigator.locks : null;
+            if (this.channel && this.lockName && locks?.request) {
+                return locks.request(this.lockName, run);
+            }
+            return run();
+        }).catch(error => { if (!this.closed) this.finish(error, null, true); });
+    }
+    finish(error, data, network) {
+        this.pending = false;
+        this.cancelRequest = null;
+        if (this.closed) return;
+        if (error && this.fresh()) { error = null; data = this.cached; network = false; }
+        if (!error && this.cached && this.sampleEpoch(data) < this.sampleEpoch(this.cached)) { data = this.cached; network = false; }
+        if (!error && (!data || typeof data !== 'object')) error = new Error('Telemetry unavailable');
+        if (error) {
+            if (network) {
+                this.failures++;
+                this.retryAt = Date.now() + Math.min(60000, this.interval * Math.pow(2, this.failures - 1));
+                this.post({kind: 'failure', until: this.retryAt, failures: this.failures});
+            }
+        } else {
+            this.cached = data;
+            if (network) this.receivedAt = Date.now();
+            this.failures = 0;
+            this.retryAt = 0;
+            if (network) this.post({kind: 'sample', at: this.receivedAt, data});
+        }
+        this.notify(this.waiters.splice(0), error, error ? null : data);
+    }
+    close() {
+        this.closed = true;
+        if (this.cancelRequest) this.cancelRequest();
+        this.channel?.close();
+        this.waiters = [];
+        this.subscriber = null;
+    }
+}
+
 // ==================== MAIN APPLICATION CONTROLLER ====================
 const UniselvResMan = {
     apiEndpoint: '',
@@ -240,9 +398,8 @@ const UniselvResMan = {
         this.bindTabs();
         this.bindEvents();
 
-        if (!this.isAdmin) {
-            this.startLivePolling();
-        } else {
+        this.startLivePolling();
+        if (this.isAdmin) {
             this.loadFeatureSettings();
             this.loadStorageSettings();
             const sel = document.getElementById('admin-user-selector');
@@ -272,6 +429,7 @@ const UniselvResMan = {
         if (!hash) return null;
         let clean = String(hash).replace(/^#+/, '').trim().toLowerCase();
         clean = clean.replace(/^tab-/, '');
+        if (!/^[a-z][a-z0-9-]*$/.test(clean)) return null;
         const aliasMap = {
             'current-usage': 'processes',
             'usage': 'processes',
@@ -296,6 +454,25 @@ const UniselvResMan = {
     },
 
     bindTabs: function() {
+        const tabs = document.querySelector('.uniselv-tabs');
+        if (tabs && !document.getElementById('uniselv-mobile-section')) {
+            const label = document.createElement('label');
+            label.className = 'uniselv-mobile-navigation';
+            label.textContent = 'Section';
+            const select = document.createElement('select');
+            select.id = 'uniselv-mobile-section';
+            select.className = 'uniselv-select';
+            select.setAttribute('aria-label', 'Section');
+            tabs.querySelectorAll('.uniselv-tab-btn').forEach(button => {
+                const option = document.createElement('option');
+                option.value = button.dataset.tab;
+                option.textContent = button.textContent.trim();
+                select.appendChild(option);
+            });
+            select.addEventListener('change', () => this.switchTab(select.value));
+            label.appendChild(select);
+            tabs.before(label);
+        }
         document.querySelectorAll('.uniselv-tab-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const targetTab = btn.getAttribute('data-tab');
@@ -321,6 +498,8 @@ const UniselvResMan = {
 
         btn.classList.add('active');
         content.classList.add('active');
+        const mobileSelect = document.getElementById('uniselv-mobile-section');
+        if (mobileSelect) mobileSelect.value = resolved;
 
         if (updateHash) {
             if (window.history && window.history.replaceState) {
@@ -376,6 +555,12 @@ const UniselvResMan = {
     },
 
     bindEvents: function() {
+        document.querySelectorAll('.uniselv-container input, .uniselv-container select, .uniselv-container textarea').forEach(el => {
+            if (el.labels?.length || el.getAttribute('aria-label')) return;
+            const group = el.closest('.uniselv-form-group');
+            const label = group?.querySelector('label');
+            el.setAttribute('aria-label', label?.textContent.trim() || el.placeholder || el.id.replace(/[-_]/g, ' ') || 'Setting');
+        });
         // Range buttons for history
         document.querySelectorAll('.uniselv-range-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -445,29 +630,107 @@ const UniselvResMan = {
         });
     },
 
+    isLiveTelemetryVisible: function() {
+        if (document.hidden) return false;
+        const tab = document.getElementById(this.isAdmin ? 'tab-overview' : 'tab-dashboard');
+        return !!tab && tab.classList.contains('active');
+    },
+
+    requestLiveTelemetry: function(action, callback) {
+        if (this.liveTelemetry) return this.liveTelemetry.read(action, callback);
+        return this.callApi(action, {}, callback); // Initial/static test contexts.
+    },
+
+    refreshLiveTelemetry: function() {
+        if (!this.isLiveTelemetryVisible()) return;
+        if (this.isAdmin) { this.loadAdminOverview(); return; }
+        this.requestLiveTelemetry('dashboard', (error, data) => {
+            if (error || !data || data.error) { this.showTelemetryFreshness(null, true); return; }
+            this.updateDashboardMetrics(data);
+        });
+    },
+
     startLivePolling: function() {
         if (this.pollTimer) clearInterval(this.pollTimer);
-        this.pollTimer = setInterval(() => {
-            if (document.hidden) return;
-            if (this.isAdmin) {
-                const ovTab = document.getElementById('tab-overview');
-                if (ovTab && ovTab.classList.contains('active')) {
-                    this.loadAdminOverview();
-                }
-                return;
-            }
-            const dashTab = document.getElementById('tab-dashboard');
-            if (!dashTab || !dashTab.classList.contains('active')) return;
-
-            this.callApi('dashboard', {}, (err, res) => {
-                if (err || !res || res.error) return;
-                this.updateDashboardMetrics(res);
+        if (!this.liveTelemetry || this.liveTelemetry.closed) this.liveTelemetry = new UniselvLiveTelemetry(this);
+        this.pollTimer = setInterval(() => this.refreshLiveTelemetry(), 10000);
+        if (this.freshnessTimer) clearInterval(this.freshnessTimer);
+        this.freshnessTimer = setInterval(() => {
+            if (!document.hidden && this.telemetryAgeInitialized) this.renderTelemetryFreshness();
+        }, 1000);
+        if (!this.telemetryLifecycleBound) {
+            this.telemetryLifecycleBound = true;
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && this.pollTimer) this.refreshLiveTelemetry();
             });
-        }, 3000);
+            window.addEventListener('pagehide', () => {
+                clearInterval(this.pollTimer);
+                clearInterval(this.freshnessTimer);
+                this.pollTimer = null;
+                this.freshnessTimer = null;
+                this.liveTelemetry?.close();
+            });
+            window.addEventListener('pageshow', event => {
+                if (event.persisted) { this.startLivePolling(); this.refreshLiveTelemetry(); }
+            });
+        }
+    },
+
+    showTelemetryFreshness: function(epoch, failed = false) {
+        this.telemetryAgeInitialized = true;
+        this.telemetryLastEpoch = epoch;
+        this.telemetryConnectionFailed = failed;
+        this.renderTelemetryFreshness();
+    },
+
+    renderTelemetryFreshness: function() {
+        const epoch = this.telemetryLastEpoch;
+        const failed = this.telemetryConnectionFailed;
+        const el = document.getElementById(this.isAdmin ? 'admin-telemetry-freshness' : 'uniselv-telemetry-freshness');
+        if (!el) return;
+        const age = epoch ? Math.max(0, Math.floor(Date.now() / 1000 - epoch)) : null;
+        const stale = failed || age === null || age > 180;
+        el.textContent = failed ? 'Telemetry connection unavailable. Last displayed values are retained.' :
+            (age === null ? 'Telemetry unavailable — waiting for the first sample.' : `${stale ? 'Stale telemetry' : 'Latest telemetry'}: ${age}s ago (display refresh: 10s).`);
+        el.style.color = stale ? '#b91c1c' : '#475569';
+        el.setAttribute('role', stale ? 'alert' : 'status');
+    },
+
+    sparklineSamples: [],
+    updateMeasuredSparklines: function(cur) {
+        const epoch = Number(cur.last_sample_epoch);
+        if (!Number.isFinite(epoch) || epoch <= 0) return;
+        let samples = this.sparklineSamples;
+        if (!samples.length || samples[samples.length - 1].t < epoch) {
+            samples.push({t: epoch, cpu: Number(cur.cpu_percent), mem: Number(cur.mem_current_bytes),
+                          io: Number(cur.read_bytes_sec) + Number(cur.write_bytes_sec), tasks: Number(cur.tasks_current)});
+        }
+        samples = this.sparklineSamples = samples.filter(p => p.t >= epoch - 300);
+        if (samples.length < 2) {
+            document.querySelectorAll('.uniselv-sparkline-wrap').forEach(w => delete w.dataset.measured);
+            return;
+        }
+        for (const metric of ['cpu', 'mem', 'io', 'tasks']) {
+            const wrap = document.querySelector(`#uniselv-card-${metric} .uniselv-sparkline-wrap`);
+            if (!wrap || samples.some(p => !Number.isFinite(p[metric]))) continue;
+            const max = Math.max(1, ...samples.map(p => p[metric]));
+            const span = Math.max(1, samples[samples.length-1].t - samples[0].t);
+            const coords = samples.map(p => `${((p.t-samples[0].t)/span*100).toFixed(2)} ${(38-p[metric]/max*36).toFixed(2)}`);
+            const line = 'M' + coords.join(' L');
+            const paths = wrap.querySelectorAll('path');
+            if (paths.length < 2) continue;
+            paths[0].setAttribute('d', line + ' L100 40 L0 40 Z');
+            paths[1].setAttribute('d', line);
+            wrap.dataset.measured = 'true';
+            wrap.title = `Measured trend: ${samples.length} samples since this page opened, up to 5 minutes. Each card uses its own vertical scale.`;
+        }
     },
 
     updateDashboardMetrics: function(dash) {
         const cur = dash.current || {};
+        this.showTelemetryFreshness(dash.telemetry_available === false ? null : cur.last_sample_epoch);
+        if (dash.telemetry_available === false) return;
+        this.updateMeasuredSparklines(cur);
         const limits = dash.limits || {};
 
         const permissions = dash.permissions || {};
@@ -522,7 +785,7 @@ const UniselvResMan = {
             memBadgeEl.innerText = memStatus;
         }
         const memSubEl = document.getElementById('uniselv-sub-mem');
-        if (memSubEl) memSubEl.innerHTML = `Limit: <strong>${memLimit}</strong> (App: ${cur.mem_anon_formatted || '0 B'} | Cache: ${cur.mem_file_formatted || '0 B'})`;
+        if (memSubEl) memSubEl.innerHTML = `Limit: <strong>${memLimit}</strong> (App: ${cur.mem_anon_formatted ?? 'Unavailable'} | Cache: ${cur.mem_file_cache_formatted ?? 'Unavailable'})`;
 
         // 3. I/O Metrics
         const ioRead = cur.read_bw_formatted || '0.0 MiB/s';
@@ -732,7 +995,7 @@ const UniselvResMan = {
             if (document.getElementById('retention-audit')) document.getElementById('retention-audit').value = s.audit_days || 90;
             if (document.getElementById('retention-max-storage')) document.getElementById('retention-max-storage').value = s.max_storage_mib || 100;
 
-            if (document.getElementById('storage-total-display')) document.getElementById('storage-total-display').innerText = st.total_formatted || '0 B';
+            if (document.getElementById('storage-total-display')) document.getElementById('storage-total-display').innerText = st.total_formatted ?? 'Unavailable';
             if (document.getElementById('storage-limit-display')) document.getElementById('storage-limit-display').innerText = (s.max_storage_mib || 100) + ' MiB';
             if (document.getElementById('storage-bar-fill')) document.getElementById('storage-bar-fill').style.width = Math.min(100, st.used_percent || 0) + '%';
             if (document.getElementById('storage-used-pct')) document.getElementById('storage-used-pct').innerText = (st.used_percent || 0) + '%';
@@ -828,7 +1091,7 @@ const UniselvResMan = {
         });
     },
 
-    callApi: function(subact, params, callback) {
+    callApi: function(subact, params, callback, options = {}) {
         const url = new URL(this.apiEndpoint, window.location.origin);
         url.searchParams.set('subact', subact);
         url.searchParams.set('api', 'json');
@@ -841,13 +1104,27 @@ const UniselvResMan = {
             postData.append('csrf_token', this.csrfToken);
         }
 
+        // Timeout only bounded read-only telemetry; long-running mutations keep
+        // their existing lifecycle and are never cached or sent across tabs.
+        const controller = options.timeoutMs && typeof AbortController !== 'undefined' ? new AbortController() : null;
+        let finished = false;
+        let timer = null;
+        const finish = (error, data) => {
+            if (finished) return;
+            finished = true;
+            if (timer) clearTimeout(timer);
+            callback(error, data);
+        };
+        if (controller) timer = setTimeout(() => controller.abort(), options.timeoutMs);
         fetch(url.toString(), {
-            method: 'POST',
-            body: postData
-        })
-        .then(res => res.json())
-        .then(data => callback(null, data))
-        .catch(err => callback(err, null));
+            method: 'POST', body: postData,
+            ...(controller ? {signal: controller.signal} : {})
+        }).then(response => {
+            if (!response.ok) throw new Error('Request failed (HTTP ' + response.status + ')');
+            return response.json();
+        }).then(data => finish(null, data), error => finish(error, null));
+        return () => { if (controller) controller.abort(); };
+
     },
 
     renderChartsToContainer: function(chartContainer, points) {
@@ -928,23 +1205,23 @@ const UniselvResMan = {
                     const cpuData = pts.map(p => ({ x: p.t, y: p.speed, limit: p.limit_speed }));
                     const cpuAvg = (cpuData.reduce((s, p) => s + p.y, 0) / cpuData.length).toFixed(1);
                     const cpuMax = Math.max(...cpuData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('CPU (SPEED)', cpuData, '%', '#2563eb', `Avg: ${cpuAvg}% | Max: ${cpuMax}%`));
+                    gridEl.appendChild(this.renderUsage8Chart('CPU (SPEED)', cpuData, '%', '#2563eb', `Plotted avg: ${cpuAvg}% | max: ${cpuMax}%`));
 
-                    // Chart 2: Virtual memory
+                    // Chart 2: Virtual memory (RAM + Swap)
                     const vmemData = pts.map(p => ({ x: p.t, y: p.vmem, limit: p.limit_vmem }));
                     const vmemMax = Math.max(...vmemData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Virtual memory', vmemData, 'MB', '#6366f1', `Max: ${vmemMax} MB`));
+                    gridEl.appendChild(this.renderUsage8Chart('Virtual memory (RAM + Swap)', vmemData, 'MiB', '#6366f1', `Plotted max: ${vmemMax} MiB; historical limit unavailable`));
 
                     // Chart 3: Physical memory
                     const pmemData = pts.map(p => ({ x: p.t, y: p.pmem, limit: p.limit_pmem }));
                     const pmemMax = Math.max(...pmemData.map(p => p.y)).toFixed(1);
                     const pmemAvg = (pmemData.reduce((s, p) => s + p.y, 0) / pmemData.length).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Physical memory', pmemData, 'MB', '#059669', `Avg: ${pmemAvg} MB | Max: ${pmemMax} MB`));
+                    gridEl.appendChild(this.renderUsage8Chart('Physical memory', pmemData, 'MiB', '#059669', `Plotted avg: ${pmemAvg} MiB | max: ${pmemMax} MiB`));
 
                     // Chart 4: IO
                     const ioData = pts.map(p => ({ x: p.t, y: p.io, limit: p.limit_io }));
                     const ioMax = Math.max(...ioData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('IO', ioData, 'KB/s', '#d97706', `Max: ${ioMax} KB/s`));
+                    gridEl.appendChild(this.renderUsage8Chart('IO', ioData, 'KiB/s', '#d97706', `Plotted max: ${ioMax} KiB/s`));
 
                     // Chart 5: IOPS
                     const iopsData = pts.map(p => ({ x: p.t, y: p.iops, limit: p.limit_iops }));
@@ -953,8 +1230,9 @@ const UniselvResMan = {
 
                     // Chart 6: Entry processes
                     const epData = pts.map(p => ({ x: p.t, y: p.ep, limit: p.limit_ep }));
-                    const epMax = Math.max(...epData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Entry processes', epData, 'EP', '#7c3aed', `Max: ${epMax} EP`));
+                    const hasEp = pts.some(p => p.ep !== null && p.ep !== undefined);
+                    const epStat = hasEp ? `Max: ${Math.max(...epData.filter(p => p.y !== null).map(p => p.y)).toFixed(1)} EP` : 'N/A (Governed via NPROC)';
+                    gridEl.appendChild(this.renderUsage8Chart('Entry processes', epData, 'EP', '#7c3aed', epStat));
 
                     // Chart 7: Processes
                     const nprocData = pts.map(p => ({ x: p.t, y: p.nproc, limit: p.limit_nproc }));
@@ -1108,6 +1386,17 @@ const UniselvResMan = {
             empty.style.padding = '30px';
             empty.style.textAlign = 'center';
             empty.style.color = '#94a3b8';
+            card.appendChild(empty);
+            return card;
+        }
+
+        const allNull = points.every(p => p.y === null || p.y === undefined);
+        if (allNull) {
+            const empty = document.createElement('div');
+            empty.innerHTML = `<div style="padding: 34px 16px; text-align: center; color: #64748b; font-size: 0.82rem; line-height: 1.5;">
+                <div style="font-weight: 600; color: #475569; margin-bottom: 4px;">Metric Unavailable</div>
+                Linux cgroups v2 does not track mod_hostinglimits Entry Processes independently.<br>Account concurrency is governed via <strong>Processes (NPROC)</strong>.
+            </div>`;
             card.appendChild(empty);
             return card;
         }
@@ -1360,23 +1649,23 @@ const UniselvResMan = {
                     const cpuData = pts.map(p => ({ x: p.t, y: p.speed, limit: p.limit_speed }));
                     const cpuAvg = (cpuData.reduce((s, p) => s + p.y, 0) / cpuData.length).toFixed(1);
                     const cpuMax = Math.max(...cpuData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('CPU (SPEED)', cpuData, '%', '#2563eb', `Avg: ${cpuAvg}% | Max: ${cpuMax}%`));
+                    gridEl.appendChild(this.renderUsage8Chart('CPU (SPEED)', cpuData, '%', '#2563eb', `Plotted avg: ${cpuAvg}% | max: ${cpuMax}%`));
 
-                    // Chart 2: Virtual memory
+                    // Chart 2: Virtual memory (RAM + Swap)
                     const vmemData = pts.map(p => ({ x: p.t, y: p.vmem, limit: p.limit_vmem }));
                     const vmemMax = Math.max(...vmemData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Virtual memory', vmemData, 'MB', '#6366f1', `Max: ${vmemMax} MB`));
+                    gridEl.appendChild(this.renderUsage8Chart('Virtual memory (RAM + Swap)', vmemData, 'MiB', '#6366f1', `Plotted max: ${vmemMax} MiB; historical limit unavailable`));
 
                     // Chart 3: Physical memory
                     const pmemData = pts.map(p => ({ x: p.t, y: p.pmem, limit: p.limit_pmem }));
                     const pmemMax = Math.max(...pmemData.map(p => p.y)).toFixed(1);
                     const pmemAvg = (pmemData.reduce((s, p) => s + p.y, 0) / pmemData.length).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Physical memory', pmemData, 'MB', '#059669', `Avg: ${pmemAvg} MB | Max: ${pmemMax} MB`));
+                    gridEl.appendChild(this.renderUsage8Chart('Physical memory', pmemData, 'MiB', '#059669', `Plotted avg: ${pmemAvg} MiB | max: ${pmemMax} MiB`));
 
                     // Chart 4: IO
                     const ioData = pts.map(p => ({ x: p.t, y: p.io, limit: p.limit_io }));
                     const ioMax = Math.max(...ioData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('IO', ioData, 'KB/s', '#d97706', `Max: ${ioMax} KB/s`));
+                    gridEl.appendChild(this.renderUsage8Chart('IO', ioData, 'KiB/s', '#d97706', `Plotted max: ${ioMax} KiB/s`));
 
                     // Chart 5: IOPS
                     const iopsData = pts.map(p => ({ x: p.t, y: p.iops, limit: p.limit_iops }));
@@ -1385,8 +1674,9 @@ const UniselvResMan = {
 
                     // Chart 6: Entry processes
                     const epData = pts.map(p => ({ x: p.t, y: p.ep, limit: p.limit_ep }));
-                    const epMax = Math.max(...epData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Entry processes', epData, 'EP', '#7c3aed', `Max: ${epMax} EP`));
+                    const hasEp = pts.some(p => p.ep !== null && p.ep !== undefined);
+                    const epStat = hasEp ? `Max: ${Math.max(...epData.filter(p => p.y !== null).map(p => p.y)).toFixed(1)} EP` : 'N/A (Governed via NPROC)';
+                    gridEl.appendChild(this.renderUsage8Chart('Entry processes', epData, 'EP', '#7c3aed', epStat));
 
                     // Chart 7: Processes
                     const nprocData = pts.map(p => ({ x: p.t, y: p.nproc, limit: p.limit_nproc }));
@@ -2331,14 +2621,17 @@ const UniselvResMan = {
         const mode = modeEl ? modeEl.value : 'AUTO';
         const cpuEl = document.getElementById('golden-cpu-pct') || document.getElementById('golden-cpu-pct-modal');
         const memEl = document.getElementById('golden-mem-mib') || document.getElementById('golden-mem-mib-modal');
-        const cpu = cpuEl ? parseInt(cpuEl.value, 10) : 340;
-        const mem = memEl ? parseInt(memEl.value, 10) : 6210;
-
-        this.callApi('golden_reconfigure', {
-            mode: mode,
-            customer_cpu_pct: cpu,
-            hosting_mem_mib: mem
-        }, (err, res) => {
+        const params = { mode: mode };
+        if (mode.toUpperCase() === 'MANUAL') {
+            const cpu = Number(cpuEl?.value), mem = Number(memEl?.value);
+            if (!Number.isInteger(cpu) || !Number.isInteger(mem) || cpu <= 0 || mem <= 0) {
+                UniselvNotify.error('Enter valid positive CPU and memory values for Manual mode.');
+                return;
+            }
+            params.customer_cpu_pct = cpu;
+            params.hosting_mem_mib = mem;
+        }
+        this.callApi('golden_reconfigure', params, (err, res) => {
             if (err || res.error) {
                 UniselvNotify.error(`Reconfiguration failed: ${err || res.error}`);
             } else {
@@ -2589,11 +2882,12 @@ const UniselvResMan = {
 
     // ==================== ADMIN OVERVIEW LIVE POLLING ====================
     loadAdminOverview: function() {
-        this.callApi('overview', {}, (err, res) => {
-            if (err || !res || res.error) return;
+        this.requestLiveTelemetry('overview', (err, res) => {
+            if (err || !res || res.error) { this.showTelemetryFreshness(null, true); return; }
             const host = res.host || res.server || {};
+            this.showTelemetryFreshness(host.last_sample_epoch);
             const shield = res.golden_shield || {};
-            const calc = shield.calculated_policy || shield.configured_policy || {};
+            const calc = shield.configured_policy || {};
 
             // 1. Hardware Detection
             const hwCpuEl = document.getElementById('admin-card-hw-cpu');
@@ -2608,24 +2902,24 @@ const UniselvResMan = {
             // 2. Shared CPU Headroom
             const cpuHeadroomEl = document.getElementById('admin-card-cpu-headroom');
             if (cpuHeadroomEl) {
-                const cCpu = shield.customer_cpu_percent || calc.customerCpuPercent || 340;
+                const cCpu = shield.customer_cpu_percent ?? calc.customerCpuPercent ?? 'Unavailable';
                 cpuHeadroomEl.textContent = cCpu + '% Hosting';
             }
             const cpuSubEl = document.getElementById('admin-card-cpu-sub');
             if (cpuSubEl) {
-                const rCpu = shield.reserved_cpu_percent || calc.reservedCpuPercent || 60;
+                const rCpu = shield.reserved_cpu_percent ?? calc.reservedCpuPercent ?? 'Unavailable';
                 cpuSubEl.textContent = rCpu + '% System Headroom (No fixed core dedicated)';
             }
 
             // 3. RAM Safety Budget
             const ramCurrEl = document.getElementById('admin-card-ram-curr');
             if (ramCurrEl) {
-                ramCurrEl.textContent = shield.golden_mem_current_formatted || host.mem_used_formatted || '0 B';
+                ramCurrEl.textContent = shield.golden_mem_current_formatted ?? 'Unavailable';
             }
             const ramCapEl = document.getElementById('admin-card-ram-cap');
             if (ramCapEl) {
-                const maxFmt = shield.golden_mem_max_formatted || (calc.hostingMemoryMaxMiB ? (Math.round(calc.hostingMemoryMaxMiB / 1024 * 100) / 100) + ' GiB' : '6.07 GiB');
-                const hMib = shield.headroom_mib || calc.headroomMiB || 1280;
+                const maxFmt = shield.golden_mem_max_formatted || (calc.hostingMemoryMaxMiB ? (Math.round(calc.hostingMemoryMaxMiB / 1024 * 100) / 100) + ' GiB' : 'Unavailable');
+                const hMib = shield.headroom_mib ?? calc.headroomMiB ?? 'Unavailable';
                 ramCapEl.textContent = 'Hosting Cap: ' + maxFmt + ' (Reserve: ' + hMib + ' MiB)';
             }
 
@@ -2675,20 +2969,20 @@ const UniselvResMan = {
 
             // Commit ratios
             const cpuCommit = document.getElementById('cap-cpu-commit');
-            if (cpuCommit) cpuCommit.textContent = (sum.cpu_commit_ratio || 1.0) + ' : 1';
+            if (cpuCommit) cpuCommit.textContent = (sum.cpu_commit_ratio ?? 'Unavailable') + ' : 1';
             const cpuSoldSub = document.getElementById('cap-cpu-sold-sub');
             if (cpuSoldSub) cpuSoldSub.textContent = `Sold: ${sold.total_sold_cpu_pct || 0}% across ${res.total_accounts || 0} accounts`;
 
             const memCommit = document.getElementById('cap-mem-commit');
-            if (memCommit) memCommit.textContent = (sum.mem_commit_ratio || 1.0) + ' : 1';
+            if (memCommit) memCommit.textContent = (sum.mem_commit_ratio ?? 'Unavailable') + ' : 1';
             const memSoldSub = document.getElementById('cap-mem-sold-sub');
             if (memSoldSub) memSoldSub.textContent = `Sold: ${sold.total_sold_mem_mib || 0} MiB (${Math.round((sold.total_sold_mem_mib || 0)/1024)} GiB)`;
 
             // Physical boundary
             const physDesc = document.getElementById('cap-physical-desc');
-            if (physDesc) physDesc.textContent = `${hw.cpu_cores || 4} vCPUs / ${Math.round((hw.ram_total_mib || 8192)/1024)} GiB RAM`;
+            if (physDesc) physDesc.textContent = `${hw.cpu_cores ?? 'Unavailable'} vCPUs / ${hw.ram_total_mib != null ? Math.round(hw.ram_total_mib/1024*100)/100 : 'Unavailable'} GiB RAM`;
             const poolDesc = document.getElementById('cap-golden-pool-desc');
-            if (poolDesc) poolDesc.textContent = `Pool: ${pool.hosting_cpu_quota_pct || 340}% Quota / ${pool.system_headroom_cpu_pct || 60}% Headroom`;
+            if (poolDesc) poolDesc.textContent = `Pool: ${pool.hosting_cpu_quota_pct ?? 'Unavailable'}% Quota / ${pool.system_headroom_cpu_pct ?? 'Unavailable'}% Headroom`;
 
             // Decoupled independent 24h peaks
             const peakCpu = document.getElementById('cap-peak-cpu-val');
@@ -2740,11 +3034,12 @@ const UniselvResMan = {
                     <td><code>load: ${sum.system_load || '0.00'}</code></td>
                     <td><span class="uniselv-badge badge-normal">${r.status || 'stored'}</span></td>
                     <td>
-                        <button class="uniselv-btn btn-outline btn-sm" onclick='UniselvResMan.showReportDetail(${JSON.stringify(JSON.stringify(sum))})'>
+                        <button class="uniselv-btn btn-outline btn-sm" data-report-detail>
                             View Summary
                         </button>
                     </td>
                 `;
+                tr.querySelector('[data-report-detail]').addEventListener('click', () => this.showReportDetail(sum));
                 body.appendChild(tr);
             });
         });
@@ -2771,7 +3066,7 @@ const UniselvResMan = {
             const formatted = JSON.stringify(summary, null, 2);
             UniselvModal.confirm({
                 title: 'Report / Audit Details JSON',
-                message: `<pre style="max-height: 350px; overflow-y: auto; background: #0f172a; color: #f8fafc; padding: 14px; border-radius: 8px; font-size: 0.78rem; text-align: left;">${formatted}</pre>`,
+                message: `<pre style="max-height: 350px; overflow-y: auto; background: #0f172a; color: #f8fafc; padding: 14px; border-radius: 8px; font-size: 0.78rem; text-align: left;">${this.escapeHtml(formatted)}</pre>`,
                 confirmText: 'Close',
                 cancelText: 'Copy JSON',
                 onCancel: () => {
@@ -2837,7 +3132,7 @@ const UniselvResMan = {
 
         this.callApi('package_mappings', {}, (err, res) => {
             if (err || res.error) {
-                body.innerHTML = `<tr><td colspan="3" style="color: #b91c1c; text-align: center;">Failed: ${err || res.error}</td></tr>`;
+                body.innerHTML = `<tr><td colspan="3" style="color: #b91c1c; text-align: center;">Failed: ${this.escapeHtml(String(err || res.error))}</td></tr>`;
                 return;
             }
 
@@ -2848,17 +3143,13 @@ const UniselvResMan = {
             }
 
             body.innerHTML = '';
+            const availablePlans = new Set((res.native_plans || []).map(p => p.name));
             maps.forEach(m => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><strong>${m.billing_package}</strong></td>
-                    <td><code>${m.resource_plan}</code></td>
-                    <td>
-                        <button class="uniselv-btn btn-danger btn-sm" onclick="UniselvResMan.deletePackageMapping('${m.billing_package.replace(/'/g, "\\'")}')">
-                            Delete
-                        </button>
-                    </td>
-                `;
+                tr.innerHTML = `<td><strong>${this.escapeHtml(m.billing_package)}</strong></td>
+                    <td><code>${this.escapeHtml(m.resource_plan)}</code>${availablePlans.has(m.resource_plan) ? '' : ' <span class="uniselv-badge badge-warning">Missing native plan</span>'}</td>
+                    <td><button class="uniselv-btn btn-danger btn-sm">Delete</button></td>`;
+                tr.querySelector('button').addEventListener('click', () => this.deletePackageMapping(m.billing_package));
                 body.appendChild(tr);
             });
         });
@@ -2889,7 +3180,7 @@ const UniselvResMan = {
     deletePackageMapping: function(pkg) {
         UniselvModal.confirm({
             title: 'Delete Package Mapping',
-            message: `Are you sure you want to delete the mapping for billing package <strong>${pkg}</strong>?`,
+            message: `Are you sure you want to delete the mapping for billing package <strong>${this.escapeHtml(pkg)}</strong>?`,
             isDanger: true,
             confirmText: 'Delete Mapping',
             onConfirm: () => {
@@ -3011,15 +3302,16 @@ const UniselvResMan = {
             const detailsStr = JSON.stringify(l.details || {});
             tr.innerHTML = `
                 <td><small style="color: #64748b;">${dt}</small></td>
-                <td><strong>${l.actor}</strong></td>
-                <td><span class="uniselv-badge badge-normal">${l.action}</span></td>
-                <td><code>${l.target_account || 'all'}</code></td>
+                <td><strong>${this.escapeHtml(l.actor)}</strong></td>
+                <td><span class="uniselv-badge badge-normal">${this.escapeHtml(l.action)}</span></td>
+                <td><code>${this.escapeHtml(l.target_account || 'all')}</code></td>
                 <td>
-                    <button class="uniselv-btn btn-outline btn-sm" onclick='UniselvResMan.showReportDetail(${JSON.stringify(detailsStr)})'>
+                    <button class="uniselv-btn btn-outline btn-sm" data-audit-detail>
                         View Details
                     </button>
                 </td>
             `;
+            tr.querySelector('[data-audit-detail]').addEventListener('click', () => this.showReportDetail(detailsStr));
             body.appendChild(tr);
         });
 
@@ -3071,8 +3363,8 @@ const UniselvResMan = {
 
         this.callApi('get_permissions', {}, (err, res) => {
             if (err || res.error) {
-                rBody.innerHTML = `<tr><td colspan="4" style="color:#b91c1c; text-align:center;">Failed: ${err || res.error}</td></tr>`;
-                aBody.innerHTML = `<tr><td colspan="4" style="color:#b91c1c; text-align:center;">Failed: ${err || res.error}</td></tr>`;
+                rBody.innerHTML = `<tr><td colspan="4" style="color:#b91c1c; text-align:center;">Failed: ${this.escapeHtml(String(err || res.error))}</td></tr>`;
+                aBody.innerHTML = `<tr><td colspan="4" style="color:#b91c1c; text-align:center;">Failed: ${this.escapeHtml(String(err || res.error))}</td></tr>`;
                 return;
             }
 

@@ -194,19 +194,8 @@ def init_db(db_path: str):
 
         import time
         now = int(time.time())
-        cur.executemany("""
-            INSERT OR IGNORE INTO package_mappings (billing_package, resource_plan, updated_at)
-            VALUES (?, ?, ?)
-        """, [
-            ('Bronze', 'starter', now),
-            ('Silver', 'turbo', now),
-            ('Gold', 'enterprise', now),
-            ('Platinum', 'master', now),
-            ('Business Hosting', 'enterprise', now),
-            ('Starter Hosting', 'starter', now),
-            ('Pro Hosting', 'turbo', now),
-            ('VIP Hosting', 'master', now)
-        ])
+        # Billing mappings are operator configuration. Never reseed demo mappings
+        # on startup: doing so resurrected deleted entries after agent restart.
 
         cur.executemany("""
             INSERT OR IGNORE INTO role_permissions (role, permission, granted, updated_at)

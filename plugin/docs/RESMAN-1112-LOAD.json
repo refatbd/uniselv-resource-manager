@@ -1,0 +1,137 @@
+{
+  "aggregate_cpu_percent": 300.84,
+  "duration_sec": 27.48,
+  "kernel_cpu_max": "340000 100000",
+  "initial_group": "0::/golden.slice/golden-1009.slice/webuzo-session-u1009-p10387-1792299735691849374.scope",
+  "samples": [
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.181819"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.729560"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.193817"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.011893"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.148842"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.008683"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.164713"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.005707"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.199056"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.009960"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.189590"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.042429"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.205757"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.009038"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.158660"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.012701"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.152593"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.013677"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.260165"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.011827"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.134837"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.013636"
+    },
+    {
+      "target": "panel",
+      "exit": 0,
+      "result": "302 0.177192"
+    },
+    {
+      "target": "wordpress",
+      "exit": 0,
+      "result": "200 0.009411"
+    }
+  ],
+  "throttled_periods_delta": 170,
+  "throttled_usec_delta": 2828080,
+  "passed": true,
+  "test_conditions": {
+    "circuit_breaker_temporarily_paused": true,
+    "circuit_breaker_restored_enabled": true,
+    "workload": "Eight bounded CPU workers in the Master account; 12 panel and 12 WordPress homepage requests",
+    "physical_resize_performed": false
+  }
+}

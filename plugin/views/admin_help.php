@@ -142,8 +142,8 @@
                     <li>Hosting Pool Quota: <strong>680%</strong> (85%)</li>
                     <li>System Headroom: <strong>120%</strong> (15%)</li>
                 </ul>
-                <strong>Reboot Persistence:</strong> Drop-in file at <code>/etc/systemd/system/golden.slice.d/50-uniselv-limits.conf</code> guarantees limits persist through reboots and systemd reloads.<br>
-                <strong>Transactional Backups & Safe Restore:</strong> Before every policy modification, a timestamped backup is saved to <code>/var/lib/uniselv-resource-manager/golden-backups/</code>. When restoring, the manager validates schema integrity, sets drop-in limits, reloads systemd, and automatically rolls back if live kernel verification fails.<br>
+                <strong>Reboot Persistence:</strong> Drop-in file at <code>/etc/systemd/system/golden.slice.d/50-uniselv-limits.conf</code> stores limits for reboots and systemd reloads; verify effective limits after maintenance.<br>
+                <strong>Transactional Backups & Safe Restore:</strong> Before every policy modification, a timestamped backup is saved to <code>/var/lib/uniselv-resource-manager/golden-backups/</code>. When restoring, the manager validates schema integrity, sets drop-in limits, reloads systemd, and attempts a bounded rollback if live kernel verification fails. A failed rollback is reported as inconsistent and requires recovery review.<br>
                 <strong>Zero Fabricated Fallbacks:</strong> Hardware detection fails closed (RuntimeError) if physical metrics cannot be determined, preventing unsafe fabricated assumptions.
             </div>
             <div class="uniselv-code-block">
@@ -152,15 +152,37 @@
             </div>
         </div>
 
+        <div class="uniselv-help-card" data-cat="golden" id="help-topic-installation-ownership">
+            <span class="uniselv-help-badge badge-cat-golden">Maintenance</span>
+            <h4 class="uniselv-help-card-title">Installation, Deactivation and Ownership</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Installation:</strong> Activation installs missing bundled isolation, Golden Shield and session protection dependencies on a supported native layout, then checks effective protection. Unsupported or changed integrations stop activation and retain recovery files.<br>
+                <strong>Deactivation:</strong> Pauses plugin monitoring and restores its PHP tracker settings. Existing kernel isolation remains active.<br>
+                <strong>Uninstallation:</strong> Restores protection components installed by this plugin. Previously adopted integrations remain installed. Changed files or failed restoration block cleanup rather than reporting success.<br>
+                <strong>Recovery:</strong> Keep the installation backup and ownership records. If a lifecycle action fails, read the reported error and verify services before retrying. Do not delete recovery manifests to bypass a failure. Existing-server lifecycle evidence does not certify every fresh operating-system or vendor layout.
+            </div>
+        </div>
+
+        <div class="uniselv-help-card" data-cat="features" id="help-topic-live-refresh">
+            <span class="uniselv-help-badge">Monitoring</span>
+            <h4 class="uniselv-help-card-title">Efficient Live Updates</h4>
+            <div class="uniselv-help-card-desc">
+                Server Overview and the customer dashboard refresh every 10 seconds while active. The displayed sample age comes from the server, not a simulated timer. A hidden page does not start automatic telemetry requests.<br>
+                Modern secure browsers can reuse a fresh read-only sample across pages with the same login, account and role. This uses a session-scoped in-memory channel and Web Locks; tokens and telemetry are not written to persistent browser storage. Unsupported browsers retain local caching and prevent overlapping requests.<br>
+                Telemetry requests time out after 15 seconds where fetch cancellation is supported. Failed connections retry with a delay of 10, 20, 40, then 60 seconds. Last displayed values remain visible with an unavailable indication. Permission changes and other actions are sent directly and are never shared or cached by this mechanism.<br>
+                Example: opening two Server Overview pages in the same authenticated session can reuse one fresh sample instead of sending identical refresh requests. Closing a tab releases its coordination resources. Server collection, kernel limits and protection checks continue independently.
+            </div>
+        </div>
+
         <!-- 7. HARDWARE CHANGE RECONCILIATION -->
         <div class="uniselv-help-card" data-cat="golden" id="help-topic-hardware">
             <span class="uniselv-help-badge badge-cat-golden">Golden Shield</span>
             <h4 class="uniselv-help-card-title">Hardware Change Reconciliation (VPS Resizing)</h4>
             <div class="uniselv-help-card-desc">
-                When a VPS is upgraded or downgraded in the cloud console (e.g. 4 vCPUs -> 8 vCPUs, or 8 GiB -> 16 GiB RAM), UNISELV Resource Manager reconciles limits seamlessly:<br>
-                <strong>Auto Mode:</strong> The background agent detects the hardware capacity change, records the new SHA-256 hardware fingerprint, automatically recalculates hosting pool quotas and memory safety budgets, writes persistent drop-in configs, and applies limits immediately.<br>
-                <strong>Manual Mode:</strong> If custom administrator overrides are active, the reconciler preserves your manual limits and issues an administrative warning so you can review sizing at your convenience.<br>
-                <strong>Governance Mode Persistence:</strong> Mode is strictly stored in <code>/etc/golden-shield/mode.json</code> and SQLite <code>settings</code>.
+                When a VPS is upgraded or downgraded in the cloud console (e.g. 4 vCPUs -> 8 vCPUs, or 8 GiB -> 16 GiB RAM), UNISELV Resource Manager checks for changed capacity:<br>
+                <strong>Auto Mode:</strong> The background agent detects the hardware capacity change, automatically recalculates hosting pool quotas and memory safety budgets, writes persistent drop-in configs, and applies verified limits. The detected hardware record is updated only after a successful reconciliation.<br>
+                <strong>Manual Mode:</strong> If custom administrator overrides are active, the reconciler preserves your manual limits and issues an administrative warning so you must review sizing. Before a downgrade, reduce manual limits to fit the new physical capacity and its reserve. Actual VPS resizing has not been exercised on this validation host.<br>
+                <strong>Governance Mode Persistence:</strong> Mode is stored in <code>/etc/golden-shield/mode.json</code>. Manual overrides cannot exceed the current Auto hosting CPU/RAM safety budgets.
             </div>
         </div>
 
@@ -235,7 +257,7 @@
             <h4 class="uniselv-help-card-title">About UNISELV Resource Manager & System Compatibility</h4>
             <div class="uniselv-help-card-desc">
                 <table style="width:100%; border-collapse:collapse; font-size:0.88rem; color:#334155;">
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td>1.1.8 — see bundled docs/lifecycle-validation.md for tested scope</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td>1.1.13 — see bundled docs/FRONTEND-OPTIMIZATION-1.1.13.md and docs/LIFECYCLE-REVIEW-1.1.12.md for tested scope and docs/apache-fcgi-integration.md for automatic Apache integration and rollback.</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td>Ubuntu 24.04.5 LTS (Noble Numbat)</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td>6.8.0-147-generic (x86_64)</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo 4.8.4 Enterprise</td></tr>

@@ -1,0 +1,31 @@
+test_adopted_dependencies_preserved (__main__.BootstrapTests.test_adopted_dependencies_preserved) ... ok
+test_failed_bootstrap_keeps_recovery_intent (__main__.BootstrapTests.test_failed_bootstrap_keeps_recovery_intent) ... ok
+test_missing_dependencies_install_and_owned_removal (__main__.BootstrapTests.test_missing_dependencies_install_and_owned_removal) ... ok
+test_bundled_routing_and_idempotent_scanner (__main__.CoreBootstrapTests.test_bundled_routing_and_idempotent_scanner) ... ok
+test_completed_old_restoration_preserves_new_mirrors (__main__.CoreBootstrapTests.test_completed_old_restoration_preserves_new_mirrors) ... ok
+test_empty_initial_registry (__main__.CoreBootstrapTests.test_empty_initial_registry) ... ok
+test_foreign_routing_refused (__main__.CoreBootstrapTests.test_foreign_routing_refused) ... ok
+test_incomplete_restoration_refused (__main__.CoreBootstrapTests.test_incomplete_restoration_refused) ... ok
+test_enduser_ignores_target_spoof (__main__.PermissionTests.test_enduser_ignores_target_spoof) ... ok
+test_native_plan_partial_sync_is_reported_and_audited (__main__.PermissionTests.test_native_plan_partial_sync_is_reported_and_audited) ... ok
+test_nonreseller_cannot_claim_admin_role (__main__.PermissionTests.test_nonreseller_cannot_claim_admin_role) ... ok
+test_owned_dashboard_allowed (__main__.PermissionTests.test_owned_dashboard_allowed) ... ok
+test_reseller_audit_revocation (__main__.PermissionTests.test_reseller_audit_revocation) ... ok
+test_reseller_audit_scope (__main__.PermissionTests.test_reseller_audit_scope) ... ok
+test_reseller_cross_account_refused (__main__.PermissionTests.test_reseller_cross_account_refused) ... ok
+test_reseller_permission_revocation (__main__.PermissionTests.test_reseller_permission_revocation) ... ok
+test_reseller_server_actions_refused (__main__.PermissionTests.test_reseller_server_actions_refused) ... ok
+test_command_failure_never_claims_rollback_success (__main__.PolicyTests.test_command_failure_never_claims_rollback_success) ... ok
+test_disable_failure_retains_enforced_dropin (__main__.PolicyTests.test_disable_failure_retains_enforced_dropin) ... ok
+test_hardware_profiles_are_bounded (__main__.PolicyTests.test_hardware_profiles_are_bounded) ... ok
+test_oversized_checkpoint_refused_before_mutation (__main__.PolicyTests.test_oversized_checkpoint_refused_before_mutation) ... ok
+test_oversized_cpu_rejected_before_mutation (__main__.PolicyTests.test_oversized_cpu_rejected_before_mutation) ... ok
+test_restore_failure_is_bounded_and_truthful (__main__.PolicyTests.test_restore_failure_is_bounded_and_truthful) ... ok
+test_scaled_ram_reserve_rejected_before_mutation (__main__.PolicyTests.test_scaled_ram_reserve_rejected_before_mutation) ... ok
+test_unknown_or_empty_manual_mode_refused (__main__.PolicyTests.test_unknown_or_empty_manual_mode_refused) ... ok
+test_only_interrupted_syntax_checks_retry (__main__.SyntaxRetryTests.test_only_interrupted_syntax_checks_retry) ... ok
+
+----------------------------------------------------------------------
+Ran 26 tests in 0.611s
+
+OK

@@ -1,0 +1,262 @@
+{
+  "boot_changed": true,
+  "services": {
+    "webuzo": "active",
+    "uniselv-resman-agent": "active",
+    "golden-shield": "active",
+    "golden-apache": "active",
+    "wpiso-manager-php81": "active",
+    "wpiso-manager-php82": "active"
+  },
+  "tests": [],
+  "first_http_contained": true,
+  "golden_verify": {
+    "success": true,
+    "report": {
+      "status": "experimental-shared-aggregate",
+      "policy": {
+        "mode": "shared-aggregate-cpu",
+        "hostCpuCount": 4,
+        "customerCpuPercent": 340,
+        "reservedCpuPercent": 60,
+        "hostingMemoryMaxMiB": 6471,
+        "headroomMiB": 1280,
+        "panelLowMiB": 640,
+        "sshLowMiB": 128,
+        "recoveryMarginMiB": 512,
+        "recoverySeconds": 30,
+        "guardMemoryLowMiB": 64,
+        "guardMemoryMaxMiB": 192
+      },
+      "allCpuIds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "aggregateCpuMax": "340000 100000",
+      "aggregateCpuStat": "usage_usec 970499\nuser_usec 550900\nsystem_usec 419599\ncore_sched.force_idle_usec 0\nnr_periods 66\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+      "availableMiB": 6734,
+      "services": {
+        "golden-shield.service": {
+          "ControlGroup": "/system.slice/golden-shield.service",
+          "AllowedCPUs": "",
+          "MemoryLow": "67108864",
+          "ActiveState": "active"
+        },
+        "webuzo.service": {
+          "ControlGroup": "/system.slice/webuzo.service",
+          "AllowedCPUs": "",
+          "MemoryLow": "671088640",
+          "ActiveState": "active"
+        },
+        "golden-apache.service": {
+          "ControlGroup": "/golden.slice/golden-apache.service",
+          "AllowedCPUs": "",
+          "MemoryLow": "0",
+          "ActiveState": "active"
+        },
+        "mariadb.service": {
+          "ControlGroup": "/golden.slice/mariadb.service",
+          "AllowedCPUs": "",
+          "MemoryLow": "0",
+          "ActiveState": "active"
+        }
+      },
+      "accounts": {
+        "1004": {
+          "cpu.max": {
+            "native": "100000 100000",
+            "effective": "100000 100000"
+          },
+          "memory.max": {
+            "native": "1610612736",
+            "effective": "1610612736"
+          },
+          "memory.high": {
+            "native": "1287651328",
+            "effective": "1287651328"
+          },
+          "pids.max": {
+            "native": "96",
+            "effective": "96"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=147000000 wbps=88000000 riops=1764 wiops=1176",
+            "effective": "8:0 rbps=147000000 wbps=88000000 riops=1764 wiops=1176"
+          }
+        },
+        "1005": {
+          "cpu.max": {
+            "native": "100000 100000",
+            "effective": "100000 100000"
+          },
+          "memory.max": {
+            "native": "1610612736",
+            "effective": "1610612736"
+          },
+          "memory.high": {
+            "native": "1287651328",
+            "effective": "1287651328"
+          },
+          "pids.max": {
+            "native": "96",
+            "effective": "96"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=147000000 wbps=88000000 riops=1764 wiops=1176",
+            "effective": "8:0 rbps=147000000 wbps=88000000 riops=1764 wiops=1176"
+          }
+        },
+        "1006": {
+          "cpu.max": {
+            "native": "150000 100000",
+            "effective": "150000 100000"
+          },
+          "memory.max": {
+            "native": "2147483648",
+            "effective": "2147483648"
+          },
+          "memory.high": {
+            "native": "1717567488",
+            "effective": "1717567488"
+          },
+          "pids.max": {
+            "native": "128",
+            "effective": "128"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=220000000 wbps=132000000 riops=2647 wiops=1764",
+            "effective": "8:0 rbps=220000000 wbps=132000000 riops=2647 wiops=1764"
+          }
+        },
+        "1007": {
+          "cpu.max": {
+            "native": "200000 100000",
+            "effective": "200000 100000"
+          },
+          "memory.max": {
+            "native": "3221225472",
+            "effective": "3221225472"
+          },
+          "memory.high": {
+            "native": "2576351232",
+            "effective": "2576351232"
+          },
+          "pids.max": {
+            "native": "192",
+            "effective": "192"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=294000000 wbps=176000000 riops=3529 wiops=2352",
+            "effective": "8:0 rbps=294000000 wbps=176000000 riops=3529 wiops=2352"
+          }
+        },
+        "1008": {
+          "cpu.max": {
+            "native": "280000 100000",
+            "effective": "280000 100000"
+          },
+          "memory.max": {
+            "native": "4294967296",
+            "effective": "4294967296"
+          },
+          "memory.high": {
+            "native": "3435134976",
+            "effective": "3435134976"
+          },
+          "pids.max": {
+            "native": "256",
+            "effective": "256"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=411000000 wbps=247000000 riops=4941 wiops=3294",
+            "effective": "8:0 rbps=411000000 wbps=247000000 riops=4941 wiops=3294"
+          }
+        },
+        "1009": {
+          "cpu.max": {
+            "native": "340000 100000",
+            "effective": "340000 100000"
+          },
+          "memory.max": {
+            "native": "6511656960",
+            "effective": "6511656960"
+          },
+          "memory.high": {
+            "native": "5209325568",
+            "effective": "5209325568"
+          },
+          "pids.max": {
+            "native": "512",
+            "effective": "512"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=500000000 wbps=300000000 riops=6000 wiops=4000",
+            "effective": "8:0 rbps=500000000 wbps=300000000 riops=6000 wiops=4000"
+          }
+        },
+        "1010": {
+          "cpu.max": {
+            "native": "50000 100000",
+            "effective": "50000 100000"
+          },
+          "memory.max": {
+            "native": "1073741824",
+            "effective": "1073741824"
+          },
+          "memory.high": {
+            "native": "858783744",
+            "effective": "858783744"
+          },
+          "pids.max": {
+            "native": "64",
+            "effective": "64"
+          },
+          "memory.swap.max": {
+            "native": "0",
+            "effective": "0"
+          },
+          "io.max": {
+            "native": "8:0 rbps=73000000 wbps=44000000 riops=882 wiops=588",
+            "effective": "8:0 rbps=73000000 wbps=44000000 riops=882 wiops=588"
+          }
+        }
+      },
+      "checksPass": true,
+      "aggregateMemoryMax": "6785335296",
+      "aggregateSwapMax": "0",
+      "outsideManagedGroup": [],
+      "pressure": {
+        "availableMiB": 6730,
+        "targetMiB": 1280,
+        "pausedSockets": []
+      }
+    }
+  },
+  "passed": true
+}

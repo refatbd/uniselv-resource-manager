@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.8
+Version: 1.1.13
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -281,9 +281,19 @@ function uniselv_resman_admin_menu($menu) {
     return $menu;
 }
 
+function uniselv_safe_brand_url($value) {
+    $value = trim((string)$value);
+    $scheme = strtolower((string)parse_url($value, PHP_URL_SCHEME));
+    if (!filter_var($value, FILTER_VALIDATE_URL) || !in_array($scheme, ['http', 'https']) ||
+        parse_url($value, PHP_URL_USER) !== null || parse_url($value, PHP_URL_PASS) !== null) return '';
+    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+}
+
 function uniselv_csrf_token($user) {
     global $SESS;
-    $sess_key = isset($SESS['self_sess_key']) ? $SESS['self_sess_key'] : 'uniselv_salt_2026';
+    $sess_key = isset($SESS['self_sess_key']) ? (string)$SESS['self_sess_key'] : '';
+    if ($sess_key === '' && preg_match('~/((?:sess)[A-Za-z0-9]{8,})/~', $_SERVER['REQUEST_URI'] ?? '', $match)) $sess_key = $match[1];
+    if ($sess_key === '') return ''; // Never issue a predictable shared fallback token.
     return hash_hmac('sha256', $user . ':' . $sess_key, 'uniselv_resman_secret_salt_2026');
 }
 
@@ -417,29 +427,40 @@ function uniselv_resman_admin_theme() {
     global $globals, $SESS;
 
     $overview = UniselvApiClient::call('get_admin_overview', [], $SESS['user'], true);
+    $native_plan_data = UniselvApiClient::call('get_package_mappings', [], $SESS['user'], true);
+    $native_plan_options = '';
+    foreach (($native_plan_data['native_plans'] ?? []) as $native_plan) {
+        $native_plan_options .= '<option value="' . htmlspecialchars($native_plan['name'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($native_plan['label'], ENT_QUOTES, 'UTF-8') . '</option>';
+    }
+    if (!$native_plan_options) $native_plan_options = '<option value="">No verified native plans available</option>';
+
     $accounts = UniselvApiClient::call('get_admin_accounts', [], $SESS['user'], true);
     $audit = UniselvApiClient::call('get_admin_audit_limits', [], $SESS['user'], true);
+    $sync_rows = $audit['audit'] ?? [];
+    $sync_count = count(array_filter($sync_rows, function($row) { return !empty($row['is_synchronized']); }));
+    $sync_summary = $sync_rows ? $sync_count . ' / ' . count($sync_rows) . ' verified at page load' : 'Unavailable';
     $health = UniselvApiClient::call('get_agent_health', [], $SESS['user'], true);
     $golden = UniselvApiClient::call('get_golden_shield_status', [], $SESS['user'], true);
 
     $branding = UniselvApiClient::call('get_branding_settings', [], $SESS['user'], true);
     $locale = !empty($branding['locale']) ? $branding['locale'] : 'en';
     $brand_name = !empty($branding['brand_name']) ? htmlspecialchars($branding['brand_name']) : __u('brand_title', $locale);
-    $brand_logo = !empty($branding['brand_logo_url']) ? htmlspecialchars($branding['brand_logo_url']) : '';
-    $brand_color = !empty($branding['brand_primary_color']) ? htmlspecialchars($branding['brand_primary_color']) : '#2563eb';
-    $brand_support = !empty($branding['brand_support_url']) ? htmlspecialchars($branding['brand_support_url']) : 'https://uniselv.com/support';
-    $brand_docs = !empty($branding['brand_docs_url']) ? htmlspecialchars($branding['brand_docs_url']) : 'https://docs.uniselv.com';
+    $brand_logo = !empty($branding['brand_logo_url']) ? uniselv_safe_brand_url($branding['brand_logo_url']) : '';
+    $brand_color = !empty($branding['brand_primary_color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $branding['brand_primary_color']) ? $branding['brand_primary_color'] : '#2563eb';
+    $brand_support = !empty($branding['brand_support_url']) ? uniselv_safe_brand_url($branding['brand_support_url']) : 'https://uniselv.com/support';
+    $brand_docs = !empty($branding['brand_docs_url']) ? uniselv_safe_brand_url($branding['brand_docs_url']) : '';
+    if (rtrim($brand_docs, '/') === 'https://docs.uniselv.com') $brand_docs = ''; // Historical placeholder; use bundled local Help.
 
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . time() . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '">';
     echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . time() . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -459,7 +480,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <option value="en"' . ($locale === 'en' ? ' selected' : '') . '>English (US)</option>
                 <option value="bn"' . ($locale === 'bn' ? ' selected' : '') . '>বাংলা (Bengali)</option>
             </select>
-            <a href="' . $brand_docs . '" target="_blank" class="uniselv-help-pill" style="text-decoration: none;">
+            <a href="' . ($brand_docs ?: '#help') . '" ' . ($brand_docs ? 'target="_blank" rel="noopener noreferrer"' : 'onclick="UniselvResMan.openHelpTopic(&quot;quickstart&quot;); return false;"') . ' class="uniselv-help-pill" style="text-decoration: none;">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> ' . __u('documentation', $locale) . '
             </a>
             <button class="uniselv-help-pill" onclick="UniselvResMan.openHelpTopic(\'quickstart\')">
@@ -511,22 +532,22 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     // TAB 1: SERVER OVERVIEW
     $host = !empty($overview['host']) ? $overview['host'] : (!empty($overview['server']) ? $overview['server'] : []);
     $shield = !empty($overview['golden_shield']) ? $overview['golden_shield'] : [];
-    $calc_policy = !empty($shield['calculated_policy']) ? $shield['calculated_policy'] : (!empty($shield['configured_policy']) ? $shield['configured_policy'] : []);
+    $calc_policy = !empty($shield['configured_policy']) ? $shield['configured_policy'] : [];
 
-    $cpu_cores = isset($host['cpu_cores']) ? $host['cpu_cores'] : (isset($host['cpu_count']) ? $host['cpu_count'] : 4);
-    $total_ram = isset($host['total_ram_formatted']) ? $host['total_ram_formatted'] : (isset($host['mem_total_formatted']) ? $host['mem_total_formatted'] : '8.0 GiB');
-    $customer_cpu = isset($shield['customer_cpu_percent']) ? $shield['customer_cpu_percent'] : (isset($calc_policy['customerCpuPercent']) ? $calc_policy['customerCpuPercent'] : 340);
-    $reserved_cpu = isset($shield['reserved_cpu_percent']) ? $shield['reserved_cpu_percent'] : (isset($calc_policy['reservedCpuPercent']) ? $calc_policy['reservedCpuPercent'] : 60);
+    $cpu_cores = isset($host['cpu_cores']) ? $host['cpu_cores'] : (isset($host['cpu_count']) ? $host['cpu_count'] : 'Unavailable');
+    $total_ram = isset($host['total_ram_formatted']) ? $host['total_ram_formatted'] : (isset($host['mem_total_formatted']) ? $host['mem_total_formatted'] : 'Unavailable');
+    $customer_cpu = isset($shield['customer_cpu_percent']) ? $shield['customer_cpu_percent'] : (isset($calc_policy['customerCpuPercent']) ? $calc_policy['customerCpuPercent'] : 'Unavailable');
+    $reserved_cpu = isset($shield['reserved_cpu_percent']) ? $shield['reserved_cpu_percent'] : (isset($calc_policy['reservedCpuPercent']) ? $calc_policy['reservedCpuPercent'] : 'Unavailable');
 
-    $golden_mem_cur = isset($shield['golden_mem_current_formatted']) ? $shield['golden_mem_current_formatted'] : (isset($host['mem_used_formatted']) ? $host['mem_used_formatted'] : '0 B');
-    $golden_mem_cap = isset($shield['golden_mem_max_formatted']) ? $shield['golden_mem_max_formatted'] : (isset($calc_policy['hostingMemoryMaxMiB']) ? round($calc_policy['hostingMemoryMaxMiB']/1024, 2) . ' GiB' : '6.07 GiB');
-    $headroom_mib = isset($shield['headroom_mib']) ? $shield['headroom_mib'] : (isset($calc_policy['headroomMiB']) ? $calc_policy['headroomMiB'] : 1280);
+    $golden_mem_cur = isset($shield['golden_mem_current_formatted']) ? $shield['golden_mem_current_formatted'] : 'Unavailable';
+    $golden_mem_cap = isset($shield['golden_mem_max_formatted']) ? $shield['golden_mem_max_formatted'] : (isset($calc_policy['hostingMemoryMaxMiB']) ? round($calc_policy['hostingMemoryMaxMiB']/1024, 2) . ' GiB' : 'Unavailable');
+    $headroom_mib = isset($shield['headroom_mib']) ? $shield['headroom_mib'] : (isset($calc_policy['headroomMiB']) ? $calc_policy['headroomMiB'] : 'Unavailable');
 
     $l1 = isset($host['load1']) ? number_format((float)$host['load1'], 2) : '0.00';
     $l5 = isset($host['load5']) ? number_format((float)$host['load5'], 2) : '0.00';
     $l15 = isset($host['load15']) ? number_format((float)$host['load15'], 2) : '0.00';
 
-    echo '<div id="tab-overview" class="uniselv-tab-content active">';
+    echo '<div id="tab-overview" class="uniselv-tab-content active"><p id="admin-telemetry-freshness" style="font-size:0.85rem; margin:0 0 12px;">Reading latest telemetry sample...</p>';
     echo '<div class="uniselv-grid">
         <div class="uniselv-card">
             <div class="uniselv-card-header"><span class="uniselv-card-title">Hardware Detection</span></div>
@@ -552,7 +573,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     // Top consumers
     echo '<div class="uniselv-card mb-4">
-        <h5 style="margin-bottom: 14px; font-weight: 700;">Top Resource Consumers (Live Snapshot)</h5>
+        <h5 style="margin-bottom: 14px; font-weight: 700;">Top Resource Consumers (Latest Sample at Page Load)</h5>
         <div class="uniselv-table-wrap">
             <table class="uniselv-table">
                 <thead>
@@ -569,7 +590,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </thead>
                 <tbody>';
     if (!empty($accounts['accounts'])) {
-        foreach (array_slice($accounts['accounts'], 0, 5) as $acc) {
+        $consumers = $accounts['accounts'];
+        usort($consumers, function($a, $b) { return ($b['cpu_percent'] <=> $a['cpu_percent']) ?: ($b['mem_used_bytes'] <=> $a['mem_used_bytes']); });
+        foreach (array_slice($consumers, 0, 5) as $acc) {
             $badge = ($acc['cpu_allowance_percent'] > 90) ? 'badge-critical' : (($acc['cpu_allowance_percent'] > 60) ? 'badge-warning' : 'badge-normal');
             $status_txt = ($acc['cpu_allowance_percent'] > 90) ? 'CRITICAL' : (($acc['cpu_allowance_percent'] > 60) ? 'ELEVATED' : 'NORMAL');
             echo '<tr>
@@ -666,11 +689,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                     <div>
                         <label class="uniselv-form-label">Boosted Plan</label>
-                        <select id="quick-override-plan" class="uniselv-form-input" style="width: 100%;">
-                            <option value="turbo">Turbo (200% CPU, 3072M RAM)</option>
-                            <option value="enterprise">Enterprise (280% CPU, 4096M RAM)</option>
-                            <option value="master">Master (340% CPU, 6210M RAM)</option>
-                        </select>
+                        <select id="quick-override-plan" class="uniselv-form-input" style="width: 100%;">' . $native_plan_options . '</select>
                     </div>
                     <div>
                         <label class="uniselv-form-label">Duration (Minutes)</label>
@@ -702,7 +721,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
                         <span style="color: #64748b;">Synchronized Kernel Slices:</span>
-                        <strong style="color: var(--uniselv-success);">100% Active</strong>
+                        <strong>' . htmlspecialchars($sync_summary) . '</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
                         <span style="color: #64748b;">Active Overrides:</span>
@@ -727,7 +746,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                 <div>
                     <h5 style="margin: 0 0 4px 0; font-weight: 700; color: #1e293b;">User Telemetry & Point-in-Time Snapshots</h5>
-                    <p style="margin: 0; font-size: 0.88rem; color: #64748b;">Inspect individual hosting accounts with full cPanel CloudLinux parity: account totals, 8 telemetry charts, hourly rollups, live processes, and forensic snapshots.</p>
+                    <p style="margin: 0; font-size: 0.88rem; color: #64748b;">Inspect individual hosting accounts using native Webuzo and Linux measurements: account totals, 8 telemetry charts, hourly rollups, live processes, and forensic snapshots.</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <label style="font-weight: 600; font-size: 0.88rem; color: #475569;">Select Account:</label>
@@ -745,7 +764,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <!-- Sub-navigation: Current Usage vs Diagnostic Snapshots -->
         <div class="uniselv-cpanel-subtabs mb-4" style="border-bottom: 2px solid var(--uniselv-border); margin-bottom: 20px;">
             <button class="uniselv-cpanel-subtab active" id="admin-subtab-usage" onclick="UniselvResMan.switchAdminUserSubtab(\'usage\')">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Current Usage (cPanel Parity)
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Current Usage
             </button>
             <button class="uniselv-cpanel-subtab" id="admin-subtab-snapshots" onclick="UniselvResMan.switchAdminUserSubtab(\'snapshots\')">
                 <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Diagnostic Snapshots
@@ -929,8 +948,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                             <th>Effective Cgroup CPU</th>
                             <th>Configured RAM</th>
                             <th>Effective Cgroup RAM</th>
-                            <th>Configured I/O (R/W)</th>
-                            <th>Effective I/O (R/W)</th>
+                            <th>Configured I/O (R/W, MB/s)</th>
+                            <th>Effective I/O (R/W, MiB/s)</th>
                             <th>Sync Health</th>
                         </tr>
                     </thead>
@@ -1022,20 +1041,20 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </div>
             <div class="uniselv-card">
                 <div class="uniselv-card-header"><span class="uniselv-card-title">2. Calculated Policy (Auto)</span></div>
-                <div class="uniselv-card-value">' . (isset($calc['customerCpuPercent']) ? $calc['customerCpuPercent'] : 340) . '% Hosting</div>
+                <div class="uniselv-card-value">' . (isset($calc['customerCpuPercent']) ? $calc['customerCpuPercent'] : '') . '% Hosting</div>
                 <div class="uniselv-card-sub">
-                    Shared System: <strong>' . (isset($calc['reservedCpuPercent']) ? $calc['reservedCpuPercent'] : 60) . '%</strong><br>
-                    Hosting RAM Cap: <strong>' . (isset($calc['hostingMemoryMaxMiB']) ? $calc['hostingMemoryMaxMiB'] : 6472) . ' MiB</strong><br>
-                    Reserve Headroom: ' . (isset($calc['headroomMiB']) ? $calc['headroomMiB'] : 1280) . ' MiB
+                    Shared System: <strong>' . (isset($calc['reservedCpuPercent']) ? $calc['reservedCpuPercent'] : '') . '%</strong><br>
+                    Hosting RAM Cap: <strong>' . (isset($calc['hostingMemoryMaxMiB']) ? $calc['hostingMemoryMaxMiB'] : '') . ' MiB</strong><br>
+                    Reserve Headroom: ' . (isset($calc['headroomMiB']) ? $calc['headroomMiB'] : '') . ' MiB
                 </div>
             </div>
             <div class="uniselv-card">
                 <div class="uniselv-card-header"><span class="uniselv-card-title">3. Configured Policy</span></div>
-                <div class="uniselv-card-value">' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : 340) . '% Quota</div>
+                <div class="uniselv-card-value">' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : '') . '% Quota</div>
                 <div class="uniselv-card-sub">
-                    System Headroom: <strong>' . (isset($cfg['reservedCpuPercent']) ? $cfg['reservedCpuPercent'] : 60) . '%</strong><br>
-                    Configured Memory: <strong>' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : 6210) . ' MiB</strong><br>
-                    Recovery Margin: ' . (isset($cfg['recoveryMarginMiB']) ? $cfg['recoveryMarginMiB'] : 512) . ' MiB
+                    System Headroom: <strong>' . (isset($cfg['reservedCpuPercent']) ? $cfg['reservedCpuPercent'] : '') . '%</strong><br>
+                    Configured Memory: <strong>' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : '') . ' MiB</strong><br>
+                    Recovery Margin: ' . (isset($cfg['recoveryMarginMiB']) ? $cfg['recoveryMarginMiB'] : '') . ' MiB
                 </div>
             </div>
             <div class="uniselv-card">
@@ -1075,7 +1094,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     } else {
         echo '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; color: #166534; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            <span><strong>Enforcement Coverage: 100% Contained.</strong> All customer web workers, Apache, and MariaDB are strictly executing within golden.slice boundaries.</span>
+            <span><strong>Observed Process Coverage.</strong> ' . ($g_state === 'active' ? 'No escaped customer process was observed in the latest scan. This is a point-in-time check; use Run Verification to check effective limits and services.' : 'Containment is not verified while the governor is inactive, degraded, or unavailable. Use Run Verification and inspect the reported status.') . '</span>
         </div>';
     }
     echo '</div>
@@ -1091,7 +1110,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </h5>
                     <span class="uniselv-badge badge-outline">MODE: ' . htmlspecialchars($g_mode) . '</span>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Configure shared aggregate CPU headroom and physical memory safety thresholds.</p>
+                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Configure shared aggregate CPU headroom and physical memory safety thresholds. Manual values may reduce hosting capacity but cannot consume the hardware-scaled Auto reserve.</p>
                 <div class="uniselv-form-group" style="margin-bottom: 12px;">
                     <label class="uniselv-form-label">Governance Mode</label>
                     <select id="golden-mode-select" class="uniselv-form-input" style="width: 100%;" onchange="UniselvResMan.onGoldenModeChange(this.value)">
@@ -1102,12 +1121,12 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <div id="golden-manual-fields" style="display: ' . ($g_mode === 'MANUAL' ? 'block' : 'none') . '; margin-bottom: 12px;">
                     <div style="margin-bottom: 12px;">
                         <label class="uniselv-form-label">Hosting Pool CPU Quota (%)</label>
-                        <input type="number" id="golden-cpu-pct" value="' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : 340) . '" min="50" max="1600" class="uniselv-form-input" style="width: 100%;">
+                        <input type="number" id="golden-cpu-pct" value="' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : '') . '" min="50" class="uniselv-form-input" style="width: 100%;">
                         <small style="color: #64748b; display: block; margin-top: 4px;">E.g. 340% for 4 vCPUs (leaving 60% shared system headroom).</small>
                     </div>
                     <div>
                         <label class="uniselv-form-label">Hosting Memory Cap (MiB)</label>
-                        <input type="number" id="golden-mem-mib" value="' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : 6210) . '" min="512" class="uniselv-form-input" style="width: 100%;">
+                        <input type="number" id="golden-mem-mib" value="' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : '') . '" min="512" class="uniselv-form-input" style="width: 100%;">
                         <small style="color: #64748b; display: block; margin-top: 4px;">Enforces physical RAM safety boundary across all customer slices.</small>
                     </div>
                 </div>
@@ -1358,14 +1377,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <h6 style="font-weight: 600; margin-bottom: 10px; font-size: 0.88rem;">Add / Update Mapping</h6>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <input type="text" id="map-billing-pkg" class="uniselv-form-input" placeholder="e.g. Bronze Plan" style="flex: 1; min-width: 140px;">
-                        <select id="map-target-plan" class="uniselv-form-input" style="flex: 1; min-width: 130px;">
-                            <option value="starter">starter</option>
-                            <option value="default">default</option>
-                            <option value="pro">pro</option>
-                            <option value="turbo">turbo</option>
-                            <option value="enterprise">enterprise</option>
-                            <option value="go">go</option>
-                        </select>
+                        <select id="map-target-plan" class="uniselv-form-input" style="flex: 1; min-width: 130px;">' . $native_plan_options . '</select>
                         <button class="uniselv-btn btn-primary" onclick="UniselvResMan.savePackageMapping()">Save</button>
                     </div>
                 </div>
@@ -1375,9 +1387,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 8px;">Billing Webhook Integration Endpoint (B06, B07)</h6>
                     <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 8px;">External billing systems (WHMCS post-provisioning hooks, Blesta events) can synchronize user plans securely with transactional rollback:</p>
                     <div style="background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.78rem; font-family: monospace; overflow-x: auto; margin-bottom: 8px;">
-curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&subact=adapter_sync" \<br>
-&nbsp;&nbsp;-H "Content-Type: application/json" \<br>
-&nbsp;&nbsp;-d \'{"username":"ub3","plan":"pro"}\'
+Admin session required: port 2005, subact=adapter_sync, POST form data and the current CSRF token.<br>
+External integrations use subact=webhook with configured Bearer/HMAC authentication. The Webuzo routing layer must also authorize the request.<br>
+Do not use the customer port (2003). An unattended external provider route has not been validated by this release; verify it with a dedicated test account before connecting billing.
                     </div>
                 </div>
 
@@ -1437,7 +1449,7 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <h5 style="font-weight: 700; margin: 0 0 4px 0;"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Administrative Audit History (B08)</h5>
-                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Searchable, exportable immutable audit trail tracking all boost allocations, policy changes, plan modifications, and system rollbacks.</p>
+                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Searchable, exportable administrative audit history tracking all boost allocations, policy changes, plan modifications, and system rollbacks.</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <input type="text" id="audit-search-input" class="uniselv-form-input" placeholder="Search actor, action, account..." style="width: 220px;" onkeyup="if(event.key===\'Enter\') UniselvResMan.loadAuditLogs()">
@@ -1666,7 +1678,7 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
                 
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;">
-                        <span>Current Database Footprint: <strong id="storage-total-display">Loading...</strong> of <span id="storage-limit-display">100 MiB</span> Quota</span>
+                        <span>Current Database Footprint: <strong id="storage-total-display">Loading...</strong> of <span id="storage-limit-display">100 MiB</span> warning threshold</span>
                         <span id="storage-used-pct" class="uniselv-badge badge-normal">0%</span>
                     </div>
                     <div class="uniselv-storage-bar-bg">
@@ -1703,6 +1715,11 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
                     </div>
                 </div>
 
+                <div class="uniselv-form-group">
+                    <label class="uniselv-form-label" for="retention-max-storage">Storage Warning Threshold (MiB)</label>
+                    <input type="number" id="retention-max-storage" min="10" max="102400" class="uniselv-form-input" value="100">
+                    <small>Usage indicator only, not a hard disk quota. Retention pruning follows the days above.</small>
+                </div>
                 <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
                     <button id="btn-save-retention" class="uniselv-btn btn-primary" onclick="UniselvResMan.saveStorageSettings()">
                         Save Retention Policy
@@ -1723,15 +1740,15 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
                 <div class="uniselv-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;">
                     <div>
                         <label style="font-size: 0.85rem; color:#64748b;">Agent PID</label>
-                        <div style="font-weight: 700; font-size: 1.1rem;">' . (isset($health['agent_pid']) ? $health['agent_pid'] : 'Active') . '</div>
+                        <div style="font-weight: 700; font-size: 1.1rem;">' . (isset($health['agent_pid']) ? $health['agent_pid'] : 'Unavailable') . '</div>
                     </div>
                     <div>
                         <label style="font-size: 0.85rem; color:#64748b;">Agent Memory (RSS)</label>
-                        <div style="font-weight: 700; font-size: 1.1rem;">' . (isset($health['rss_formatted']) ? $health['rss_formatted'] : '< 48 MiB') . '</div>
+                        <div style="font-weight: 700; font-size: 1.1rem;">' . (isset($health['agent_rss_formatted']) ? $health['agent_rss_formatted'] : 'Unavailable') . '</div>
                     </div>
                     <div>
                         <label style="font-size: 0.85rem; color:#64748b;">Systemd Memory Constraint</label>
-                        <div style="font-weight: 700; font-size: 1.1rem; color: var(--uniselv-success);">MemoryMax=64M</div>
+                        <div style="font-weight: 700; font-size: 1.1rem; color: var(--uniselv-success);">' . (isset($health['memory_cap_formatted']) ? htmlspecialchars($health['memory_cap_formatted']) : 'Unavailable') . '</div>
                     </div>
                 </div>
 
@@ -1758,11 +1775,7 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
             <input type="hidden" id="override-username">
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Select Boosted Plan:</label>
-                <select id="override-plan" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">
-                    <option value="turbo">Turbo (200% CPU, 3072M RAM)</option>
-                    <option value="enterprise">Enterprise (280% CPU, 4096M RAM)</option>
-                    <option value="master">Master (340% CPU, 6210M RAM)</option>
-                </select>
+                <select id="override-plan" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">' . $native_plan_options . '</select>
             </div>
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Duration (Minutes):</label>
@@ -1783,7 +1796,7 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
     echo '<div id="uniselv-golden-modal" class="uniselv-modal-overlay" style="display: none;">
         <div class="uniselv-modal">
             <h4 style="font-weight: 700; margin-bottom: 14px;">Reconfigure Golden Shield Governance</h4>
-            <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Configure shared aggregate CPU headroom and physical memory safety thresholds.</p>
+            <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Configure shared aggregate CPU headroom and physical memory safety thresholds. Manual values may reduce hosting capacity but cannot consume the hardware-scaled Auto reserve.</p>
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Governance Mode:</label>
                 <select id="golden-mode" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);" onchange="UniselvResMan.onGoldenModeChange(this.value)">
@@ -1794,12 +1807,12 @@ curl -X POST "https://your-server:2003/index.php?act=uniselv-resman&api=json&sub
             <div id="golden-manual-fields-modal" style="display: ' . ($g_mode === 'MANUAL' ? 'block' : 'none') . ';">
                 <div style="margin-bottom: 14px;">
                     <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Hosting Pool CPU Quota (%):</label>
-                    <input type="number" id="golden-cpu-pct-modal" value="' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : 340) . '" min="50" max="1600" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">
+                    <input type="number" id="golden-cpu-pct-modal" value="' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : '') . '" min="50" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">
                     <small style="color: #64748b;">E.g. 340% for 4 vCPUs (leaving 60% system headroom).</small>
                 </div>
                 <div style="margin-bottom: 14px;">
                     <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Hosting Memory Cap (MiB):</label>
-                    <input type="number" id="golden-mem-mib-modal" value="' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : 6210) . '" min="512" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">
+                    <input type="number" id="golden-mem-mib-modal" value="' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : '') . '" min="512" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">
                 </div>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -1899,10 +1912,11 @@ function uniselv_resman_enduser_theme() {
     $branding = UniselvApiClient::call('get_branding_settings', [], $current_user, false);
 
     $brand_name = !empty($branding['brand_name']) ? htmlspecialchars($branding['brand_name']) : 'UNISELV Resource Manager';
-    $brand_logo = !empty($branding['brand_logo_url']) ? htmlspecialchars($branding['brand_logo_url']) : '';
-    $brand_color = !empty($branding['brand_primary_color']) ? htmlspecialchars($branding['brand_primary_color']) : '#2563eb';
-    $brand_support = !empty($branding['brand_support_url']) ? htmlspecialchars($branding['brand_support_url']) : 'https://uniselv.com/support';
-    $brand_docs = !empty($branding['brand_docs_url']) ? htmlspecialchars($branding['brand_docs_url']) : 'https://docs.uniselv.com';
+    $brand_logo = !empty($branding['brand_logo_url']) ? uniselv_safe_brand_url($branding['brand_logo_url']) : '';
+    $brand_color = !empty($branding['brand_primary_color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $branding['brand_primary_color']) ? $branding['brand_primary_color'] : '#2563eb';
+    $brand_support = !empty($branding['brand_support_url']) ? uniselv_safe_brand_url($branding['brand_support_url']) : 'https://uniselv.com/support';
+    $brand_docs = !empty($branding['brand_docs_url']) ? uniselv_safe_brand_url($branding['brand_docs_url']) : '';
+    if (rtrim($brand_docs, '/') === 'https://docs.uniselv.com') $brand_docs = ''; // Historical placeholder; use bundled local Help.
 
     $cur = isset($dash['current']) ? $dash['current'] : [];
     $limits = isset($dash['limits']) ? $dash['limits'] : [];
@@ -1910,13 +1924,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . time() . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '">';
     echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . time() . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -1938,7 +1952,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <button class="uniselv-help-pill" onclick="UniselvResMan.openHelpTopic(\'quickstart\')">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Help Guide
             </button>
-            <div class="uniselv-live-badge"><span class="uniselv-live-dot"></span> LIVE AUTO-REFRESH (3s)</div>
+            <div class="uniselv-live-badge" id="uniselv-telemetry-freshness">Reading latest telemetry sample...</div>
             <button class="uniselv-btn btn-outline" id="uniselv-export-btn" onclick="UniselvResMan.exportReport()">
                 <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Export Support Report
             </button>
@@ -2006,7 +2020,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="uniselv-metric-big" id="uniselv-val-cpu">' . $cpu_val . '%</span>
                     <span class="uniselv-metric-core" id="uniselv-core-cpu">(' . round($cpu_val / 100, 2) . ' Core)</span>
                 </div>
-                <div class="uniselv-sparkline-wrap">
+                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="cpu-grad" x1="0" y1="0" x2="0" y2="1">
@@ -2014,8 +2028,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                                 <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <path d="M0 32 Q25 35 45 20 T90 12 L100 15 L100 40 L0 40 Z" fill="url(#cpu-grad)"/>
-                        <path d="M0 32 Q25 35 45 20 T90 12 L100 15" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+                        <path d="" fill="url(#cpu-grad)"/>
+                        <path d="" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
             </div>
@@ -2040,7 +2054,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <div class="uniselv-card-val-wrap">
                     <span class="uniselv-metric-big" id="uniselv-val-mem">' . $mem_val . '</span>
                 </div>
-                <div class="uniselv-sparkline-wrap">
+                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="mem-grad" x1="0" y1="0" x2="0" y2="1">
@@ -2048,8 +2062,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                                 <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <path d="M0 28 Q20 34 50 16 T95 22 L100 24 L100 40 L0 40 Z" fill="url(#mem-grad)"/>
-                        <path d="M0 28 Q20 34 50 16 T95 22 L100 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+                        <path d="" fill="url(#mem-grad)"/>
+                        <path d="" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
             </div>
@@ -2075,7 +2089,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="uniselv-metric-big" id="uniselv-val-io">' . (isset($cur['total_bw_formatted']) ? $cur['total_bw_formatted'] : (isset($cur['read_bw_formatted']) ? $cur['read_bw_formatted'] : '0.0 MiB/s')) . '</span>
                     <span class="uniselv-metric-core" id="uniselv-unit-io">Total</span>
                 </div>
-                <div class="uniselv-sparkline-wrap">
+                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="io-grad" x1="0" y1="0" x2="0" y2="1">
@@ -2083,8 +2097,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                                 <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <path d="M0 35 Q30 38 55 18 T90 28 L100 30 L100 40 L0 40 Z" fill="url(#io-grad)"/>
-                        <path d="M0 35 Q30 38 55 18 T90 28 L100 30" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
+                        <path d="" fill="url(#io-grad)"/>
+                        <path d="" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
             </div>
@@ -2110,7 +2124,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="uniselv-metric-big" id="uniselv-val-tasks">' . $task_val . '</span>
                     <span class="uniselv-metric-core" id="uniselv-max-tasks">/ ' . $task_limit . '</span>
                 </div>
-                <div class="uniselv-sparkline-wrap">
+                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="tasks-grad" x1="0" y1="0" x2="0" y2="1">
@@ -2118,8 +2132,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                                 <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <path d="M0 32 Q25 36 50 14 T90 20 L100 22 L100 40 L0 40 Z" fill="url(#tasks-grad)"/>
-                        <path d="M0 32 Q25 36 50 14 T90 20 L100 22" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                        <path d="" fill="url(#tasks-grad)"/>
+                        <path d="" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
             </div>
@@ -2353,7 +2367,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     // TAB 3: HISTORY
     echo '<div id="tab-history" class="uniselv-tab-content">
-        <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+        <div style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px;">
             <button class="uniselv-btn btn-outline uniselv-range-btn active" data-range="1h">Last Hour</button>
             <button class="uniselv-btn btn-outline uniselv-range-btn" data-range="today">Today</button>
             <button class="uniselv-btn btn-outline uniselv-range-btn" data-range="yesterday">Yesterday</button>

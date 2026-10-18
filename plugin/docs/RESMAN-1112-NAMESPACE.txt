@@ -1,0 +1,85 @@
+{"case": "success", "passed": true, "install_exit": 0, "uninstall_exit": 0, "tracker_detached": true}
+{"case": "full_ownership_manifest", "passed": true, "install_exit": 1, "ini_unchanged": true}
+{"case": "bad_agent_file", "passed": true, "install_exit": 1, "ini_unchanged": true}
+{"case": "foreign_isolation", "passed": true, "install_exit": 1, "ini_unchanged": true}
+{"case": "readonly_ini", "passed": true, "install_exit": 1, "ini_unchanged": true}
+{"case": "third_party_chain", "passed": true, "install_exit": 0, "uninstall_exit": 0, "tracker_detached": true}
+{"case": "readonly_restore", "passed": true, "install_exit": 0, "uninstall_exit": 1, "tracker_detached": false}
+{"case": "corrupt_tracker_manifest", "passed": true, "install_exit": 0, "uninstall_exit": 1, "tracker_detached": true}
+{"case": "owned_cleanup", "passed": true, "uninstall_exit": 0, "unrelated_file_preserved": true}
+{"case": "adopted_preservation", "passed": true, "uninstall_exit": 0, "unrelated_file_preserved": true}
+{"case": "deactivate_restore_failure", "passed": true, "deactivate_exit": 1, "cleanup_blocked": true}
+{
+  "namespace_negative_tests": [
+    {
+      "case": "success",
+      "passed": true,
+      "install_exit": 0,
+      "uninstall_exit": 0,
+      "tracker_detached": true
+    },
+    {
+      "case": "full_ownership_manifest",
+      "passed": true,
+      "install_exit": 1,
+      "ini_unchanged": true
+    },
+    {
+      "case": "bad_agent_file",
+      "passed": true,
+      "install_exit": 1,
+      "ini_unchanged": true
+    },
+    {
+      "case": "foreign_isolation",
+      "passed": true,
+      "install_exit": 1,
+      "ini_unchanged": true
+    },
+    {
+      "case": "readonly_ini",
+      "passed": true,
+      "install_exit": 1,
+      "ini_unchanged": true
+    },
+    {
+      "case": "third_party_chain",
+      "passed": true,
+      "install_exit": 0,
+      "uninstall_exit": 0,
+      "tracker_detached": true
+    },
+    {
+      "case": "readonly_restore",
+      "passed": true,
+      "install_exit": 0,
+      "uninstall_exit": 1,
+      "tracker_detached": false
+    },
+    {
+      "case": "corrupt_tracker_manifest",
+      "passed": true,
+      "install_exit": 0,
+      "uninstall_exit": 1,
+      "tracker_detached": true
+    },
+    {
+      "case": "owned_cleanup",
+      "passed": true,
+      "uninstall_exit": 0,
+      "unrelated_file_preserved": true
+    },
+    {
+      "case": "adopted_preservation",
+      "passed": true,
+      "uninstall_exit": 0,
+      "unrelated_file_preserved": true
+    },
+    {
+      "case": "deactivate_restore_failure",
+      "passed": true,
+      "deactivate_exit": 1,
+      "cleanup_blocked": true
+    }
+  ]
+}

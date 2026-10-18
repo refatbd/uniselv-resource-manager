@@ -17,6 +17,30 @@ BACKUPS_DIR = pathlib.Path('/var/lib/uniselv-resource-manager/golden-backups')
 MANIFEST_FILE = pathlib.Path('/var/lib/uniselv-resource-manager/ownership_manifest.json')
 CORE_DIR = pathlib.Path(__file__).resolve().parent.parent / 'core'
 
+# Serialize nested policy/restore operations across threads and processes.
+import threading, functools
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # Local non-Linux unit fixtures; production support is Linux only.
+_policy_mutex = threading.RLock()
+_policy_local = threading.local()
+def policy_transaction(function):
+    @functools.wraps(function)
+    def wrapped(self, *args, **kwargs):
+        with _policy_mutex:
+            if getattr(_policy_local, 'depth', 0):
+                return function(self, *args, **kwargs)
+            BASE.mkdir(parents=True, exist_ok=True)
+            with open(BASE / '.policy-transaction.lock', 'a') as lock:
+                if fcntl is not None: fcntl.flock(lock, fcntl.LOCK_EX)
+                _policy_local.depth = 1
+                try: return function(self, *args, **kwargs)
+                finally:
+                    _policy_local.depth = 0
+                    if fcntl is not None: fcntl.flock(lock, fcntl.LOCK_UN)
+    return wrapped
+
 class GoldenShieldManager:
     def __init__(self, db_conn_factory=None):
         self.db_conn_factory = db_conn_factory
@@ -328,20 +352,24 @@ class GoldenShieldManager:
                 pass
         return outside
 
+    @policy_transaction
     def backup_current_config(self) -> str:
         """Create a timestamped backup before modifying policy."""
         ts = int(time.time())
-        bfile = BACKUPS_DIR / f"golden-shield-backup-{ts}.json"
+        checkpoint_id = str(time.time_ns())
+        bfile = BACKUPS_DIR / f'golden-shield-backup-{checkpoint_id}.json'
         data = {
-            'backup_id': str(ts),
+            'backup_id': checkpoint_id,
             'timestamp': ts,
             'mode': self.get_persisted_mode(),
             'policy': self.get_configured_policy(),
             'installed_meta': json.loads((STATE / 'installed.json').read_text()) if (STATE / 'installed.json').exists() else None,
             'effective': self.get_effective_values()
         }
-        bfile.write_text(json.dumps(data, indent=2), encoding='utf-8')
-        return str(ts)
+        with bfile.open('x', encoding='utf-8') as stream:
+            json.dump(data, stream, indent=2); stream.flush(); os.fsync(stream.fileno())
+        bfile.chmod(0o600)
+        return checkpoint_id
 
     def list_backups(self) -> List[Dict[str, Any]]:
         """List all verified backups in BACKUPS_DIR."""
@@ -363,7 +391,8 @@ class GoldenShieldManager:
                 continue
         return backups
 
-    def restore_backup(self, backup_id: str) -> Dict[str, Any]:
+    @policy_transaction
+    def restore_backup(self, backup_id: str, _rollback_attempt: bool = False) -> Dict[str, Any]:
         """
         Transactional validated restore of a Golden Shield backup:
         - Validates backup_id against path traversal attacks.
@@ -382,9 +411,23 @@ class GoldenShieldManager:
         except Exception as e:
             return {'success': False, 'error': f"Corrupted backup JSON: {e}"}
 
+        if not isinstance(b_data, dict):
+            return {'success': False, 'error': 'Backup must be a JSON object'}
         restored_policy = b_data.get('policy')
         if not restored_policy or not isinstance(restored_policy, dict):
             return {'success': False, 'error': 'Backup does not contain a valid policy structure'}
+
+        hw = self.detect_hardware()
+        minimum = self.calculate_auto_policy(hw)
+        required = ('customerCpuPercent', 'reservedCpuPercent', 'hostingMemoryMaxMiB', 'headroomMiB',
+                    'panelLowMiB', 'sshLowMiB', 'recoveryMarginMiB', 'recoverySeconds', 'guardMemoryLowMiB', 'guardMemoryMaxMiB')
+        if (b_data.get('mode', 'AUTO') not in ('AUTO', 'MANUAL') or restored_policy.get('mode') != 'shared-aggregate-cpu'
+                or any(type(restored_policy.get(k)) is not int or restored_policy[k] <= 0 for k in required)
+                or restored_policy['customerCpuPercent'] > minimum['customerCpuPercent']
+                or restored_policy['hostingMemoryMaxMiB'] > minimum['hostingMemoryMaxMiB']
+                or restored_policy['hostingMemoryMaxMiB'] + restored_policy['headroomMiB'] > hw['ram_total_mib']
+                or restored_policy['customerCpuPercent'] + restored_policy['reservedCpuPercent'] != hw['cpu_count'] * 100):
+            return {'success': False, 'error': 'Backup policy exceeds current hardware safety limits or has invalid fields; no configuration was changed'}
 
         # Save pre-restore checkpoint
         rollback_id = self.backup_current_config()
@@ -400,7 +443,7 @@ class GoldenShieldManager:
 
             # Apply memory cap and CPU quota
             cmd = ['python3', '/usr/local/sbin/golden-shield.py', 'apply-memory-cap']
-            subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=True)
 
             # Apply persistent CPU quota and MemoryMax
             self.persist_systemd_slice_limits(restored_policy['customerCpuPercent'], restored_policy['hostingMemoryMaxMiB'])
@@ -408,8 +451,8 @@ class GoldenShieldManager:
             v_res = self.verify()
             if not v_res.get('success', False):
                 # Rollback on verification failure
-                self.restore_backup(rollback_id)
-                return {'success': False, 'error': 'Restoration verification failed; safely rolled back to pre-restore state'}
+                rollback = self.restore_backup(rollback_id, True) if not _rollback_attempt else {'success': False}
+                return {'success': False, 'error': 'Restoration verification failed', 'rolled_back': bool(rollback.get('success')), 'state': 'ROLLED_BACK' if rollback.get('success') else 'FAILED_INCONSISTENT', 'recovery_checkpoint': rollback_id}
 
             return {
                 'success': True,
@@ -418,9 +461,10 @@ class GoldenShieldManager:
                 'mode': restored_mode
             }
         except Exception as e:
-            self.restore_backup(rollback_id)
-            return {'success': False, 'error': f"Transactional restoration aborted and rolled back: {e}"}
+            rollback = self.restore_backup(rollback_id, True) if not _rollback_attempt else {'success': False}
+            return {'success': False, 'error': f'Transactional restoration aborted: {e}', 'rolled_back': bool(rollback.get('success')), 'state': 'ROLLED_BACK' if rollback.get('success') else 'FAILED_INCONSISTENT', 'recovery_checkpoint': rollback_id}
 
+    @policy_transaction
     def persist_systemd_slice_limits(self, customer_cpu_pct: int, hosting_mem_mib: int):
         """
         Write systemd drop-in override so limits persist across server reboot.
@@ -437,9 +481,13 @@ CPUQuota={customer_cpu_pct}%
 MemoryMax={mem_bytes}
 MemorySwapMax=0
 """
-        conf_file.write_text(conf_content, encoding='utf-8')
-        subprocess.run(['systemctl', 'daemon-reload'], timeout=15)
-        subprocess.run(['systemctl', 'set-property', '--runtime', 'golden.slice', f'CPUQuota={customer_cpu_pct}%', f'MemoryMax={mem_bytes}', 'MemorySwapMax=0'], timeout=20)
+        if conf_file.is_symlink():
+            raise RuntimeError('Refusing symlink for managed slice limits')
+        temp_conf = conf_file.with_name(conf_file.name + '.' + str(os.getpid()) + '.tmp')
+        temp_conf.write_text(conf_content, encoding='utf-8')
+        temp_conf.replace(conf_file)
+        subprocess.run(['systemctl', 'daemon-reload'], timeout=15, check=True)
+        subprocess.run(['systemctl', 'set-property', '--runtime', 'golden.slice', f'CPUQuota={customer_cpu_pct}%', f'MemoryMax={mem_bytes}', 'MemorySwapMax=0'], timeout=20, check=True)
 
     def verify(self) -> Dict[str, Any]:
         """Execute comprehensive verification check against live kernel."""
@@ -461,6 +509,13 @@ MemorySwapMax=0
                 return result
             time.sleep(2)
 
+    def _failed_policy_change(self, checkpoint, message):
+        rollback = self.restore_backup(checkpoint)
+        ok = bool(rollback.get('success'))
+        return {'success': False, 'error': message, 'rolled_back': ok,
+                'state': 'ROLLED_BACK' if ok else 'FAILED_INCONSISTENT', 'recovery_checkpoint': checkpoint}
+
+    @policy_transaction
     def reconfigure_or_enable(self, mode: str = 'auto', custom_overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Apply new policy transactionally with complete parameter validation:
@@ -471,15 +526,26 @@ MemorySwapMax=0
         """
         mode_clean = str(mode).lower()
         hw = self.detect_hardware()
+        if mode_clean not in ('auto', 'manual'):
+            return {'success': False, 'error': 'Mode must be Auto or Manual'}
+        if mode_clean == 'manual' and not custom_overrides:
+            return {'success': False, 'error': 'Manual mode requires explicit validated overrides'}
 
         if mode_clean == 'manual' and custom_overrides:
+            allowed = {'customerCpuPercent', 'hostingMemoryMaxMiB'}
+            if not isinstance(custom_overrides, dict) or not set(custom_overrides) <= allowed:
+                return {'success': False, 'error': 'Unsupported Manual override fields'}
+            try:
+                custom_overrides = {key: int(str(value)) for key, value in custom_overrides.items()}
+            except (ValueError, TypeError):
+                return {'success': False, 'error': 'Manual overrides must be whole numbers'}
             # Strict validation of manual parameters
             policy = self.calculate_auto_policy(hw)
             
             if 'customerCpuPercent' in custom_overrides:
-                val = int(custom_overrides['customerCpuPercent'])
+                val = int(str(custom_overrides['customerCpuPercent']))
                 min_cpu = 50
-                max_cpu = hw['cpu_count'] * 400
+                max_cpu = policy['customerCpuPercent']
                 if val < min_cpu or val > max_cpu:
                     return {'success': False, 'error': f"Invalid CPU Quota: Must be between {min_cpu}% and {max_cpu}%"}
                 policy['customerCpuPercent'] = val
@@ -488,9 +554,10 @@ MemorySwapMax=0
             if 'hostingMemoryMaxMiB' in custom_overrides:
                 val = int(custom_overrides['hostingMemoryMaxMiB'])
                 min_mem = 512
-                max_mem = max(512, hw['ram_total_mib'] - 384)
+                min_ram_reserve = policy['headroomMiB']
+                max_mem = hw['ram_total_mib'] - min_ram_reserve
                 if val < min_mem or val > max_mem:
-                    return {'success': False, 'error': f"Invalid Memory Cap: Must be between {min_mem} MiB and {max_mem} MiB (preserving 384 MiB system reserve); exceeds physical RAM safety budget"}
+                    return {'success': False, 'error': f"Invalid Memory Cap: Must be between {min_mem} MiB and {max_mem} MiB (preserving {min_ram_reserve} MiB system reserve); exceeds physical RAM safety budget"}
                 
                 # Check current memory pressure before reducing memory cap
                 eff = self.get_effective_values()
@@ -505,7 +572,7 @@ MemorySwapMax=0
                         pass
                 
                 policy['hostingMemoryMaxMiB'] = val
-                policy['headroomMiB'] = max(384, hw['ram_total_mib'] - val)
+                policy['headroomMiB'] = hw['ram_total_mib'] - val
 
             governance_mode = 'MANUAL'
         else:
@@ -533,8 +600,7 @@ MemorySwapMax=0
                 self.persist_systemd_slice_limits(policy['customerCpuPercent'], policy['hostingMemoryMaxMiB'])
                 v_res = self.verify_until_ready()
                 if not v_res.get('success', False):
-                    self.restore_backup(rollback_id)
-                    return {'success': False, 'error': 'Verification failed after applying policy; rolled back.', 'verification': v_res}
+                    return {**self._failed_policy_change(rollback_id, 'Verification failed after applying policy'), 'verification': v_res}
                 return {'success': True, 'mode': governance_mode, 'policy': policy, 'verification': v_res, 'message': 'Golden Shield policy applied and verified.'}
             else:
                 cmd = ['python3', '/usr/local/sbin/golden-shield.py', 'install']
@@ -543,32 +609,36 @@ MemorySwapMax=0
                 self.persist_systemd_slice_limits(policy['customerCpuPercent'], policy['hostingMemoryMaxMiB'])
                 v_res = self.verify_until_ready()
                 if not v_res.get('success', False):
-                    self.restore_backup(rollback_id)
-                    return {'success': False, 'error': 'Golden Shield installation verification failed; rolled back.', 'verification': v_res}
+                    return {**self._failed_policy_change(rollback_id, 'Golden Shield installation verification failed'), 'verification': v_res}
                 return {'success': True, 'mode': governance_mode, 'policy': policy, 'verification': v_res, 'message': 'Golden Shield installed and verified.'}
         except Exception as e:
-            self.restore_backup(rollback_id)
-            return {'success': False, 'error': f"Failed to apply policy: {e}; rolled back"}
+            return self._failed_policy_change(rollback_id, f'Failed to apply policy: {e}')
 
+    @policy_transaction
     def disable(self) -> Dict[str, Any]:
         """Safely uninstall / disable Golden Shield."""
         if not (STATE / 'installed.json').exists():
             return {'success': True, 'message': 'Golden Shield is not currently active.'}
         self.backup_current_config()
         
-        # Remove systemd drop-in overrides
-        dropin_file = UNITS / 'golden.slice.d' / '50-uniselv-limits.conf'
-        if dropin_file.exists():
-            try:
-                dropin_file.unlink()
-                subprocess.run(['systemctl', 'daemon-reload'], timeout=15)
-            except Exception:
-                pass
-
+        # Keep the enforced cap until native restoration has actually succeeded.
         cmd = ['python3', '/usr/local/sbin/golden-shield.py', 'uninstall']
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        return {'success': (r.returncode == 0), 'output': r.stdout, 'error': r.stderr, 'message': 'Golden Shield disabled successfully.'}
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if r.returncode != 0:
+                return {'success': False, 'output': r.stdout, 'error': r.stderr or ('Uninstall exit ' + str(r.returncode)), 'message': 'Disable failed; recovery configuration retained.'}
+            if (STATE / 'installed.json').exists():
+                return {'success': False, 'error': 'Core uninstall left its installation marker; review recovery before retry.'}
+            dropin_file = UNITS / 'golden.slice.d' / '50-uniselv-limits.conf'
+            dropin_file.unlink(missing_ok=True)
+            reload_result = subprocess.run(['systemctl', 'daemon-reload'], capture_output=True, text=True, timeout=15)
+            if reload_result.returncode:
+                return {'success': False, 'error': reload_result.stderr or 'systemd reload failed after restoration; recovery backup retained.'}
+            return {'success': True, 'output': r.stdout, 'message': 'Golden Shield disabled successfully.'}
+        except Exception as exc:
+            return {'success': False, 'error': str(exc), 'message': 'Disable incomplete; review recovery configuration.'}
 
+    @policy_transaction
     def reconcile_hardware_changes(self) -> Optional[Dict[str, Any]]:
         """
         Check for CPU and RAM hardware modifications (e.g. VPS resize/upgrade/downgrade).
@@ -606,9 +676,10 @@ MemorySwapMax=0
         if mode == 'AUTO':
             print("[UNISELV Hardware Reconciler] Automatically reconciling Golden Shield policy...", file=sys.stderr)
             res = self.reconfigure_or_enable('auto')
-            last_hw_file.write_text(json.dumps(hw, indent=2), encoding='utf-8')
+            if res.get('success'):
+                last_hw_file.write_text(json.dumps(hw, indent=2), encoding='utf-8')
             return {
-                'reconciled': True,
+                'reconciled': bool(res.get('success')),
                 'mode': 'AUTO',
                 'description': event_desc,
                 'new_policy': res.get('policy'),

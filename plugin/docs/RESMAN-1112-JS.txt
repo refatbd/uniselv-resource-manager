@@ -1,0 +1,9 @@
+PASS malformed hash rejected
+PASS known alias preserved
+PASS overview never invents default hardware
+PASS overview respects manual values and actual zero
+PASS zero capacity commitment is not 1:1
+PASS stale and lost telemetry never appears live
+PASS audit detail JSON is rendered as escaped text
+PASS sparklines use distinct measured samples, expire and never synthesize trends
+8 frontend regressions passed

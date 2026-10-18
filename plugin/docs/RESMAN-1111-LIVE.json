@@ -1,0 +1,78 @@
+{
+  "overview": {
+    "success": true,
+    "keys": [
+      "server",
+      "host",
+      "golden_shield",
+      "shared_services",
+      "total_accounts"
+    ]
+  },
+  "storage": {
+    "success": true,
+    "keys": [
+      "settings",
+      "storage"
+    ]
+  },
+  "health": {
+    "success": true,
+    "keys": [
+      "memory_cap_formatted",
+      "agent_pid",
+      "agent_status",
+      "agent_rss_bytes",
+      "agent_rss_formatted",
+      "memory_cap_bytes",
+      "memory_health",
+      "db_size_bytes",
+      "wal_size_bytes",
+      "shm_size_bytes",
+      "total_storage_bytes",
+      "storage_formatted",
+      "maintenance_mode"
+    ]
+  },
+  "capacity": {
+    "success": true,
+    "keys": [
+      "success",
+      "capacity",
+      "summary",
+      "physical_hardware",
+      "golden_shield_pool",
+      "sold_allocations",
+      "observed_24h_peaks"
+    ]
+  },
+  "mappings": {
+    "success": true,
+    "keys": [
+      "success",
+      "mappings",
+      "native_plans"
+    ]
+  },
+  "admin_refused": true,
+  "account_scope": {
+    "requested": "ub4",
+    "effective": "ub3"
+  },
+  "history": {
+    "username": "ub3",
+    "samples": 2615,
+    "points": 327
+  },
+  "aggregate_ram_bytes": 432525312,
+  "storage_actual": {
+    "total_formatted": "20.8 MiB",
+    "used_percent": 20.82,
+    "samples_count": 175822,
+    "snapshots_count": 283,
+    "events_count": 1181,
+    "audit_count": 16,
+    "size_limit_kind": "warning_threshold_not_hard_quota"
+  },
+  "agent_memory_cap": "128.0 MiB"
+}

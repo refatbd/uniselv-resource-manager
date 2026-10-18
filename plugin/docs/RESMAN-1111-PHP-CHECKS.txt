@@ -1,0 +1,2 @@
+PASS CSRF requires session identity and differs by session; legacy unsafe links refused
+{"error":"Security Refusal: Invalid or missing CSRF token"}

@@ -1,0 +1,229 @@
+{
+  "scope": "Existing Ubuntu VPS; no physical resize or fresh OS claim",
+  "tests": [
+    {
+      "name": "Install/reactivate completes with agent",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "HTTP containment after install 1",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1010.slice/wpiso-fpm-php82-ub7.service\n",
+        "version": "8.2.34",
+        "uid": 1010
+      }
+    },
+    {
+      "name": "Panel after install",
+      "passed": true,
+      "detail": "302 0.186562"
+    },
+    {
+      "name": "Adopted dependency ownership retained",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Unsafe Manual CPU rejected without mutation",
+      "passed": true,
+      "detail": {
+        "error": "Invalid CPU Quota: Must be between 50% and 340%"
+      }
+    },
+    {
+      "name": "Actual checkpoint restore and verification",
+      "passed": true,
+      "detail": {
+        "error": null,
+        "id": "1792299242522626798"
+      }
+    },
+    {
+      "name": "Create native rlc12res",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Create native rlc12child",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "New account first HTTP containment",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1012.slice/wpiso-fpm-php82-rlc12child.service\n",
+        "version": "8.2.34",
+        "uid": 1012
+      }
+    },
+    {
+      "name": "Subsecond CLI entry containment",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Cold first PHP instruction php81",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1004.slice/wpiso-fpm-php81-ub1.service\n",
+        "version": "8.1.34",
+        "uid": 1004
+      }
+    },
+    {
+      "name": "Cold first PHP instruction php82",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1012.slice/wpiso-fpm-php82-rlc12child.service\n",
+        "version": "8.2.34",
+        "uid": 1012
+      }
+    },
+    {
+      "name": "Create native resource plan",
+      "passed": true,
+      "detail": {
+        "error": null
+      }
+    },
+    {
+      "name": "Assign plan updates effective CPU limit",
+      "passed": true,
+      "detail": {
+        "cpu.max": "60000 100000",
+        "memory.max": "1073741824",
+        "memory.high": "858783744",
+        "memory.swap.max": "0",
+        "pids.max": "64",
+        "io.max": "8:0 rbps=73000000 wbps=44000000 riops=882 wiops=588"
+      }
+    },
+    {
+      "name": "Edit assigned plan",
+      "passed": true,
+      "detail": {
+        "error": null
+      }
+    },
+    {
+      "name": "Edited plan reaches kernel",
+      "passed": true,
+      "detail": {
+        "cpu.max": "70000 100000",
+        "memory.max": "1073741824",
+        "memory.high": "858783744",
+        "memory.swap.max": "0",
+        "pids.max": "64",
+        "io.max": "8:0 rbps=73000000 wbps=44000000 riops=882 wiops=588"
+      }
+    },
+    {
+      "name": "Reseller sees only itself and owned account",
+      "passed": true,
+      "detail": {
+        "accounts": [
+          "rlc12child",
+          "rlc12res"
+        ],
+        "error": null
+      }
+    },
+    {
+      "name": "Reseller cross-account access denied",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Reseller cannot grant server-wide permissions",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Agent stopped: limits and HTTP survive",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1012.slice/wpiso-fpm-php82-rlc12child.service\n",
+        "version": "8.2.34",
+        "uid": 1012
+      }
+    },
+    {
+      "name": "Agent crash restarts automatically",
+      "passed": true,
+      "detail": {
+        "old_pid": "1710680",
+        "new_pid": "1710960"
+      }
+    },
+    {
+      "name": "Native vhost regeneration retains HTTP containment",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1012.slice/wpiso-fpm-php82-rlc12child.service\n",
+        "version": "8.2.34",
+        "uid": 1012
+      }
+    },
+    {
+      "name": "PHP regeneration/reload php81",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1004.slice/wpiso-fpm-php81-ub1.service\n",
+        "version": "8.1.34",
+        "uid": 1004
+      }
+    },
+    {
+      "name": "PHP regeneration/reload php82",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1012.slice/wpiso-fpm-php82-rlc12child.service\n",
+        "version": "8.2.34",
+        "uid": 1012
+      }
+    },
+    {
+      "name": "Actual cron launch containment",
+      "passed": true,
+      "detail": "0::/golden.slice/golden-1012.slice/webuzo-session-u1012-p1712706-1792299302517083737.scope\n"
+    },
+    {
+      "name": "Remove invalid legacy Bronze/default mapping",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Delete disposable plan",
+      "passed": true,
+      "detail": {
+        "error": null
+      }
+    },
+    {
+      "name": "Original hosting account inventory preserved",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Final effective Golden Shield verification",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "created": [],
+  "boot_before": "7bc08994-f086-422f-8ccc-a5324e5808ec",
+  "original_users": [
+    "ub1",
+    "ub2",
+    "ub3",
+    "ub4",
+    "ub5",
+    "ub6",
+    "ub7"
+  ],
+  "completed": true,
+  "elapsed_sec": 78.5
+}

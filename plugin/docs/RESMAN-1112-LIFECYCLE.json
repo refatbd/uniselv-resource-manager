@@ -1,0 +1,100 @@
+{
+  "scope": "Existing Ubuntu VPS; no physical resize or fresh OS claim",
+  "tests": [
+    {
+      "name": "Install/reactivate completes with agent",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "HTTP containment after install 1",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1010.slice/wpiso-fpm-php82-ub7.service\n",
+        "version": "8.2.34",
+        "uid": 1010
+      }
+    },
+    {
+      "name": "Panel after install",
+      "passed": true,
+      "detail": "302 0.149467"
+    },
+    {
+      "name": "Deactivate pauses agent",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Panel after deactivate",
+      "passed": true,
+      "detail": "302 0.137424"
+    },
+    {
+      "name": "Install/reactivate completes with agent",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "HTTP containment after install 6",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1010.slice/wpiso-fpm-php82-ub7.service\n",
+        "version": "8.2.34",
+        "uid": 1010
+      }
+    },
+    {
+      "name": "Panel after install",
+      "passed": true,
+      "detail": "302 0.125678"
+    },
+    {
+      "name": "Uninstall removes agent and preserves adopted core",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "Panel after uninstall",
+      "passed": true,
+      "detail": "302 0.136789"
+    },
+    {
+      "name": "Install/reactivate completes with agent",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "name": "HTTP containment after install 11",
+      "passed": true,
+      "detail": {
+        "cgroup": "0::/golden.slice/golden-1010.slice/wpiso-fpm-php82-ub7.service\n",
+        "version": "8.2.34",
+        "uid": 1010
+      }
+    },
+    {
+      "name": "Panel after install",
+      "passed": true,
+      "detail": "302 0.143699"
+    },
+    {
+      "name": "Adopted dependency ownership retained",
+      "passed": true,
+      "detail": null
+    }
+  ],
+  "created": [],
+  "boot_before": "7bc08994-f086-422f-8ccc-a5324e5808ec",
+  "original_users": [
+    "ub1",
+    "ub2",
+    "ub3",
+    "ub4",
+    "ub5",
+    "ub6",
+    "ub7"
+  ],
+  "completed": true,
+  "elapsed_sec": 30.0
+}

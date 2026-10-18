@@ -4,6 +4,59 @@ All notable changes to the UNISELV Resource Manager for Webuzo are documented in
 
 ---
 
+## [1.1.13] - 2026-10-18
+
+- Reduce read-only dashboard polling to ten seconds, coordinate matching authenticated tabs, cache fresh samples for five seconds, and apply bounded timeout/backoff.
+- Preserve mutation authorization and uncached writes; display source freshness and reuse stable asset cache keys.
+- Document native Webuzo comparison, 29 regression checks and bounded live CPU observations.
+
+## [1.1.12] - 2026-10-18
+
+- Harden installer, deactivation and uninstall with checked deployment, ownership journals, retained recovery assets and verified panel reload.
+- Bootstrap bundled protection dependencies, preserve adopted integrations, fix state-aware native/Golden routing and deleted-account reconciliation.
+- Serialize policy and managed-file transactions; enforce physical Manual limits and bounded, truthful rollback behavior.
+- Restrict reseller scope and report/audit partial plan synchronization errors.
+- Validate existing-host lifecycle, new accounts/plans, agent failure, cron, regeneration, reboot and bounded aggregate saturation. See `plugin/docs/LIFECYCLE-REVIEW-1.1.12.md` for measured results and excluded fresh OS/physical-resize scope.
+
+## [1.1.11] - 2026-10-18
+
+- Fix real-record history failure, aggregate RAM/storage contracts, retention saving and actual agent memory reporting.
+- Replace fixed plan choices and fabricated hardware/coverage values with native settings and observed state.
+- Harden package/audit rendering, branding validation and missing-session CSRF behavior.
+- Add measured sparklines, stale-data visibility, keyboard dialog behavior and compact mobile navigation.
+- Stop resurrecting deleted demo billing mappings. Preserve existing operator configuration.
+- See `plugin/docs/PREPUBLICATION-REVIEW-1.1.11.md` for evidence, test scope and remaining environment notes.
+
+## [1.1.10] - 2026-10-18
+
+- Installer returns failure when every PHP configuration mutation fails; final manifest failures also block continuation or enter rollback.
+- Packages an owned Apache FastCGI retry integration with syntax/include verification, graceful reload, checked removal and rollback. Existing unowned configuration is never overwritten.
+- Removes dependency on the validation VPS's old per-domain retry override. Global integration applies to native Apache FastCGI workers, including subsequently created vhosts.
+- Validation now fails closed on unsuccessful pre-stage dynamic recovery and preserves failed-operation details. Release evidence is in docs/RELEASE-VALIDATION-1.1.10.md.
+- Fixes FastCGI admission proxy task exhaustion: warm requests do not spawn systemctl; cold starts are serialized. Thread-start rejection no longer stops every PHP request. Admission slots are released on FastCGI END_REQUEST, with bounded waiting for handler cleanup.
+
+## [1.1.9] - 2026-10-18
+
+- **Recovery Manifest Pre-Mutation Persistence & Verified Rollback (Review R4 P1 Blocker 1):**
+  - Upgraded `plugin/install.php` to back up target `php.ini` files to `/var/lib/uniselv-resource-manager/backups/` and atomically persist the recovery manifest *before* mutating any configuration on disk.
+  - Writes manifest via temporary file with verified 0640 permissions and atomic POSIX rename, followed by a read-back assertion. If manifest persistence fails, file mutation is safely aborted.
+  - Verified rollback: checked rollback verifies each `php.ini` restoration and service reload. If any restoration fails (e.g. read-only filesystem or `chattr +i`), the recovery manifest and original tracker scripts are retained on disk to ensure administrative recovery without downtime.
+- **Native PHP Value Parsing & Inline Comment Preservation (Review R4 P1 Blocker 2):**
+  - Implemented `uniselv_extract_ini_directive_value()` in `plugin/install.php` using native `parse_ini_string(..., false, INI_SCANNER_RAW)` with a robust fallback tokenizer.
+  - Correctly extracts clean hook file paths (e.g. `/tmp/security-hook.php` from `auto_prepend_file = "/tmp/security-hook.php" ; preserve this hook`) for chaining into `/usr/local/uniselv-resman/chains/`, while storing the unmodified raw directive in `original_raw_line` for exact restoration by `uninstall.php`.
+  - Verified across PHP 8.1 and PHP 8.2 fixtures with full round-trip preservation.
+- **Unified Golden Shield Hardware Derivation & Strict Policy Validation (Review R4 P2 Blocker 3):**
+  - Unified hardware policy calculation between core `core/golden-shield.py` and plugin manager `plugin/core/golden_shield_manager.py` across 2, 4, 8, and 16 vCPUs (85% customer CPU quota, 15% system headroom; dynamic scaled RAM headroom).
+  - If `/etc/golden-shield/policy.json` exists on disk but contains invalid JSON or parameters, `policy()` explicitly raises `RuntimeError` rather than silently replacing it with auto-derived defaults.
+  - Verified in `test_lifecycle_hardened.py` across 5 scaling profiles with 100% agreement.
+- **Capacity Diagnostics, 503 Elimination & Route Repair (Review R4 P1 & P2 Blockers 4 & 5):**
+  - **Scenario E Route Repair:** Corrected catalog search endpoint in `wp_capacity_runner.py` from `/shop/?s=...` (which triggered WordPress 404 rewrite handling) to `/?s={kw}&post_type=product&orderby=price-desc&min_price=5&max_price=120&nocache={tok}`. All concurrency tiers (1, 2, 4, 8 VUs) achieved 100% 200 OK responses with full product payloads (0 404s).
+  - **Apache FastCGI 60s Backoff Elimination:** Configured `<Proxy "fcgi://localhost"> ProxySet retry=0 </Proxy>` on Apache custom domain configuration, completely removing Apache's 60-second backoff lockout on socket saturation.
+  - **Virtual User Pacing:** Added realistic pacing (80–160 ms think time) in `wp_capacity_runner.py` matching physical 2-worker FPM capacity and 16-slot backlog queue.
+  - **Hardened Recovery Gate:** `wait_for_recovery()` requires 2 consecutive dynamic uncached search queries with HTTP 200 and body > 1000 bytes before every test stage.
+  - **Sustained Multi-Tenant Saturation:** Scenario G executed a sustained 31.5-second test with concurrent load across `ub3` and `ub1`. Workload success was 93.0% on `ub3` (107/115) and 100% on `ub1` (20/20). Parent `golden.slice` aggregate CPU reached **196.8%**, while sibling CPU quotas actively throttled excess usage without a single OOM kill. Webuzo Admin responded in 1458.0 ms.
+  - **100% Database Persistence:** Confirmed 56/56 orders created in Scenario D persisted in MariaDB HPOS tables (`wp_wc_orders` and `wp_woocommerce_order_items`).
+
 ## [1.1.8] - 2026-10-17
 
 - **Admin User Inspection with 100% Enduser Parity (Current Usage & Snapshots):**

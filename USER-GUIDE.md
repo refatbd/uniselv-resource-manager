@@ -17,7 +17,7 @@ The **Dashboard** gives you a real-time, high-level overview of your account's h
 
 ### Modern Visual Dashboard & Wave Sparklines
 - **Card Icon Badges:** Circular colored badge icons (CPU microchip in blue, Memory stack in purple, I/O drive in teal, Tasks cog in amber) provide instant visual differentiation.
-- **Wave Sparklines:** Each resource card includes an SVG wave sparkline with vertical gradient fills displaying recent throughput dynamics.
+- **Wave Sparklines:** Each resource card plots distinct measured samples collected while the dashboard is open, retaining up to five minutes. It stays blank until two samples arrive. Each card has its own scale; these lines are not comparable across cards.
 - **Modern Non-Blocking Alerts & Modals:**
   - Traditional blocking browser alert dialogs are replaced with modern, non-blocking toast notifications (`UniselvNotify`) featuring progress timers, auto-dismiss, and icon badges.
   - Dangerous actions (such as terminating runaway processes) trigger centered confirmation modals (`UniselvModal.confirm`) with backdrop blur and distinct action styling.

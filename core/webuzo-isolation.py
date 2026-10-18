@@ -44,10 +44,10 @@ def paths(version):
 
 
 def account_slice(uid):
-    return 'golden-'+str(uid)+'.slice'
+    return ('golden-' if (pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()) else '')+str(uid)+'.slice'
 
 def account_cgroup(uid):
-    return '/golden.slice/'+account_slice(uid)
+    return ('/golden.slice/' if (pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()) else '/')+account_slice(uid)
 
 def ensure_limits(user,uid):
     root=pathlib.Path('/sys/fs/cgroup')/(str(uid)+'.slice');unit=UNITS/(str(uid)+'.slice')
@@ -70,7 +70,8 @@ def ensure_limits(user,uid):
             execute(['systemctl','daemon-reload']);execute(['systemctl','start',str(uid)+'.slice'])
     if not unit.exists() or not (root/'cpu.max').exists() or (root/'cpu.max').read_text().split()[0]=='max' or (root/'memory.max').read_text().strip()=='max':raise ValueError('Assigned native CPU/RAM limits are not active: '+user)
     execute(['systemctl','set-property',str(uid)+'.slice','MemorySwapMax=0'])
-    execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)])
+    if (pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()):
+        execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)])
     return root
 
 def parse_pools(text,version):
@@ -154,6 +155,15 @@ def stop_pool(version,row,remove=False):
     if remove:
         for name in (fpm,proxy,sock):(UNITS/name).unlink(missing_ok=True)
 
+def validate_fpm(args):
+    # Native maintenance can terminate a concurrent syntax-only PHP process.
+    # Retry that signal only; syntax errors and admission/start failures fail closed.
+    for attempt in range(3):
+        result=execute(args,check=False)
+        if result.returncode==0:return result
+        if result.returncode!=-15 or attempt==2:raise RuntimeError('PHP syntax verification failed: '+str(args)+': exit='+str(result.returncode)+' '+result.stdout[-1200:]+result.stderr[-1200:])
+        time.sleep(.5)
+
 def pool_config(version,row):
     prefix=paths(version);backend=RUN/(version+'-'+row['user']+'.sock')
     part=re.sub(r'^(\s*listen\s*=).*$',r'\1 '+str(backend),row['pool'],flags=re.M)
@@ -165,7 +175,7 @@ def write_pool(version,row,p):
     # Only routing changes; native PHP/FPM pool settings stay inherited.
     text=pool_config(version,row)
     atomic(config,text)
-    execute([str(prefix/'sbin/php-fpm'),'-t','-y',str(config),'-c',str(prefix/'etc/php.ini'),'-d','opcache.memory_consumption='+str(p['opcacheMiB'])])
+    validate_fpm([str(prefix/'sbin/php-fpm'),'-t','-y',str(config),'-c',str(prefix/'etc/php.ini'),'-d','opcache.memory_consumption='+str(p['opcacheMiB'])])
     unit='[Unit]\nDescription=Isolated Webuzo PHP pool '+version+' '+user+'\nStopWhenUnneeded=no\nRequires='+str(row['uid'])+'.slice\nAfter='+str(row['uid'])+'.slice\n[Service]\nType=simple\nSlice='+account_slice(row['uid'])+'\nWorkingDirectory='+str(prefix)+'\nExecStartPre=/usr/bin/python3 '+str(SELF)+' admit '+fpm+' '+str(row['maxChildren'])+'\nExecStart='+str(prefix/'sbin/php-fpm')+' -F -y '+str(config)+' -c '+str(prefix/'etc/php.ini')+' -d opcache.memory_consumption='+str(p['opcacheMiB'])+'\nExecStartPost=/usr/bin/python3 '+str(SELF)+' wait-socket '+str(backend)+'\nExecStopPost=/usr/bin/python3 '+str(SELF)+' release '+fpm+'\nKillSignal=SIGTERM\nTimeoutStartSec=45\nTimeoutStopSec=10\nRestart=no\n'
     atomic(UNITS/fpm,unit,0o644)
     unit='[Unit]\nDescription=Bounded FastCGI admission for '+version+' '+user+'\n[Service]\nSlice='+account_slice(row['uid'])+'\nType=simple\nExecStart=/usr/bin/python3 '+str(SELF)+' proxy '+fpm+' '+str(backend)+' '+str(p['idleSeconds'])+'\nMemoryMax=32M\nMemorySwapMax=0\nTasksMax=12\nTimeoutStopSec=5\n'
@@ -188,7 +198,7 @@ def reconcile(version,restart=False):
         # Validate all eligible pools before changing any running routing.
         for row in rows:
             staged=BASE/(version+'-'+row['user']+'-syntax.conf');atomic(staged,pool_config(version,row))
-            try:execute([str(paths(version)/'sbin/php-fpm'),'-t','-y',str(staged),'-c',str(paths(version)/'etc/php.ini'),'-d','opcache.memory_consumption='+str(p['opcacheMiB'])])
+            try:validate_fpm([str(paths(version)/'sbin/php-fpm'),'-t','-y',str(staged),'-c',str(paths(version)/'etc/php.ini'),'-d','opcache.memory_consumption='+str(p['opcacheMiB'])])
             finally:staged.unlink(missing_ok=True)
         hashes={r['user']:hashlib.sha256((r['pool']+r['global']+str(r['uid'])+json.dumps(p,sort_keys=True)).encode()).hexdigest() for r in rows}
         for r in old['pools']:
@@ -220,11 +230,11 @@ def supervise(version):
             time.sleep(1)
             try:
                 assert_launcher(version);digest=hashlib.sha256((paths(version)/'etc/php-fpm.conf').read_bytes()).hexdigest()
-                limits_changed=any(pwd.getpwnam(r['user']).pw_uid!=r['uid'] or not (UNITS/(str(r['uid'])+'.slice')).exists() or not (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').exists() or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').read_text().split()[0]=='max' or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'memory.max').read_text().strip()=='max' for r in manifest(version)['pools'])
+                limits_changed=False if digest!=last else any(pwd.getpwnam(r['user']).pw_uid!=r['uid'] or not (UNITS/(str(r['uid'])+'.slice')).exists() or not (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').exists() or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').read_text().split()[0]=='max' or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'memory.max').read_text().strip()=='max' for r in manifest(version)['pools'])
                 if limits_changed:
                     for row in manifest(version)['pools']:stop_pool(version,row)
                 if digest!=last or failed or limits_changed:
-                    reconcile(version,failed);last=manifest(version)['sourceHash'];failed=False
+                    count=reconcile(version,failed);last=manifest(version)['sourceHash'];failed=False;notify('STATUS=Isolated sockets ready: '+str(count))
             except Exception as e:
                 if not failed:
                     print('Isolation reconcile error; maintenance required: '+str(e),file=sys.stderr,flush=True)
@@ -258,12 +268,36 @@ def admit(unit,children):
         if time.monotonic()>=deadline:raise RuntimeError('Host PHP admission budget full after bounded wait; no shared fallback')
         time.sleep(.25)
 
+def connect_backend(unit, backend, start_lock):
+    """Warm requests need no subprocess; serialize only a genuinely cold start."""
+    def connect():
+        upstream = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        upstream.settimeout(3)
+        try:
+            upstream.connect(backend)
+            return upstream
+        except OSError:
+            upstream.close()
+            raise
+    try:
+        return connect()
+    except (FileNotFoundError, ConnectionRefusedError):
+        with start_lock:
+            # A preceding thread may already have started the private backend.
+            try:
+                return connect()
+            except (FileNotFoundError, ConnectionRefusedError):
+                r = execute(['systemctl', 'start', unit], False, timeout=12)
+                if r.returncode:
+                    raise ConnectionRefusedError('Private PHP backend could not start')
+                return connect()
+
 def fastcgi_proxy(unit,backend,idle):
     # Accept first; a rejected FPM start must produce an actual FastCGI 503,
     # not leave Apache waiting on an unconsumed socket backlog.
     if not re.fullmatch(r'wpiso-fpm-php\d{2,3}-[a-z_][a-z0-9_-]*\.service',unit):raise ValueError('Invalid backend')
     listener=socket.fromfd(3,socket.AF_UNIX,socket.SOCK_STREAM);listener.settimeout(1)
-    slots=threading.BoundedSemaphore(8);lock=threading.Lock();activity={'last':time.monotonic(),'active':0}
+    slots=threading.BoundedSemaphore(8);lock=threading.Lock();start_lock=threading.Lock();activity={'last':time.monotonic(),'active':0}
     def unavailable(client):
         client.settimeout(2);header=b''
         while len(header)<8:
@@ -278,19 +312,27 @@ def fastcgi_proxy(unit,backend,idle):
     def handle(client):
         try:
             with client:
-                r=execute(['systemctl','start',unit],False,timeout=12)
-                if r.returncode:unavailable(client);return
-                with socket.socket(socket.AF_UNIX,socket.SOCK_STREAM) as upstream:
-                    upstream.settimeout(3)
-                    try:upstream.connect(backend)
-                    except OSError:unavailable(client);return
+                try:upstream_connection=connect_backend(unit,backend,start_lock)
+                except (OSError,subprocess.TimeoutExpired):unavailable(client);return
+                with upstream_connection as upstream:
                     client.settimeout(5);upstream.settimeout(5);deadline=time.monotonic()+135
+                    response_buffer=bytearray()
                     while time.monotonic()<deadline:
                         ready,_,_=select.select([client,upstream],[],[],1)
                         for source in ready:
                             data=source.recv(65536)
                             if not data:return
                             (upstream if source is client else client).sendall(data)
+                            if source is upstream:
+                                # Release the admission slot at the actual FastCGI
+                                # END_REQUEST, not an eventual keep-alive socket EOF.
+                                response_buffer.extend(data)
+                                while len(response_buffer)>=8:
+                                    version,kind,rid,length,padding,reserved=struct.unpack('!BBHHBB',response_buffer[:8])
+                                    size=8+length+padding
+                                    if len(response_buffer)<size:break
+                                    del response_buffer[:size]
+                                    if kind==3:return
         except (OSError,subprocess.TimeoutExpired):pass
         finally:
             with lock:activity['active']-=1;activity['last']=time.monotonic()
@@ -302,12 +344,23 @@ def fastcgi_proxy(unit,backend,idle):
                 with lock:done=not activity['active'] and time.monotonic()-activity['last']>=int(idle)
                 if done:return
                 continue
-            if not slots.acquire(False):
+            # Brief bounded queueing handles the overlap between response delivery
+            # and handler cleanup without creating extra threads or changing limits.
+            if not slots.acquire(timeout=2):
                 try:unavailable(client)
                 except OSError:pass
                 client.close();continue
             with lock:activity['active']+=1;activity['last']=time.monotonic()
-            threading.Thread(target=handle,args=(client,),daemon=True).start()
+            try:
+                threading.Thread(target=handle,args=(client,),daemon=True).start()
+            except RuntimeError:
+                # Parent/unit task pressure must reject only this request, not
+                # exit the proxy and stop every in-flight PHP request.
+                with lock:activity['active']-=1;activity['last']=time.monotonic()
+                slots.release()
+                try:unavailable(client)
+                except OSError:pass
+                client.close()
     finally:execute(['systemctl','stop',unit],False,timeout=20)
 
 def release(unit):

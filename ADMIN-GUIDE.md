@@ -4,9 +4,19 @@ A comprehensive guide for system administrators managing server resources, tenan
 
 ---
 
+## Release 1.1.10 installation and recovery
+
+Activation installs the Apache FastCGI retry integration automatically and validates the native Apache configuration before reload. See bundled `docs/apache-fcgi-integration.md` for ownership, supported layout, verification and rollback. Do not paste a duplicate per-domain rule.
+
+An installer configuration error now returns failure even when no PHP ini could be changed. Read the activation error, correct the reported prerequisite or file permission, and retry activation. Keep recovery manifests and backups; do not delete them to force activation. Full plugin installation is not an atomic OS snapshot.
+
+On an existing server, activation also checks that an adopted `/usr/local/sbin/webuzo-isolation.py` matches the bundled implementation. If it differs, activation stops for a reviewed maintenance upgrade rather than silently preserving an old proxy bug or overwriting an administrator's integration. This release was applied and verified on the validation VPS with backups; that is not a generic migration of every third-party isolation integration.
+
+The isolation proxy now serializes cold starts, avoids spawning management commands on warm requests and releases slots at FastCGI END_REQUEST. Its concurrency and account resource ceilings remain finite. Over-capacity requests may still be refused; the plugin does not promise unlimited heavy WordPress capacity.
+
 ## 1. Access & Navigation
 
-1. Log in to your **Webuzo Admin Panel** (`https://your-server-ip:2004/`).
+1. Log in to your **Webuzo Admin Panel** (`https://your-server-ip:2005/`).
 2. Navigate to **Plugins** -> **UNISELV Resource Manager**, or visit `index.php?act=uniselv-resman`.
 3. The interface requires administrative privileges. All requests verify the Webuzo admin session.
 

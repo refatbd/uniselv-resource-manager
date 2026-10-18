@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import stat
 import sqlite3
 import pathlib
 import re
@@ -265,7 +266,7 @@ class MetricsCollector:
                             'plan_name': plan_name,
                             'domain': data.get('domain', f"{uname}.local"),
                             'owner': data.get('owner') or 'root',
-                            'reseller': bool(data.get('reseller'))
+                            'reseller': str(data.get('reseller', '')).strip().lower() in ('1', 'true', 'yes', 'on')
                         }
                 except Exception:
                     pass
@@ -495,14 +496,27 @@ class MetricsCollector:
                 is_php = ('php-fpm' in comm.lower() or 'php-fpm' in raw_cmdline.lower() or comm.lower().startswith('php'))
 
                 if is_php:
-                    # 1. Check ultra-low overhead shared-memory worker tracker in /dev/shm
+                    # 1. Check ultra-low overhead shared-memory worker tracker in /dev/shm with strict security checks
                     shm_file = f'/dev/shm/uniselv_fpm/{pid}'
                     if os.path.exists(shm_file):
                         try:
-                            with open(shm_file, 'r', encoding='utf-8', errors='replace') as sf:
-                                t_data = json.loads(sf.read().strip())
-                                script_path = t_data.get('script', '')
-                                req_uri = t_data.get('uri', '')
+                            # Hardening: refuse symlinks, verify regular file, enforce ownership & bounded size
+                            st = os.lstat(shm_file)
+                            if stat.S_ISREG(st.st_mode) and not os.path.islink(shm_file):
+                                # Validate ownership: file must be owned by the target user or nobody (FPM pool user) or root
+                                if st.st_uid == uid or st.st_uid == 65534 or st.st_uid == 0:
+                                    if st.st_size <= 4096:
+                                        with open(shm_file, 'r', encoding='utf-8', errors='replace') as sf:
+                                            raw_content = sf.read(4096).strip()
+                                            t_data = json.loads(raw_content)
+                                            raw_script = t_data.get('script', '')
+                                            raw_uri = t_data.get('uri', '')
+                                            # Redact sensitive parameters
+                                            clean_uri = re.sub(r'([?&](?:password|pass|pwd|token|secret|auth|nonce|key|session)=)[^&]*', r'\1[REDACTED]', raw_uri, flags=re.I)
+                                            # Sanitize script path: must be a valid path string under home or web root
+                                            if raw_script and ('/' in raw_script) and ('\0' not in raw_script):
+                                                script_path = raw_script[:256]
+                                                req_uri = clean_uri[:256]
                         except Exception:
                             pass
 

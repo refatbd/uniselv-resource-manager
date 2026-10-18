@@ -26,7 +26,10 @@ def main():
   if REGISTRY.exists():raise RuntimeError('Already installed: run check or uninstall first')
   if not pathlib.Path('/var/lib/golden-shield/installed.json').is_file():raise RuntimeError('Install and verify Golden Shield first')
   source=pathlib.Path(sys.argv[2]);data=source.read_bytes();compile(data,str(TARGET),'exec')
-  if TARGET.exists():raise RuntimeError('Untracked helper already exists; review before installing')
+  helper_preexisting = TARGET.exists()
+  if TARGET.is_symlink():raise RuntimeError('Unsafe helper symlink')
+  if helper_preexisting and (TARGET.read_bytes()!=data or TARGET.stat().st_uid!=0 or TARGET.stat().st_mode&0o022):raise RuntimeError('Different or unsafe untracked helper; review before installing')
+  atomic(STATE/'helper-ownership.json',json.dumps({'preexisting':helper_preexisting,'sha256':hashlib.sha256(data).hexdigest()}).encode())
   rows={}
   for service in SERVICES:
    p=pathlib.Path('/etc/pam.d')/service
@@ -46,7 +49,9 @@ def main():
    restore(rows);TARGET.unlink(missing_ok=True);REGISTRY.rename(STATE/('failed-install-'+str(time.time_ns())+'.json'));raise
   print('Installed. Keep an admin session open; verify native cron, SSH and CPU/RAM boundaries before relying on it.')
  elif action=='uninstall':
-  rows=json.loads(REGISTRY.read_text());restore(rows);TARGET.unlink(missing_ok=True)
+  rows=json.loads(REGISTRY.read_text());restore(rows)
+  helper_meta=json.loads((STATE/'helper-ownership.json').read_text()) if (STATE/'helper-ownership.json').exists() else {'preexisting':False}
+  if not helper_meta.get('preexisting'):TARGET.unlink(missing_ok=True)
   REGISTRY.rename(STATE/('uninstalled-files-'+str(time.time_ns())+'.json'))
   print('Exact original PAM files restored. Existing sessions finish normally.')
  elif action=='check':
