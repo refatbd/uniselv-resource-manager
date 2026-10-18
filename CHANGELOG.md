@@ -4,6 +4,10 @@ All notable changes to the UNISELV Resource Manager for Webuzo are documented in
 
 ---
 
+## [1.1.14] - 2026-10-18
+
+- Use the native theme-colored chart icon and a shorter Admin menu label, "UNISELV Resources", to keep sidebar navigation compact. Preserve the full product name in the link tooltip and plugin metadata.
+
 ## [1.1.13] - 2026-10-18
 
 - Reduce read-only dashboard polling to ten seconds, coordinate matching authenticated tabs, cache fresh samples for five seconds, and apply bounded timeout/backoff.

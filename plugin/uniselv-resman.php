@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.13
+Version: 1.1.14
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -273,10 +273,10 @@ if (function_exists('add_filter')) {
 function uniselv_resman_admin_menu($menu) {
     global $globals;
     $menu['uniselv-resman'] = [
-        'name' => 'UNISELV Resource Manager',
+        'name' => 'UNISELV Resources',
         'href' => $globals['ind'] . 'act=uniselv-resman',
-        'icon' => $globals['panel_url'] . '/uniselv-resman/images/logo.png',
-        'attr' => 'width=16'
+        'icon' => 'fas fa-chart-line',
+        'attr' => 'title="UNISELV Resource Manager"'
     ];
     return $menu;
 }
