@@ -563,6 +563,22 @@ uniselv_checked_link(__DIR__ . '/images', $web_admin_resman . '/images');
 uniselv_checked_link(__DIR__ . '/assets', $web_admin_resman . '/assets');
 uniselv_checked_link($web_admin_resman, $web_enduser_resman);
 
+// Enforce traversal & read permissions for Webuzo EMPS Nginx regardless of server umask
+@chmod(__DIR__, 0755);
+@chmod($web_admin_resman, 0755);
+foreach (['/assets', '/images'] as $subdir) {
+    $dir_path = __DIR__ . $subdir;
+    if (is_dir($dir_path)) {
+        @chmod($dir_path, 0755);
+        $files = @glob($dir_path . '/*');
+        if (is_array($files)) {
+            foreach ($files as $f) {
+                if (is_file($f)) @chmod($f, 0644);
+            }
+        }
+    }
+}
+
 if ($taskID && function_exists('task_update')) {
     task_update($taskID, 'Restarting Webuzo services', 90);
 }

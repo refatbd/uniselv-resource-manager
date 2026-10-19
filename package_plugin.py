@@ -28,8 +28,23 @@ def package():
         zip_path.unlink()
 
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Write root folder entry with 0755 directory permissions
+        root_zinfo = zipfile.ZipInfo('uniselv-resman/')
+        root_zinfo.date_time = (2026, 10, 20, 0, 0, 0)
+        root_zinfo.external_attr = 0o40755 << 16
+        zf.writestr(root_zinfo, '')
+
         for root, dirs, files in os.walk(plugin_src):
             dirs[:] = sorted([d for d in dirs if d != '__pycache__' and not d.startswith('.')])
+            for d in dirs:
+                full_dir = Path(root) / d
+                rel_dir = full_dir.relative_to(plugin_src)
+                d_arcname = 'uniselv-resman/' + rel_dir.as_posix() + '/'
+                d_zinfo = zipfile.ZipInfo(d_arcname)
+                d_zinfo.date_time = (2026, 10, 20, 0, 0, 0)
+                d_zinfo.external_attr = 0o40755 << 16
+                zf.writestr(d_zinfo, '')
+
             for file in sorted(files):
                 if file.endswith('.pyc') or file.startswith('.'):
                     continue

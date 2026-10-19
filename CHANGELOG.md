@@ -9,6 +9,7 @@ All notable changes to the UNISELV Resource Manager for Webuzo are documented in
 - Fix Webuzo panel deactivation lifecycle by dispatching root deactivation directly via Webuzo's privileged `root_bg_exec()`, avoiding unprivileged panel worker execution during PHP tracker restoration.
 - Guard `deactivate.php` and `uninstall.php` with root CLI preflight checks to reject unprivileged execution.
 - Fix directory traversal permissions on `/usr/local/uniselv-resman` and `/core` to ensure `fpm_worker_tracker.php` is accessible across tenant PHP processes.
+- Automatically enforce 0755 directory traversal and 0644 read permissions on web assets and plugin directory during activation, and write explicit 0755 directory entries in the distribution archive to prevent 403 Forbidden under restrictive server umasks.
 
 ## [1.1.15] - 2026-10-20
 
