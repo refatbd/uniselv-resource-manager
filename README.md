@@ -1,4 +1,4 @@
-> Current release: **1.1.14**, 2026-10-18. Admin sidebar visual hotfix; frontend polling optimization and evidence: `plugin/docs/FRONTEND-OPTIMIZATION-1.1.13.md`. Previous release records below are historical.
+> Current release: **1.1.16**, 2026-10-20. Privileged Webuzo panel activation and deactivation dispatchers, root CLI preflight guards, and PHP-FPM listen.backlog fallback. Previous release records below are historical.
 
 > Current release: **1.1.12**. Installable artifact: `uniselv-resman-1.1.12.zip`. Current scope and evidence: `plugin/docs/LIFECYCLE-REVIEW-1.1.12.md`.
 

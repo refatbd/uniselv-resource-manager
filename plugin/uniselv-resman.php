@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.14
+Version: 1.1.16
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -163,53 +163,63 @@ if (function_exists('register_activation_hook')) {
     register_activation_hook(__FILE__, 'uniselv_resman_activation');
 }
 function uniselv_resman_activation() {
-    global $globals, $theme, $W;
-    
-    if (function_exists('task_get_current')) {
-        $taskID = task_get_current();
-        if (empty($taskID) && function_exists('task_create')) {
-            $taskID = task_create('activating_uniselv_resman', __('Activating UNISELV Resource Manager'));
-            task_start($taskID);
-        }
+    global $error;
+
+    // Direct execution is supported only from an already privileged CLI.
+    if (PHP_SAPI === 'cli' && function_exists('posix_geteuid') && posix_geteuid() === 0) {
+        include_once(__DIR__ . '/install.php');
+        return true;
     }
 
-    if (is_object($W) && method_exists($W, 'wexec')) {
-        $W->wexec('/usr/local/emps/bin/php /usr/local/webuzo/cli.php --uniselv-resman-install');
-    } elseif (file_exists(__DIR__ . '/install.php')) {
-        include_once(__DIR__ . '/install.php');
+    // Use Webuzo's privileged background dispatcher. Invoke the real installer
+    // directly: the inactive plugin's cli_end hook may not yet be available.
+    // Dispatch is not proof of completed installation.
+    if (function_exists('root_bg_exec')) {
+        $log = '/root/resman-panel-activation.log';
+        $script = 'umask 077; printf "UNISELV_PANEL_INSTALL_STARTED\\n" > ' . escapeshellarg($log) .
+            '; /usr/local/emps/bin/php ' . escapeshellarg(__DIR__ . '/install.php') .
+            ' >> ' . escapeshellarg($log) . ' 2>&1; uniselv_rc=$?; ' .
+            'printf "\\nUNISELV_PANEL_INSTALL_EXIT=%s\\n" "$uniselv_rc" >> ' . escapeshellarg($log) .
+            '; exit "$uniselv_rc"';
+        $command = '/bin/sh -c ' . escapeshellarg($script);
+        if (root_bg_exec($command) !== false) return true;
+        $error['uniselv_activation'] = 'UNISELV root installation dispatch failed. Existing services were retained.';
+        return false;
     }
-    if (function_exists('task_update') && !empty($taskID)) {
-        task_update($taskID, 'Completed', 100);
-    }
-    return true;
+
+    $error['uniselv_activation'] = 'UNISELV activation requires Webuzo root_bg_exec. Installer was not run in the panel worker; existing services were retained.';
+    return false;
 }
 
 if (function_exists('register_deactivation_hook')) {
     register_deactivation_hook(__FILE__, 'uniselv_resman_deactivation');
 }
 function uniselv_resman_deactivation() {
-    global $globals, $theme, $W;
-    
-    if (function_exists('task_get_current')) {
-        $taskID = task_get_current();
-        if (empty($taskID) && function_exists('task_create')) {
-            $label = function_exists('__') ? __('Deactivating UNISELV Resource Manager') : 'Deactivating UNISELV Resource Manager';
-            $taskID = task_create('deactivating_uniselv_resman', $label);
-            if (function_exists('task_start')) {
-                task_start($taskID);
-            }
-        }
+    global $error;
+
+    // Direct execution is supported only from an already privileged CLI.
+    if (PHP_SAPI === 'cli' && function_exists('posix_geteuid') && posix_geteuid() === 0) {
+        include_once(__DIR__ . '/deactivate.php');
+        return true;
     }
 
-    if (is_object($W) && method_exists($W, 'wexec')) {
-        $W->wexec('/usr/local/emps/bin/php /usr/local/webuzo/cli.php --uniselv-resman-deactivate');
-    } elseif (file_exists(__DIR__ . '/deactivate.php')) {
-        include_once(__DIR__ . '/deactivate.php');
+    // Use Webuzo's privileged background dispatcher. Invoke the real deactivator
+    // directly as root, avoiding unprivileged panel worker execution.
+    if (function_exists('root_bg_exec')) {
+        $log = '/root/resman-panel-deactivation.log';
+        $script = 'umask 077; printf "UNISELV_PANEL_DEACTIVATE_STARTED\n" > ' . escapeshellarg($log) .
+            '; /usr/local/emps/bin/php ' . escapeshellarg(__DIR__ . '/deactivate.php') .
+            ' >> ' . escapeshellarg($log) . ' 2>&1; uniselv_rc=$?; ' .
+            'printf "\nUNISELV_PANEL_DEACTIVATE_EXIT=%s\n" "$uniselv_rc" >> ' . escapeshellarg($log) .
+            '; exit "$uniselv_rc"';
+        $command = '/bin/sh -c ' . escapeshellarg($script);
+        if (root_bg_exec($command) !== false) return true;
+        $error['uniselv_deactivation'] = 'UNISELV root deactivation dispatch failed.';
+        return false;
     }
-    if (function_exists('task_update') && !empty($taskID)) {
-        task_update($taskID, 'Completed', 100);
-    }
-    return true;
+
+    $error['uniselv_deactivation'] = 'UNISELV deactivation requires Webuzo root_bg_exec. Deactivator was not run in the panel worker; existing services were retained.';
+    return false;
 }
 
 // CLI Hook

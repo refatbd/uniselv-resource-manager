@@ -1,5 +1,10 @@
 <?php
 require_once __DIR__ . '/lifecycle_helpers.php';
+// Reject an unprivileged panel include before deploying or changing any files.
+if (PHP_SAPI !== 'cli' || !function_exists('posix_geteuid') || posix_geteuid() !== 0) {
+    uniselv_lifecycle_fail('Installer requires root CLI execution; activate through the privileged Webuzo dispatcher');
+}
+
 global $globals;
 
 // Get task ID for Webuzo task progress tracking
@@ -27,6 +32,8 @@ $agent_dir = '/usr/local/uniselv-resman';
 $lib_dir = '/var/lib/uniselv-resource-manager';
 $run_dir = '/run/uniselv-resman';
 
+@mkdir($agent_dir, 0755, true);
+@chmod($agent_dir, 0755);
 @mkdir($agent_dir . '/agent', 0755, true);
 @mkdir($lib_dir, 0750, true);
 @mkdir($run_dir, 0750, true);

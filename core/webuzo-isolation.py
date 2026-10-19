@@ -86,6 +86,8 @@ def parse_pools(text,version):
         part=text[m.start():sections[i+1].start() if i+1<len(sections) else len(text)]
         def field(key):
             found=re.findall(r'^\s*'+re.escape(key)+r'\s*=\s*([^;\r\n]+)',part,re.M)
+            # PHP-FPM uses 511 on Linux when listen.backlog is omitted.
+            if key=='listen.backlog' and not found:return '511'
             if len(found)!=1:raise ValueError('Expected one '+key+' for pool '+name)
             return found[0].strip().strip('"\'')
         user=field('user')

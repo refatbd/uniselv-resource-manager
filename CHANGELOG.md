@@ -4,6 +4,19 @@ All notable changes to the UNISELV Resource Manager for Webuzo are documented in
 
 ---
 
+## [1.1.16] - 2026-10-20
+
+- Fix Webuzo panel deactivation lifecycle by dispatching root deactivation directly via Webuzo's privileged `root_bg_exec()`, avoiding unprivileged panel worker execution during PHP tracker restoration.
+- Guard `deactivate.php` and `uninstall.php` with root CLI preflight checks to reject unprivileged execution.
+- Fix directory traversal permissions on `/usr/local/uniselv-resman` and `/core` to ensure `fpm_worker_tracker.php` is accessible across tenant PHP processes.
+
+## [1.1.15] - 2026-10-20
+
+- Fix Webuzo panel activation lifecycle by dispatching root installation directly via Webuzo's privileged `root_bg_exec()`, avoiding inactive-plugin CLI hook dependency.
+- Guard `install.php` with a root CLI preflight check to reject unprivileged panel worker execution before file deployment.
+- Add missing `listen.backlog` fallback in PHP-FPM pool parser for pools omitting explicit directive (defaults to Linux standard 511).
+- Normalize bundled and deployment scripts with strict LF line endings.
+
 ## [1.1.14] - 2026-10-18
 
 - Use the native theme-colored chart icon and a shorter Admin menu label, "UNISELV Resources", to keep sidebar navigation compact. Preserve the full product name in the link tooltip and plugin metadata.
