@@ -36,6 +36,21 @@ restart_and_verify.py
 discover.py
 audit_and_fix_slices.py
 install_ub3_wp_woo.py
+benchmark_*
+capacity-investigation/
+k6-*
+probe_*
+maintenance_*
+matched_profile_*
+deploy_matched_*
+finalize_matched_*
+fix_site_ini_inheritance.py
+audit_current_stack.py
+MATCHED-DEPLOYMENT*
+matched-*
+public-client-*
+core/capacity-busy-preview.png
+core/runtime-capacity-live.png
 
 # Databases, logs & local temp files
 *.sqlite

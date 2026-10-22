@@ -182,15 +182,8 @@ class GoldenShieldManager:
         customer_cpu_pct = int(round(cpu_count * 85))
         reserved_cpu_pct = (cpu_count * 100) - customer_cpu_pct
 
-        # Dynamic RAM headroom calculation
-        if ram_mib <= 2048:
-            headroom_mib = 512
-        elif ram_mib <= 4096:
-            headroom_mib = 768
-        elif ram_mib <= 8192:
-            headroom_mib = 1280
-        else:
-            headroom_mib = max(1536, int(ram_mib * 0.15))
+        # Same measured-RAM reserve as the shared generator profile.
+        headroom_mib = max(512, ((ram_mib * 5 + 8191) // 8192) * 256)
 
         # Hosting memory cap strictly bounded by physical visible RAM
         hosting_memory_max_mib = max(512, ram_mib - headroom_mib)

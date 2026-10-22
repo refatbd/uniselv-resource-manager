@@ -1,5 +1,6 @@
 import os
 import zipfile
+import time
 import hashlib
 import json
 import shutil
@@ -30,7 +31,7 @@ def package():
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         # Write root folder entry with 0755 directory permissions
         root_zinfo = zipfile.ZipInfo('uniselv-resman/')
-        root_zinfo.date_time = (2026, 10, 20, 0, 0, 0)
+        root_zinfo.date_time = time.localtime()[:6]
         root_zinfo.external_attr = 0o40755 << 16
         zf.writestr(root_zinfo, '')
 
@@ -41,7 +42,7 @@ def package():
                 rel_dir = full_dir.relative_to(plugin_src)
                 d_arcname = 'uniselv-resman/' + rel_dir.as_posix() + '/'
                 d_zinfo = zipfile.ZipInfo(d_arcname)
-                d_zinfo.date_time = (2026, 10, 20, 0, 0, 0)
+                d_zinfo.date_time = time.localtime(full_dir.stat().st_mtime)[:6]
                 d_zinfo.external_attr = 0o40755 << 16
                 zf.writestr(d_zinfo, '')
 
@@ -57,7 +58,7 @@ def package():
 
                 zinfo = zipfile.ZipInfo(arcname)
                 # Use reproducible date: 2026-10-20 00:00:00
-                zinfo.date_time = (2026, 10, 20, 0, 0, 0)
+                zinfo.date_time = time.localtime(full_path.stat().st_mtime)[:6]
                 zinfo.compress_type = zipfile.ZIP_DEFLATED
 
                 # Set executable permissions for scripts

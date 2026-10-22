@@ -374,7 +374,19 @@ class IpcRequestHandler:
             base = os.path.basename(p)
             if os.path.exists(os.path.join(p, 'bin', 'php')):
                 phps.append(base)
-        return phps if phps else ['php81', 'php82']
+        return phps
+
+    def get_managed_phps(self) -> List[str]:
+        inst_file = pathlib.Path('/var/lib/webuzo-isolation/installed.json')
+        if inst_file.exists():
+            try:
+                data = json.loads(inst_file.read_text(encoding='utf-8'))
+                versions = data.get('versions', [])
+                if versions and isinstance(versions, list):
+                    return sorted(versions)
+            except Exception:
+                pass
+        return self.get_installed_phps()
 
     def is_reseller_actor(self, auth: Dict[str, Any], params: Dict[str, Any]) -> tuple:
         """
@@ -577,6 +589,12 @@ class IpcRequestHandler:
                 return self.action_purge_snapshots(user, params)
             elif action == 'run_adapter_sync':
                 return self.action_run_adapter_sync(user, params)
+            elif action == 'get_php_lifecycle':
+                return self.action_get_php_lifecycle()
+            elif action == 'onboard_php_version':
+                return self.action_onboard_php_version(user, params)
+            elif action == 'retire_php_version':
+                return self.action_retire_php_version(user, params)
             elif action == 'get_golden_shield_status':
                 return self.golden_shield.get_status()
             elif action == 'enable_golden_shield':
@@ -777,6 +795,35 @@ class IpcRequestHandler:
             'by_version': list(workers_by_ver.values())
         }
 
+    def get_dynamic_commercial_ladder(self) -> List[str]:
+        """
+        Dynamically derives the commercial plan upgrade ladder by inspecting
+        /var/webuzo/cgroups/* plans, sorting them by capacity (mem_max, cpuquota, maxtask).
+        Strictly excludes admin-only tiers (e.g. 'master', 'root', 'admin').
+        Falls back to known commercial ladder if cgroups dir is unreadable.
+        """
+        plans = []
+        cgroups_dir = pathlib.Path('/var/webuzo/cgroups')
+        if cgroups_dir.exists():
+            for p in cgroups_dir.glob('*'):
+                if not p.is_file() or not re.fullmatch(r'[a-zA-Z0-9_-]{1,64}', p.name):
+                    continue
+                name = p.name.lower()
+                if name in ('master', 'root', 'admin'):
+                    continue
+                try:
+                    limits = self.collector.get_plan_limits(p.name)
+                    # Sort primarily by mem_max, secondarily by cpuquota, tertiarily by maxtask
+                    score = (limits.get('mem_max', 0), limits.get('cpuquota', 0), limits.get('maxtask', 0))
+                    plans.append((score, p.name))
+                except Exception:
+                    continue
+        if plans:
+            # Sort ascending by resource allowance
+            plans.sort(key=lambda x: x[0])
+            return [name for _, name in plans]
+        return ['go', 'starter', 'default', 'pro', 'turbo', 'enterprise']
+
     def get_account_upgrade_recommendations(self, username: str) -> Dict[str, Any]:
         """U16: Sustained-history upgrade recommendations based on measured historical pressure."""
         users = self.collector.get_webuzo_users()
@@ -864,9 +911,13 @@ class IpcRequestHandler:
                 ]
             }
 
-        # Commercial customer ladder - strictly excludes admin-only 'master' tier
-        commercial_ladder = ['go', 'starter', 'default', 'pro', 'turbo', 'enterprise']
-        curr_idx = commercial_ladder.index(current_plan) if current_plan in commercial_ladder else -1
+        # Commercial customer ladder derived dynamically from /var/webuzo/cgroups
+        commercial_ladder = self.get_dynamic_commercial_ladder()
+        curr_idx = -1
+        for idx, p_name in enumerate(commercial_ladder):
+            if p_name.lower() == current_plan.lower():
+                curr_idx = idx
+                break
 
         status = "ADEQUATE"
         reasons = []
@@ -890,15 +941,17 @@ class IpcRequestHandler:
                 summary = f"Account operates comfortably within '{current_plan.upper()}' limits with healthy headroom."
             recommended_plan = current_plan
         else:
-            if current_plan == 'enterprise' or (curr_idx >= 0 and curr_idx >= len(commercial_ladder) - 1):
+            if curr_idx >= 0 and curr_idx >= len(commercial_ladder) - 1:
                 status = "MAX_TIER_REACHED"
-                recommended_plan = current_plan
-                summary = f"Account '{username}' is already on the top commercial tier ('{current_plan.upper()}'). Contact enterprise support for dedicated virtual instance or clustering options."
+                recommended_plan = commercial_ladder[curr_idx]
+                summary = f"Account '{username}' is already on the top commercial tier ('{recommended_plan.upper()}'). Contact enterprise support for dedicated virtual instance or clustering options."
             elif curr_idx >= 0 and curr_idx < len(commercial_ladder) - 1:
                 recommended_plan = commercial_ladder[curr_idx + 1]
                 summary = f"Upgrade to '{recommended_plan.upper()}' recommended to alleviate observed bottlenecks ({span_hours}h evaluated)."
             else:
-                recommended_plan = 'pro'
+                # If current plan is unrecognized in dynamic ladder, pick the middle/upper commercial plan
+                target_idx = min(len(commercial_ladder) - 1, max(0, len(commercial_ladder) // 2))
+                recommended_plan = commercial_ladder[target_idx] if commercial_ladder else current_plan
                 summary = f"Upgrade to '{recommended_plan.upper()}' recommended to alleviate observed bottlenecks."
 
         return {
@@ -2260,6 +2313,30 @@ class IpcRequestHandler:
                 'pids_synced': pids_synced,
                 'io_synced': io_synced
             })
+        php_runtime = []
+        php_runtime_error = None
+        try:
+            base = pathlib.Path('/etc/webuzo-isolation')
+            mode = json.loads((base / 'policy.json').read_text()).get('accountRuntimeCaps', False)
+            for manifest in pathlib.Path('/var/lib/webuzo-isolation').glob('php*.json'):
+                if not re.fullmatch(r'php\d{2,3}', manifest.stem): continue
+                for pool in json.loads(manifest.read_text()).get('pools', []):
+                    user = pool['user']
+                    if not re.fullmatch(r'[a-z_][a-z0-9_-]*', user): continue
+                    private = (base / manifest.stem / (user + '.conf')).read_text()
+                    cap = re.search(r'^\s*pm\.max_children\s*=\s*(\d+)', private, re.M)
+                    lease = pathlib.Path('/run/webuzo-isolation/slots') / ('wpiso-fpm-' + manifest.stem + '-' + user + '.service')
+                    grant = json.loads(lease.read_text()) if lease.exists() else {}
+                    php_runtime.append({'user': user, 'version': manifest.stem,
+                        'native_max_children': pool['maxChildren'],
+                        'managed_max_children': int(cap[1]) if cap else None,
+                        'reserved_mib': grant.get('costMiB', 0),
+                        'state': 'Leased' if grant else 'Idle / no lease',
+                        'source': 'Automatic account boundary / shared grant' if mode else 'Native global default'})
+        except FileNotFoundError:
+            pass
+        except Exception as exc:
+            php_runtime_error = str(exc)
         total_accounts = len(audit_results)
         mismatch_count = sum(1 for a in audit_results if not a.get('is_synchronized', False))
         return {
@@ -2267,7 +2344,9 @@ class IpcRequestHandler:
             'total_accounts': total_accounts,
             'mismatch_count': mismatch_count,
             'accounts': audit_results,
-            'audit': audit_results
+            'audit': audit_results,
+            'php_runtime': php_runtime,
+            'php_runtime_error': php_runtime_error
         }
 
     def action_admin_out_of_boundary(self) -> Dict[str, Any]:
@@ -2528,8 +2607,8 @@ class IpcRequestHandler:
 
         subprocess.run(['systemctl', 'daemon-reload'], check=False)
 
-        # Reconcile isolation on installed PHP versions
-        for ver in self.get_installed_phps():
+        # Reconcile isolation on managed PHP versions
+        for ver in self.get_managed_phps():
             try:
                 subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, timeout=30)
             except Exception:
@@ -2552,6 +2631,79 @@ class IpcRequestHandler:
             'synced_accounts': synced_accounts,
             'failed_accounts': failed_accounts
         }
+
+    def action_get_php_lifecycle(self) -> Dict[str, Any]:
+        installed = self.get_installed_phps()
+        managed = self.get_managed_phps()
+        versions_info = {}
+        for v in sorted(set(installed + managed)):
+            is_inst = v in installed
+            is_man = v in managed
+            mgr_active = False
+            health_active = False
+            pool_count = 0
+            if is_man:
+                r_mgr = subprocess.run(['systemctl', 'is-active', f'wpiso-manager-{v}.service'], capture_output=True, text=True)
+                mgr_active = (r_mgr.stdout.strip() == 'active')
+                r_hlth = subprocess.run(['systemctl', 'is-active', f'wpiso-health-{v}.service'], capture_output=True, text=True)
+                health_active = (r_hlth.stdout.strip() == 'active')
+                mf = pathlib.Path(f'/var/lib/webuzo-isolation/{v}.json')
+                if mf.exists():
+                    try:
+                        pool_count = len(json.loads(mf.read_text(encoding='utf-8')).get('pools', []))
+                    except Exception:
+                        pass
+            versions_info[v] = {
+                'installed': is_inst,
+                'managed': is_man,
+                'coordinator_active': mgr_active,
+                'health_master_active': health_active,
+                'pool_count': pool_count
+            }
+        return {
+            'success': True,
+            'installed_phps': installed,
+            'managed_phps': managed,
+            'versions': versions_info
+        }
+
+    def action_onboard_php_version(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        version = str(params.get('version', '')).strip().lower()
+        if not re.fullmatch(r'php\d{2,3}', version):
+            return {'success': False, 'error': f"Invalid PHP version: {version}"}
+        r = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'onboard', version],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            return {'success': False, 'error': r.stderr or r.stdout or f"Onboard failed for {version}"}
+        conn = self.get_db()
+        try:
+            conn.execute("""
+                INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
+                VALUES (?, ?, 'onboard_php_version', 'system', ?)
+            """, (int(time.time()), admin_user, json.dumps({'version': version, 'output': r.stdout.strip()})))
+            conn.commit()
+        finally:
+            conn.close()
+        return {'success': True, 'version': version, 'output': r.stdout.strip()}
+
+    def action_retire_php_version(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        version = str(params.get('version', '')).strip().lower()
+        if not re.fullmatch(r'php\d{2,3}', version):
+            return {'success': False, 'error': f"Invalid PHP version: {version}"}
+        r = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'retire', version],
+                           capture_output=True, text=True, timeout=120)
+        if r.returncode != 0:
+            return {'success': False, 'error': r.stderr or r.stdout or f"Retire failed for {version}"}
+        conn = self.get_db()
+        try:
+            conn.execute("""
+                INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
+                VALUES (?, ?, 'retire_php_version', 'system', ?)
+            """, (int(time.time()), admin_user, json.dumps({'version': version, 'output': r.stdout.strip()})))
+            conn.commit()
+        finally:
+            conn.close()
+        return {'success': True, 'version': version, 'output': r.stdout.strip()}
 
     def action_save_native_plan(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -2977,7 +3129,7 @@ class IpcRequestHandler:
         lock_dir = "/run/uniselv-resman"
         lock_fd = None
         lock_path = os.path.join(lock_dir, f"account_{target_user}.lock")
-        acquire_timeout = 5.0
+        acquire_timeout = 10.0
         start_lock = time.time()
         lock_acquired = False
         last_lock_err = None
@@ -3235,8 +3387,8 @@ class IpcRequestHandler:
                     if parse_cgroup_io_max(cur_io) != parse_cgroup_io_max(native_io):
                         raise RuntimeError(f"Verification Failure: Kernel io.max mismatch between golden and native slice: '{cur_io}' != '{native_io}'")
 
-                # Step F: Trigger PHP isolation reload across all installed PHP versions and verify return codes
-                php_versions = self.get_installed_phps()
+                # Step F: Trigger PHP isolation reload across managed PHP versions and verify return codes
+                php_versions = self.get_managed_phps()
                 reloaded_phps = []
                 for ver in php_versions:
                     p_res = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, text=True, timeout=90)
@@ -3273,7 +3425,7 @@ class IpcRequestHandler:
                     if rb_p.returncode != 0:
                         rollback_errs.append(f"golden-shield prepare-account failed on rollback (exit {rb_p.returncode}): {rb_p.stderr or rb_p.stdout}")
 
-                    for ver in self.get_installed_phps():
+                    for ver in self.get_managed_phps():
                         rb_php = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, text=True, timeout=90)
                         if rb_php.returncode != 0:
                             rollback_errs.append(f"PHP {ver} isolation reload failed on rollback (exit {rb_php.returncode}): {rb_php.stderr or rb_php.stdout}")

@@ -1442,3 +1442,479 @@
     .uniselv-mobile-navigation { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; font-weight: 600; }
     .uniselv-mobile-navigation select { width: 100%; padding: 12px; }
 }
+
+
+/* ==================== PREMIUM ANIMATED GAUGE CARDS (MEDIA REFERENCE) ==================== */
+.uniselv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+    gap: 22px;
+    margin-bottom: 26px;
+}
+
+.uniselv-gauge-card {
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 24px;
+    padding: 24px 22px 20px 22px;
+    box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(241, 245, 249, 0.8);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.uniselv-gauge-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(203, 213, 225, 0.8);
+}
+
+.uniselv-gauge-card .uniselv-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.uniselv-gauge-card .uniselv-card-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.uniselv-gauge-card .uniselv-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.uniselv-gauge-card:hover .uniselv-card-icon {
+    transform: scale(1.06);
+}
+
+.uniselv-gauge-card .uniselv-card-icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+.uniselv-gauge-card .uniselv-card-title {
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
+    line-height: 1.2;
+}
+
+.uniselv-gauge-card .uniselv-card-desc {
+    font-size: 0.74rem;
+    color: #94a3b8;
+    font-weight: 500;
+    margin-top: 3px;
+    line-height: 1.2;
+}
+
+.uniselv-gauge-card .uniselv-badge {
+    padding: 4px 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 9999px;
+    letter-spacing: 0.3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Center Dial Container */
+.uniselv-gauge-wrap {
+    position: relative;
+    width: 176px;
+    height: 176px;
+    margin: 16px auto 14px auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.uniselv-gauge-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.uniselv-gauge-ticks {
+    fill: none;
+    stroke: #e2e8f0;
+    stroke-width: 3.5;
+    stroke-dasharray: 2 6;
+}
+
+.uniselv-gauge-track {
+    fill: none;
+    stroke: #f1f5f9;
+    stroke-width: 6;
+}
+
+.uniselv-gauge-arc {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.uniselv-gauge-thumb-rot {
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: 100px 100px;
+}
+
+/* Floating Particle Dots */
+.uniselv-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.uniselv-particles .particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.75;
+    animation: uniselvParticleFloat 3s ease-in-out infinite;
+}
+
+.particle.p-1 { width: 5px; height: 5px; top: 18%; left: 8%; animation-delay: 0s; }
+.particle.p-2 { width: 4px; height: 4px; top: 12%; right: 14%; animation-delay: 0.6s; }
+.particle.p-3 { width: 6px; height: 6px; bottom: 22%; left: 10%; animation-delay: 1.2s; }
+.particle.p-4 { width: 4px; height: 4px; bottom: 26%; right: 8%; animation-delay: 1.8s; }
+.particle.p-5 { width: 3px; height: 3px; top: 52%; right: 4%; animation-delay: 2.4s; }
+
+@keyframes uniselvParticleFloat {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.45; }
+    50% { transform: translateY(-5px) scale(1.3); opacity: 0.85; }
+}
+
+/* Inner Clipped Circle for Liquid Wave */
+.uniselv-liquid-circle {
+    width: 136px;
+    height: 136px;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    background: #ffffff;
+    box-shadow: inset 0 2px 8px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(241, 245, 249, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+
+/* Liquid Waves */
+.uniselv-wave-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    min-height: 0;
+    max-height: 100%;
+    transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.uniselv-wave {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 200%;
+    height: 100%;
+    background-repeat: repeat-x;
+}
+
+.wave-front {
+    background-size: 50% 100%;
+    animation: uniselvWaveMoveFront 4.5s linear infinite;
+    z-index: 2;
+    opacity: 0.85;
+}
+
+.wave-back {
+    background-size: 50% 100%;
+    animation: uniselvWaveMoveBack 7s linear infinite;
+    z-index: 1;
+    opacity: 0.5;
+}
+
+@keyframes uniselvWaveMoveFront {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes uniselvWaveMoveBack {
+    0% { transform: translateX(-50%); }
+    100% { transform: translateX(0); }
+}
+
+/* Center Value in Dial */
+.uniselv-gauge-center {
+    position: relative;
+    z-index: 5;
+    text-align: center;
+    padding: 0 8px;
+    pointer-events: none;
+}
+
+.uniselv-gauge-center .uniselv-metric-big {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+    display: block;
+}
+
+.uniselv-gauge-center .uniselv-metric-core {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    display: block;
+    margin-top: 3px;
+}
+
+/* Card Bottom Footer */
+.uniselv-card-footer {
+    border-top: 1px solid #f1f5f9;
+    padding-top: 14px;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.uniselv-footer-chart {
+    width: 64px;
+    height: 32px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.uniselv-footer-chart .uniselv-sparkline-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Equalizer Bars Chart */
+.uniselv-eq-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    width: 64px;
+    height: 26px;
+}
+
+.uniselv-eq-bars .eq-bar {
+    flex: 1;
+    border-radius: 2px;
+    min-height: 4px;
+    transition: height 0.4s ease;
+}
+
+.uniselv-gauge-card .uniselv-card-sub {
+    flex: 1;
+    font-size: 0.73rem;
+    color: #64748b;
+    line-height: 1.45;
+}
+
+.uniselv-gauge-card .uniselv-card-sub strong {
+    color: #1e293b;
+    font-weight: 700;
+}
+
+.uniselv-gauge-card .uniselv-card-sub .sub-muted {
+    color: #94a3b8;
+    display: block;
+    margin-top: 2px;
+}
+
+/* Theme Colors: CPU (Royal Blue) */
+.theme-cpu .uniselv-card-icon { background: #eff6ff; color: #3b82f6; }
+.theme-cpu .particle { background: #3b82f6; }
+.theme-cpu .wave-front { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,35 C150,70 350,0 500,35 C650,70 750,15 800,35 L800,80 L0,80 Z' fill='%233b82f6' fill-opacity='0.45'/%3E%3C/svg%3E"); }
+.theme-cpu .wave-back { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,45 C200,10 300,60 500,30 C700,0 750,50 800,45 L800,80 L0,80 Z' fill='%2360a5fa' fill-opacity='0.3'/%3E%3C/svg%3E"); }
+
+/* Theme Colors: Memory (Purple/Violet) */
+.theme-mem .uniselv-card-icon { background: #f5f3ff; color: #8b5cf6; }
+.theme-mem .particle { background: #8b5cf6; }
+.theme-mem .wave-front { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,35 C150,70 350,0 500,35 C650,70 750,15 800,35 L800,80 L0,80 Z' fill='%238b5cf6' fill-opacity='0.45'/%3E%3C/svg%3E"); }
+.theme-mem .wave-back { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,45 C200,10 300,60 500,30 C700,0 750,50 800,45 L800,80 L0,80 Z' fill='%23c084fc' fill-opacity='0.3'/%3E%3C/svg%3E"); }
+
+/* Theme Colors: I/O (Emerald Green) */
+.theme-io .uniselv-card-icon { background: #ecfdf5; color: #10b981; }
+.theme-io .particle { background: #10b981; }
+.theme-io .wave-front { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,35 C150,70 350,0 500,35 C650,70 750,15 800,35 L800,80 L0,80 Z' fill='%2310b981' fill-opacity='0.45'/%3E%3C/svg%3E"); }
+.theme-io .wave-back { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,45 C200,10 300,60 500,30 C700,0 750,50 800,45 L800,80 L0,80 Z' fill='%2334d399' fill-opacity='0.3'/%3E%3C/svg%3E"); }
+.theme-io .eq-bar { background: linear-gradient(180deg, #34d399, #10b981); }
+
+/* Theme Colors: Tasks (Warm Amber) */
+.theme-tasks .uniselv-card-icon { background: #fffbeb; color: #f59e0b; }
+.theme-tasks .particle { background: #f59e0b; }
+.theme-tasks .wave-front { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,35 C150,70 350,0 500,35 C650,70 750,15 800,35 L800,80 L0,80 Z' fill='%23f59e0b' fill-opacity='0.45'/%3E%3C/svg%3E"); }
+.theme-tasks .wave-back { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,45 C200,10 300,60 500,30 C700,0 750,50 800,45 L800,80 L0,80 Z' fill='%23fbbf24' fill-opacity='0.3'/%3E%3C/svg%3E"); }
+.theme-tasks .eq-bar { background: linear-gradient(180deg, #fbbf24, #f59e0b); }
+
+
+/* Vibrant Perimeter Progress Arc Colors & Glowing Thumbs */
+.arc-cpu,
+.theme-cpu .uniselv-gauge-arc {
+    stroke: #3b82f6 !important;
+    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.45));
+}
+.arc-mem,
+.theme-mem .uniselv-gauge-arc {
+    stroke: #8b5cf6 !important;
+    filter: drop-shadow(0 0 4px rgba(139, 92, 246, 0.45));
+}
+.arc-io,
+.theme-io .uniselv-gauge-arc {
+    stroke: #10b981 !important;
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.45));
+}
+.arc-tasks,
+.theme-tasks .uniselv-gauge-arc {
+    stroke: #f59e0b !important;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.45));
+}
+
+.uniselv-gauge-thumb-rot circle {
+    filter: drop-shadow(0 0 6px currentColor);
+}
+.theme-cpu .uniselv-gauge-thumb-rot circle {
+    fill: #3b82f6;
+}
+.theme-mem .uniselv-gauge-thumb-rot circle {
+    fill: #8b5cf6;
+}
+.theme-io .uniselv-gauge-thumb-rot circle {
+    fill: #10b981;
+}
+.theme-tasks .uniselv-gauge-thumb-rot circle {
+    fill: #f59e0b;
+}
+
+/* Dynamic Liquid Wave Heights & Full 100% Fill */
+.theme-cpu .uniselv-wave-container { background: rgba(59, 130, 246, 0.22); }
+.theme-mem .uniselv-wave-container { background: rgba(139, 92, 246, 0.22); }
+.theme-io .uniselv-wave-container { background: rgba(16, 185, 129, 0.22); }
+.theme-tasks .uniselv-wave-container { background: rgba(245, 158, 11, 0.22); }
+
+/* Dynamic Equalizer Bar Styling & Animations */
+.uniselv-eq-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 28px;
+}
+.uniselv-eq-bars .eq-bar {
+    width: 4px;
+    border-radius: 2px;
+    background: currentColor;
+    transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 4px;
+    transform-origin: bottom;
+}
+.theme-io .uniselv-eq-bars .eq-bar { background: #10b981; }
+.theme-tasks .uniselv-eq-bars .eq-bar { background: #f59e0b; }
+.uniselv-eq-bars .eq-bar.eq-active {
+    animation: eqBounce 1.2s ease-in-out infinite alternate;
+}
+.uniselv-eq-bars .eq-bar.bar-1 { animation-delay: 0.0s; }
+.uniselv-eq-bars .eq-bar.bar-2 { animation-delay: 0.15s; }
+.uniselv-eq-bars .eq-bar.bar-3 { animation-delay: 0.3s; }
+.uniselv-eq-bars .eq-bar.bar-4 { animation-delay: 0.45s; }
+.uniselv-eq-bars .eq-bar.bar-5 { animation-delay: 0.6s; }
+.uniselv-eq-bars .eq-bar.bar-6 { animation-delay: 0.2s; }
+.uniselv-eq-bars .eq-bar.bar-7 { animation-delay: 0.5s; }
+
+@keyframes eqBounce {
+    0% { transform: scaleY(0.85); }
+    100% { transform: scaleY(1.2); }
+}
+
+/* Sparkline wrap in modern card footer */
+.uniselv-gauge-card .uniselv-sparkline-wrap {
+    width: 70px;
+    height: 30px;
+    flex-shrink: 0;
+}
+.uniselv-gauge-card .uniselv-sparkline-wrap .uniselv-sparkline-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+/* Ultra-Modern Glowing Telemetry Badge & Pulse */
+.uniselv-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ecfdf5;
+    border: 1px solid #d1fae5;
+    color: #059669;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.08);
+    transition: all 0.3s ease;
+}
+
+.uniselv-live-badge.badge-stale {
+    background: #fef2f2;
+    border-color: #fee2e2;
+    color: #dc2626;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.08);
+}
+
+.uniselv-live-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #10b981;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+    animation: livePulse 2s infinite;
+}
+
+.uniselv-live-dot.dot-danger {
+    background-color: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    animation: livePulseDanger 2s infinite;
+}
+
+@keyframes livePulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes livePulseDanger {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}

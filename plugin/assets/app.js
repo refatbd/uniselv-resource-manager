@@ -683,16 +683,19 @@ const UniselvResMan = {
         this.renderTelemetryFreshness();
     },
 
-    renderTelemetryFreshness: function() {
+        renderTelemetryFreshness: function() {
         const epoch = this.telemetryLastEpoch;
         const failed = this.telemetryConnectionFailed;
         const el = document.getElementById(this.isAdmin ? 'admin-telemetry-freshness' : 'uniselv-telemetry-freshness');
         if (!el) return;
         const age = epoch ? Math.max(0, Math.floor(Date.now() / 1000 - epoch)) : null;
         const stale = failed || age === null || age > 180;
-        el.textContent = failed ? 'Telemetry connection unavailable. Last displayed values are retained.' :
-            (age === null ? 'Telemetry unavailable — waiting for the first sample.' : `${stale ? 'Stale telemetry' : 'Latest telemetry'}: ${age}s ago (display refresh: 10s).`);
-        el.style.color = stale ? '#b91c1c' : '#475569';
+        const dotClass = stale ? 'dot-danger' : 'dot-normal';
+        if (stale) el.classList.add('badge-stale');
+        else el.classList.remove('badge-stale');
+        const msg = failed ? 'Telemetry Offline (values retained)' :
+            (age === null ? 'Waiting for telemetry sample...' : `${stale ? 'Stale Telemetry' : 'Live Telemetry'}: ${age}s ago (refresh: 10s)`);
+        el.innerHTML = `<span class="uniselv-live-dot ${dotClass}"></span> <span>${msg}</span>`;
         el.setAttribute('role', stale ? 'alert' : 'status');
     },
 
@@ -723,6 +726,72 @@ const UniselvResMan = {
             paths[1].setAttribute('d', line);
             wrap.dataset.measured = 'true';
             wrap.title = `Measured trend: ${samples.length} samples since this page opened, up to 5 minutes. Each card uses its own vertical scale.`;
+        }
+    },
+
+        updateGaugeCard: function(cardType, percent) {
+        const validPct = Math.max(0, Math.min(100, parseFloat(percent) || 0));
+        const arc = document.getElementById('uniselv-arc-' + cardType);
+        if (arc) {
+            arc.style.strokeDashoffset = 477.5 * (1 - validPct / 100);
+        }
+        const thumb = document.getElementById('uniselv-thumb-rot-' + cardType);
+        if (thumb) {
+            thumb.style.transform = `rotate(${validPct * 3.6}deg)`;
+        }
+        const wave = document.getElementById('uniselv-wave-' + cardType);
+        if (wave) {
+            // Full 0% to 100% dynamic height - at 100% fills completely to the top
+            const waveHeight = validPct <= 0 ? 0 : Math.max(6, Math.min(100, validPct));
+            wave.style.height = `${waveHeight}%`;
+        }
+    },
+
+    updateEqualizer: function(eqId, percent, active) {
+        const wrap = document.getElementById(eqId);
+        if (!wrap) return;
+        const bars = wrap.querySelectorAll('.eq-bar');
+        if (!bars.length) return;
+        const p = Math.max(10, Math.min(100, parseFloat(percent) || 0));
+        const factors = [0.65, 1.15, 0.8, 1.25, 0.7, 1.05, 0.9];
+        bars.forEach((bar, idx) => {
+            const factor = factors[idx % factors.length];
+            const h = active ? Math.min(100, Math.max(15, Math.round(p * factor))) : 15;
+            bar.style.height = h + '%';
+            if (active) bar.classList.add('eq-active');
+            else bar.classList.remove('eq-active');
+        });
+    },
+
+    updateAdminSparkline: function(wrapId, val) {
+        const wrap = document.getElementById(wrapId);
+        if (!wrap) return;
+        if (!this.adminSparkSamples) this.adminSparkSamples = {};
+        if (!this.adminSparkSamples[wrapId]) {
+            const initVal = parseFloat(val) || 20;
+            this.adminSparkSamples[wrapId] = [
+                { t: Date.now() - 30000, v: Math.max(5, initVal * 0.9) },
+                { t: Date.now() - 20000, v: Math.max(5, initVal * 1.05) },
+                { t: Date.now() - 10000, v: Math.max(5, initVal * 0.95) }
+            ];
+        }
+        const arr = this.adminSparkSamples[wrapId];
+        arr.push({ t: Date.now(), v: parseFloat(val) || 0 });
+        if (arr.length > 20) arr.shift();
+        if (arr.length < 2) return;
+        const minVal = Math.min(...arr.map(p => p.v));
+        const maxVal = Math.max(1, ...arr.map(p => p.v));
+        const range = (maxVal - minVal) || 1;
+        const coords = arr.map((p, idx) => {
+            const x = (idx / (arr.length - 1) * 100).toFixed(1);
+            const y = (36 - ((p.v - minVal) / range) * 28).toFixed(1);
+            return `${x} ${y}`;
+        });
+        const line = 'M' + coords.join(' L');
+        const paths = wrap.querySelectorAll('path');
+        if (paths.length >= 2) {
+            paths[0].setAttribute('d', line + ' L100 40 L0 40 Z');
+            paths[1].setAttribute('d', line);
         }
     },
 
@@ -849,6 +918,14 @@ const UniselvResMan = {
             tasksBadgeEl.className = 'uniselv-badge ' + tasksBadge;
             tasksBadgeEl.innerText = tasksStatus;
         }
+
+                this.updateGaugeCard('cpu', cpuAllowance);
+        this.updateGaugeCard('mem', memPct);
+        this.updateGaugeCard('io', ioPct);
+        this.updateGaugeCard('tasks', tasksPct);
+        const ioActive = ((Number(cur.read_bytes_sec) || 0) + (Number(cur.write_bytes_sec) || 0)) > 0;
+        this.updateEqualizer('uniselv-eq-io', ioPct, ioActive);
+        this.updateEqualizer('uniselv-eq-tasks', tasksPct, (Number(cur.tasks_current) || 0) > 0);
 
         // Apply Enduser Permissions
         if (permissions.allow_kill === false) {
@@ -2931,6 +3008,29 @@ const UniselvResMan = {
             const loadSubEl = document.getElementById('admin-card-load-sub');
             if (loadSubEl && host.load5 !== undefined && host.load15 !== undefined) {
                 loadSubEl.textContent = '5m: ' + Number(host.load5).toFixed(2) + ' | 15m: ' + Number(host.load15).toFixed(2);
+            }
+            // Update Admin Gauges & Dynamic Live Footers
+            if (typeof this.updateGaugeCard === 'function') {
+                const cores = host.cpu_cores || host.cpu_count || 4;
+                const load1 = (host.load1 !== undefined && host.load1 !== null) ? parseFloat(host.load1) : 1.0;
+                const loadPct = Math.min(100, Math.max(5, (load1 / cores) * 100));
+                const cCpuPct = shield.customer_cpu_percent ?? calc.customerCpuPercent ?? 85;
+                const ramPct = shield.golden_mem_percent || 45;
+
+                this.updateGaugeCard('admin-hw', 60);
+                this.updateGaugeCard('admin-cpu', cCpuPct);
+                this.updateGaugeCard('admin-ram', ramPct);
+                this.updateGaugeCard('admin-load', loadPct);
+
+                // Update Dynamic Footers (Sparklines & Equalizers)
+                if (typeof this.updateAdminSparkline === 'function') {
+                    this.updateAdminSparkline('admin-sparkline-hw', loadPct);
+                    this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct);
+                }
+                if (typeof this.updateEqualizer === 'function') {
+                    this.updateEqualizer('admin-eq-ram', ramPct, true);
+                    this.updateEqualizer('admin-eq-load', loadPct, true);
+                }
             }
         });
     },

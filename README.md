@@ -1,6 +1,12 @@
-> Current release: **1.1.16**, 2026-10-20. Privileged Webuzo panel activation and deactivation dispatchers, root CLI preflight guards, and PHP-FPM listen.backlog fallback. Previous release records below are historical.
+Current runtime release: **1.1.22**. Dynamic PHP version onboarding/retirement lifecycle, unmanaged physical discovery isolation from plan management, fail-closed validation, and 100% verified regression coverage (28/28 tests passed). See [final audit report](../server-audit-20261022/FINAL-REPORT.md) and [test matrix](../server-audit-20261022/TEST-MATRIX.md).
 
-> Current release: **1.1.12**. Installable artifact: `uniselv-resman-1.1.12.zip`. Current scope and evidence: `plugin/docs/LIFECYCLE-REVIEW-1.1.12.md`.
+Previous release: **1.1.21**. Deleted-account native-pool quarantine; physical/default budgets unchanged.
+
+> Historical baseline: **1.1.17**, 2026-10-20. Account-aware managed PHP worker caps, shared cold-start admission, bounded request queue, neutral animated 503 page, and aggregate-aware CPU circuit breaker. See plugin/docs/dynamic-capacity.md for scope and evidence.
+
+> Previous release: **1.1.16**, 2026-10-20. Privileged Webuzo panel activation and deactivation dispatchers, root CLI preflight guards, and PHP-FPM listen.backlog fallback. Previous release records below are historical.
+
+> Historical baseline: **1.1.12**. Installable artifact: `uniselv-resman-1.1.12.zip`. Current scope and evidence: `plugin/docs/LIFECYCLE-REVIEW-1.1.12.md`.
 
 # UNISELV Resource Manager for Webuzo
 

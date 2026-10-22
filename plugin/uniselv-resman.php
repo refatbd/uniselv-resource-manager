@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.16
+Version: 1.1.22
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -355,7 +355,7 @@ function uniselv_resman_admin() {
             'save_report_schedule', 'branding_save', 'mark_notification',
             'save_package_mapping', 'delete_package_mapping', 'webhook',
             'save_account_permission', 'save_role_permission',
-            'clear_audit_logs', 'purge_snapshots'
+            'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php'
         ];
         
         if (in_array($subact, $mutation_actions)) {
@@ -416,7 +416,10 @@ function uniselv_resman_admin() {
             'golden_restore' => 'restore_golden_shield_config',
             'golden_list_backups' => 'list_golden_shield_backups',
             'snapshots_index' => 'get_snapshots_index',
-            'snapshot_detail' => 'get_snapshot_detail'
+            'snapshot_detail' => 'get_snapshot_detail',
+            'onboard_php' => 'onboard_php_version',
+            'retire_php' => 'retire_php_version',
+            'php_lifecycle' => 'get_php_lifecycle'
         ];
 
         if (isset($action_map[$subact])) {
@@ -464,13 +467,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.22r4' . '">';
     echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.22r4' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -557,27 +560,235 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     $l5 = isset($host['load5']) ? number_format((float)$host['load5'], 2) : '0.00';
     $l15 = isset($host['load15']) ? number_format((float)$host['load15'], 2) : '0.00';
 
-    echo '<div id="tab-overview" class="uniselv-tab-content active"><p id="admin-telemetry-freshness" style="font-size:0.85rem; margin:0 0 12px;">Reading latest telemetry sample...</p>';
+    echo '<div id="tab-overview" class="uniselv-tab-content active">
+        <div class="uniselv-status-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <div class="uniselv-live-badge" id="admin-telemetry-freshness">
+                <span class="uniselv-live-dot"></span>
+                <span>Live Telemetry: reading sample...</span>
+            </div>
+            <button class="uniselv-btn btn-sm btn-outline" onclick="UniselvResMan.loadAdminOverview()" title="Refresh telemetry immediately" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; padding:5px 12px; border-radius:9999px;">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Now
+            </button>
+        </div>';
     echo '<div class="uniselv-grid">
-        <div class="uniselv-card">
-            <div class="uniselv-card-header"><span class="uniselv-card-title">Hardware Detection</span></div>
-            <div class="uniselv-card-value" id="admin-card-hw-cpu">' . $cpu_cores . ' vCPUs</div>
-            <div class="uniselv-card-sub" id="admin-card-hw-ram">Physical RAM: ' . $total_ram . '</div>
+        <!-- 1. Admin Hardware Detection -->
+        <div class="uniselv-card uniselv-gauge-card theme-cpu">
+            <div class="uniselv-card-header">
+                <div class="uniselv-card-title-wrap">
+                    <div class="uniselv-card-icon icon-cpu">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><rect x="9" y="9" width="6" height="6" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3"/></svg>
+                    </div>
+                    <div>
+                        <span class="uniselv-card-title">HARDWARE DETECTION</span>
+                        <div class="uniselv-card-desc">Physical server resources</div>
+                    </div>
+                </div>
+                <span class="uniselv-badge badge-normal">ACTIVE</span>
+            </div>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-admin-hw" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3b82f6"/>
+                            <stop offset="100%" stop-color="#60a5fa"/>
+                        </linearGradient>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-admin-hw" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="190" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-hw" style="transform: rotate(216deg);">
+                        <circle cx="100" cy="24" r="5" fill="#3b82f6"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-hw" style="height: 52%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="admin-card-hw-cpu">' . $cpu_cores . ' vCPUs</span>
+                        <span class="uniselv-metric-core">Physical Cores</span>
+                    </div>
+                </div>
+            </div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-sparkline-wrap" id="admin-sparkline-hw" aria-hidden="true" title="Dynamic CPU load history">
+                    <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
+                        <defs><linearGradient id="spark-grad-admin-hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/></linearGradient></defs>
+                        <path d="M0,25 Q25,12 50,22 T100,16 L100,40 L0,40 Z" fill="url(#spark-grad-admin-hw)"/>
+                        <path d="M0,25 Q25,12 50,22 T100,16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="uniselv-card-sub" id="admin-card-hw-ram">Physical RAM: <strong>' . $total_ram . '</strong><br><span class="sub-muted">Kernel: ' . php_uname('r') . '</span></div>
+            </div>
         </div>
-        <div class="uniselv-card">
-            <div class="uniselv-card-header"><span class="uniselv-card-title">Shared CPU Headroom</span></div>
-            <div class="uniselv-card-value" id="admin-card-cpu-headroom">' . $customer_cpu . '% Hosting</div>
-            <div class="uniselv-card-sub" id="admin-card-cpu-sub">' . $reserved_cpu . '% System Headroom (No fixed core dedicated)</div>
+
+        <!-- 2. Admin Shared CPU Headroom -->
+        <div class="uniselv-card uniselv-gauge-card theme-mem">
+            <div class="uniselv-card-header">
+                <div class="uniselv-card-title-wrap">
+                    <div class="uniselv-card-icon icon-mem">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                        <span class="uniselv-card-title">SHARED CPU HEADROOM</span>
+                        <div class="uniselv-card-desc">Dynamic aggregate quota</div>
+                    </div>
+                </div>
+                <span class="uniselv-badge badge-normal">NORMAL</span>
+            </div>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-admin-cpu" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#8b5cf6"/>
+                            <stop offset="100%" stop-color="#c084fc"/>
+                        </linearGradient>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-mem" id="uniselv-arc-admin-cpu" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="120" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-cpu" style="transform: rotate(270deg);">
+                        <circle cx="100" cy="24" r="5" fill="#8b5cf6"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-cpu" style="height: 60%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="admin-card-cpu-headroom">' . $customer_cpu . '%</span>
+                        <span class="uniselv-metric-core">Hosting Share</span>
+                    </div>
+                </div>
+            </div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-sparkline-wrap" id="admin-sparkline-cpu" aria-hidden="true" title="Dynamic customer quota headroom">
+                    <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
+                        <defs><linearGradient id="spark-grad-admin-cpu" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.35"/><stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.0"/></linearGradient></defs>
+                        <path d="M0,22 Q25,14 50,26 T100,18 L100,40 L0,40 Z" fill="url(#spark-grad-admin-cpu)"/>
+                        <path d="M0,22 Q25,14 50,26 T100,18" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <div class="uniselv-card-sub" id="admin-card-cpu-sub">System Reserve: <strong>' . $reserved_cpu . '%</strong><br><span class="sub-muted">No fixed core dedicated</span></div>
+            </div>
         </div>
-        <div class="uniselv-card">
-            <div class="uniselv-card-header"><span class="uniselv-card-title">RAM Safety Budget</span></div>
-            <div class="uniselv-card-value" id="admin-card-ram-curr">' . $golden_mem_cur . '</div>
-            <div class="uniselv-card-sub" id="admin-card-ram-cap">Hosting Cap: ' . $golden_mem_cap . ' (Reserve: ' . $headroom_mib . ' MiB)</div>
+
+        <!-- 3. Admin RAM Safety Budget -->
+        <div class="uniselv-card uniselv-gauge-card theme-io">
+            <div class="uniselv-card-header">
+                <div class="uniselv-card-title-wrap">
+                    <div class="uniselv-card-icon icon-io">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div>
+                        <span class="uniselv-card-title">RAM SAFETY BUDGET</span>
+                        <div class="uniselv-card-desc">Physical memory guard</div>
+                    </div>
+                </div>
+                <span class="uniselv-badge badge-normal">NORMAL</span>
+            </div>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-admin-ram" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#34d399"/>
+                        </linearGradient>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-io" id="uniselv-arc-admin-ram" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="260" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-ram" style="transform: rotate(160deg);">
+                        <circle cx="100" cy="24" r="5" fill="#10b981"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-ram" style="height: 45%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="admin-card-ram-curr">' . $golden_mem_cur . '</span>
+                        <span class="uniselv-metric-core">Hosting Used</span>
+                    </div>
+                </div>
+            </div>
+                        <div class="uniselv-card-footer">
+                <div class="uniselv-footer-chart">
+                    <div class="uniselv-eq-bars" id="admin-eq-ram" title="Memory budget allocation">
+                        <span class="eq-bar bar-1"></span>
+                        <span class="eq-bar bar-2"></span>
+                        <span class="eq-bar bar-3"></span>
+                        <span class="eq-bar bar-4"></span>
+                        <span class="eq-bar bar-5"></span>
+                        <span class="eq-bar bar-6"></span>
+                        <span class="eq-bar bar-7"></span>
+                    </div>
+                </div>
+                <div class="uniselv-card-sub" id="admin-card-ram-cap">Hosting Cap: <strong>' . $golden_mem_cap . '</strong><br><span class="sub-muted">Reserve: ' . $headroom_mib . ' MiB</span></div>
+            </div>
         </div>
-        <div class="uniselv-card">
-            <div class="uniselv-card-header"><span class="uniselv-card-title">System Load</span></div>
-            <div class="uniselv-card-value" id="admin-card-load-1">' . $l1 . '</div>
-            <div class="uniselv-card-sub" id="admin-card-load-sub">5m: ' . $l5 . ' | 15m: ' . $l15 . '</div>
+
+        <!-- 4. Admin System Load -->
+        <div class="uniselv-card uniselv-gauge-card theme-tasks">
+            <div class="uniselv-card-header">
+                <div class="uniselv-card-title-wrap">
+                    <div class="uniselv-card-icon icon-tasks">
+                        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+                    </div>
+                    <div>
+                        <span class="uniselv-card-title">SYSTEM LOAD</span>
+                        <div class="uniselv-card-desc">1m, 5m, 15m load average</div>
+                    </div>
+                </div>
+                <span class="uniselv-badge badge-normal">NORMAL</span>
+            </div>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-admin-load" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#f59e0b"/>
+                            <stop offset="100%" stop-color="#fbbf24"/>
+                        </linearGradient>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-tasks" id="uniselv-arc-admin-load" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="360" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-load" style="transform: rotate(88deg);">
+                        <circle cx="100" cy="24" r="5" fill="#f59e0b"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-load" style="height: 32%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="admin-card-load-1">' . $l1 . '</span>
+                        <span class="uniselv-metric-core">1m Load Avg</span>
+                    </div>
+                </div>
+            </div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-footer-chart">
+                    <div class="uniselv-eq-bars" id="admin-eq-load" title="Real-time multi-core system load">
+                        <span class="eq-bar bar-1"></span>
+                        <span class="eq-bar bar-2"></span>
+                        <span class="eq-bar bar-3"></span>
+                        <span class="eq-bar bar-4"></span>
+                        <span class="eq-bar bar-5"></span>
+                        <span class="eq-bar bar-6"></span>
+                        <span class="eq-bar bar-7"></span>
+                    </div>
+                </div>
+                <div class="uniselv-card-sub" id="admin-card-load-sub">5m: <strong>' . $l5 . '</strong> | 15m: <strong>' . $l15 . '</strong><br><span class="sub-muted">4 Cores Baseline (Normal)</span></div>
+            </div>
         </div>
     </div>';
 
@@ -993,15 +1204,53 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     echo '          </tbody>
                 </table>
             </div>
-        </div>
-    </div>';
+        </div>';
+    echo '<div class="uniselv-card mb-3"><h3>Automatic PHP Runtime Capacity</h3><p>Native global defaults remain inherited. Private runtime caps follow account RAM/Tasks boundaries and available shared PHP capacity. Idle accounts reserve zero; busy pools retain their grant until idle. This is a planning estimate, not a visitor guarantee.</p><div style="overflow-x:auto"><table class="uniselv-table"><thead><tr><th>Account</th><th>PHP</th><th>Native ceiling</th><th>Managed cap</th><th>Reserved MiB</th><th>Lease state</th><th>Source</th></tr></thead><tbody>';
+    foreach (($audit['php_runtime'] ?? []) as $runtime) {
+        echo '<tr>';
+        foreach (['user','version','native_max_children','managed_max_children','reserved_mib','state','source'] as $field) {
+            echo '<td>' . htmlspecialchars((string)($runtime[$field] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') . '</td>';
+        }
+        echo '</tr>';
+    }
+    echo '</tbody></table></div></div></div>';
 
     // TAB 4: GOLDEN SHIELD GOVERNANCE & CAPACITY
     $g_state = isset($golden['state']) ? $golden['state'] : 'Not installed';
     $g_badge = ($g_state === 'Active') ? 'badge-normal' : (($g_state === 'Degraded') ? 'badge-warning' : 'badge-critical');
     $g_msg = isset($golden['message']) ? $golden['message'] : 'Golden Shield governance is ready for configuration.';
     $g_mode = isset($golden['mode']) ? strtoupper($golden['mode']) : 'AUTO';
-    $hw = isset($golden['hardware']) ? $golden['hardware'] : ['cpu_count' => 4, 'ram_total_mib' => 7752, 'swap_total_mib' => 1024, 'fingerprint' => ''];
+    if (isset($golden['hardware']) && is_array($golden['hardware']) && !empty($golden['hardware']['cpu_count'])) {
+        $hw = $golden['hardware'];
+    } else {
+        // Dynamic detection from Linux procfs if agent hardware telemetry is pending
+        $detected_cpu = 0;
+        $detected_ram = 0;
+        $detected_swap = 0;
+        if (@file_exists('/proc/cpuinfo')) {
+            $cpuinfo = @file_get_contents('/proc/cpuinfo');
+            if ($cpuinfo) {
+                $detected_cpu = substr_count($cpuinfo, 'processor');
+            }
+        }
+        if (@file_exists('/proc/meminfo')) {
+            $meminfo = @file_get_contents('/proc/meminfo');
+            if ($meminfo) {
+                if (preg_match('/MemTotal:\s+(\d+)\s+kB/i', $meminfo, $m)) {
+                    $detected_ram = (int)round($m[1] / 1024);
+                }
+                if (preg_match('/SwapTotal:\s+(\d+)\s+kB/i', $meminfo, $m)) {
+                    $detected_swap = (int)round($m[1] / 1024);
+                }
+            }
+        }
+        $hw = [
+            'cpu_count' => $detected_cpu > 0 ? $detected_cpu : null,
+            'ram_total_mib' => $detected_ram > 0 ? $detected_ram : null,
+            'swap_total_mib' => $detected_swap,
+            'fingerprint' => 'telemetry-pending'
+        ];
+    }
     $calc = isset($golden['calculated_policy']) ? $golden['calculated_policy'] : [];
     $cfg = isset($golden['configured_policy']) ? $golden['configured_policy'] : [];
     $eff = isset($golden['effective_values']) ? $golden['effective_values'] : [];
@@ -1042,10 +1291,10 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <div class="uniselv-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;">
             <div class="uniselv-card">
                 <div class="uniselv-card-header"><span class="uniselv-card-title">1. Detected Hardware</span></div>
-                <div class="uniselv-card-value">' . (isset($hw['cpu_count']) ? $hw['cpu_count'] : 4) . ' vCPUs</div>
+                <div class="uniselv-card-value">' . (!empty($hw['cpu_count']) ? htmlspecialchars($hw['cpu_count']) . ' vCPUs' : 'N/A') . '</div>
                 <div class="uniselv-card-sub">
-                    Visible RAM: <strong>' . (isset($hw['ram_total_mib']) ? round($hw['ram_total_mib'] / 1024, 2) : 8) . ' GiB</strong><br>
-                    Swap Available: ' . (isset($hw['swap_total_mib']) ? $hw['swap_total_mib'] : 0) . ' MiB<br>
+                    Visible RAM: <strong>' . (!empty($hw['ram_total_mib']) ? round($hw['ram_total_mib'] / 1024, 2) . ' GiB' : 'N/A') . '</strong><br>
+                    Swap Available: ' . (isset($hw['swap_total_mib']) ? $hw['swap_total_mib'] . ' MiB' : '0 MiB') . '<br>
                     <small style="color:#94a3b8;">Hash: ' . substr(isset($hw['fingerprint']) ? $hw['fingerprint'] : '', 0, 12) . '...</small>
                 </div>
             </div>
@@ -1934,13 +2183,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.22r4' . '">';
     echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.22r4' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2014,143 +2263,265 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     echo '<div id="tab-dashboard" class="uniselv-tab-content active">';
     echo '<div class="uniselv-grid">
-        <!-- CPU Card -->
-        <div class="uniselv-card" id="uniselv-card-cpu">
+        <!-- 1. CPU Card -->
+        <div class="uniselv-card uniselv-gauge-card theme-cpu" id="uniselv-card-cpu">
             <div class="uniselv-card-header">
                 <div class="uniselv-card-title-wrap">
                     <div class="uniselv-card-icon icon-cpu">
                         <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><rect x="9" y="9" width="6" height="6" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3"/></svg>
                     </div>
-                    <span class="uniselv-card-title">CPU Usage</span>
+                    <div>
+                        <span class="uniselv-card-title">CPU USAGE</span>
+                        <div class="uniselv-card-desc">Total processor load</div>
+                    </div>
                 </div>
                 <span class="uniselv-badge ' . $cpu_badge . '" id="uniselv-badge-cpu">' . $cpu_status . '</span>
             </div>
-            <div class="uniselv-card-mid">
-                <div class="uniselv-card-val-wrap">
-                    <span class="uniselv-metric-big" id="uniselv-val-cpu">' . $cpu_val . '%</span>
-                    <span class="uniselv-metric-core" id="uniselv-core-cpu">(' . round($cpu_val / 100, 2) . ' Core)</span>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-cpu" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#3b82f6"/>
+                            <stop offset="100%" stop-color="#60a5fa"/>
+                        </linearGradient>
+                        <filter id="glow-cpu" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#3b82f6" flood-opacity="0.6"/>
+                        </filter>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-cpu" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-cpu" style="transform: rotate(' . (min(100, max(0, $cpu_allowance)) * 3.6) . 'deg);">
+                        <circle cx="100" cy="24" r="5" fill="#3b82f6" filter="url(#glow-cpu)"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles">
+                    <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
-                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-cpu" style="height: ' . ($cpu_allowance <= 0 ? 0 : max(6, min(100, $cpu_allowance))) . '%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="uniselv-val-cpu">' . $cpu_val . '%</span>
+                        <span class="uniselv-metric-core" id="uniselv-core-cpu">(' . round($cpu_val / 100, 2) . ' Core)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="uniselv-progress-bg" style="display:none;">
+                <div class="uniselv-progress-bar bar-cpu" id="uniselv-bar-cpu" style="width: ' . min(100, $cpu_allowance) . '%;"></div>
+            </div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Dynamic measured history">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="cpu-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.3"/>
+                                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
                                 <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <path d="" fill="url(#cpu-grad)"/>
-                        <path d="" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M0,25 Q25,10 50,22 T100,16 L100,40 L0,40 Z" fill="url(#cpu-grad)"/>
+                        <path d="M0,25 Q25,10 50,22 T100,16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
+                <div class="uniselv-card-sub" id="uniselv-sub-cpu">Allowance: <strong>' . $cpu_allowance . '%</strong> used of ' . $cpu_quota . '% limit<br><span class="sub-muted">(100% = 1 CPU Core)</span></div>
             </div>
-            <div class="uniselv-progress-bg">
-                <div class="uniselv-progress-bar bar-cpu ' . (($cpu_allowance > 90) ? 'bg-danger' : (($cpu_allowance > 60) ? 'bg-warning' : '')) . '" id="uniselv-bar-cpu" style="width: ' . min(100, $cpu_allowance) . '%;"></div>
-            </div>
-            <div class="uniselv-card-sub" id="uniselv-sub-cpu">Allowance: <strong>' . $cpu_allowance . '%</strong> used of ' . $cpu_quota . '% limit (100% = 1 CPU Core)</div>
         </div>
 
-        <!-- Memory Card -->
-        <div class="uniselv-card" id="uniselv-card-mem">
+        <!-- 2. Memory Card -->
+        <div class="uniselv-card uniselv-gauge-card theme-mem" id="uniselv-card-mem">
             <div class="uniselv-card-header">
                 <div class="uniselv-card-title-wrap">
                     <div class="uniselv-card-icon icon-mem">
                         <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
                     </div>
-                    <span class="uniselv-card-title">Account Memory</span>
+                    <div>
+                        <span class="uniselv-card-title">ACCOUNT MEMORY</span>
+                        <div class="uniselv-card-desc">RAM usage (real time)</div>
+                    </div>
                 </div>
                 <span class="uniselv-badge ' . $mem_badge . '" id="uniselv-badge-mem">' . $mem_status . '</span>
             </div>
-            <div class="uniselv-card-mid">
-                <div class="uniselv-card-val-wrap">
-                    <span class="uniselv-metric-big" id="uniselv-val-mem">' . $mem_val . '</span>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-mem" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#8b5cf6"/>
+                            <stop offset="100%" stop-color="#c084fc"/>
+                        </linearGradient>
+                        <filter id="glow-mem" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#8b5cf6" flood-opacity="0.6"/>
+                        </filter>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-mem" id="uniselv-arc-mem" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $mem_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-mem" style="transform: rotate(' . (min(100, max(0, $mem_pct)) * 3.6) . 'deg);">
+                        <circle cx="100" cy="24" r="5" fill="#8b5cf6" filter="url(#glow-mem)"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles">
+                    <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
-                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-mem" style="height: ' . ($mem_pct <= 0 ? 0 : max(6, min(100, $mem_pct))) . '%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="uniselv-val-mem">' . $mem_val . '</span>
+                    </div>
+                </div>
+            </div>
+            <div class="uniselv-progress-bg" style="display:none;">
+                <div class="uniselv-progress-bar bar-mem" id="uniselv-bar-mem" style="width: ' . min(100, $mem_pct) . '%;"></div>
+            </div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Dynamic measured history">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="mem-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.3"/>
+                                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.35"/>
                                 <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
-                        <path d="" fill="url(#mem-grad)"/>
-                        <path d="" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M0,22 Q25,14 50,26 T100,18 L100,40 L0,40 Z" fill="url(#mem-grad)"/>
+                        <path d="M0,22 Q25,14 50,26 T100,18" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
+                <div class="uniselv-card-sub" id="uniselv-sub-mem">Limit: <strong>' . $mem_limit . '</strong><br><span class="sub-muted">(App: ' . (isset($cur['mem_anon_formatted']) ? $cur['mem_anon_formatted'] : '0 B') . ' | Cache: ' . (isset($cur['mem_file_cache_formatted']) ? $cur['mem_file_cache_formatted'] : '0 B') . ')</span></div>
             </div>
-            <div class="uniselv-progress-bg">
-                <div class="uniselv-progress-bar bar-mem ' . (($mem_pct > 90) ? 'bg-danger' : (($mem_pct > 65) ? 'bg-warning' : '')) . '" id="uniselv-bar-mem" style="width: ' . min(100, $mem_pct) . '%;"></div>
-            </div>
-            <div class="uniselv-card-sub" id="uniselv-sub-mem">Limit: <strong>' . $mem_limit . '</strong> (App: ' . (isset($cur['mem_anon_formatted']) ? $cur['mem_anon_formatted'] : '0 B') . ' | Cache: ' . (isset($cur['mem_file_cache_formatted']) ? $cur['mem_file_cache_formatted'] : '0 B') . ')</div>
         </div>
 
-        <!-- Disk IO Card -->
-        <div class="uniselv-card" id="uniselv-card-io">
+        <!-- 3. I/O Throughput Card -->
+        <div class="uniselv-card uniselv-gauge-card theme-io" id="uniselv-card-io">
             <div class="uniselv-card-header">
                 <div class="uniselv-card-title-wrap">
                     <div class="uniselv-card-icon icon-io">
                         <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
                     </div>
-                    <span class="uniselv-card-title">I/O Throughput</span>
+                    <div>
+                        <span class="uniselv-card-title">I/O THROUGHPUT</span>
+                        <div class="uniselv-card-desc">Disk read/write activity</div>
+                    </div>
                 </div>
                 <span class="uniselv-badge ' . $io_badge . '" id="uniselv-badge-io">' . $io_status . '</span>
             </div>
-            <div class="uniselv-card-mid">
-                <div class="uniselv-card-val-wrap">
-                    <span class="uniselv-metric-big" id="uniselv-val-io">' . (isset($cur['total_bw_formatted']) ? $cur['total_bw_formatted'] : (isset($cur['read_bw_formatted']) ? $cur['read_bw_formatted'] : '0.0 MiB/s')) . '</span>
-                    <span class="uniselv-metric-core" id="uniselv-unit-io">Total</span>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-io" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#34d399"/>
+                        </linearGradient>
+                        <filter id="glow-io" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#10b981" flood-opacity="0.6"/>
+                        </filter>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-io" id="uniselv-arc-io" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $io_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-io" style="transform: rotate(' . (min(100, max(0, $io_pct)) * 3.6) . 'deg);">
+                        <circle cx="100" cy="24" r="5" fill="#10b981" filter="url(#glow-io)"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles">
+                    <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
-                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
-                    <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
-                        <defs>
-                            <linearGradient id="io-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#10b981" stop-opacity="0.3"/>
-                                <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
-                            </linearGradient>
-                        </defs>
-                        <path d="" fill="url(#io-grad)"/>
-                        <path d="" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-io" style="height: ' . ($io_pct <= 0 ? 0 : max(6, min(100, $io_pct))) . '%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="uniselv-val-io">' . (isset($cur['total_bw_formatted']) ? $cur['total_bw_formatted'] : (isset($cur['read_bw_formatted']) ? $cur['read_bw_formatted'] : '0.0 MiB/s')) . '</span>
+                        <span class="uniselv-metric-core" id="uniselv-unit-io">Total</span>
+                    </div>
                 </div>
             </div>
-            <div class="uniselv-progress-bg">
-                <div class="uniselv-progress-bar bar-io ' . (($io_pct > 90) ? 'bg-danger' : (($io_pct > 65) ? 'bg-warning' : '')) . '" id="uniselv-bar-io" style="width: ' . min(100, $io_pct) . '%;"></div>
+            <div class="uniselv-progress-bg" style="display:none;">
+                <div class="uniselv-progress-bar bar-io" id="uniselv-bar-io" style="width: ' . min(100, $io_pct) . '%;"></div>
             </div>
-            <div class="uniselv-card-sub" id="uniselv-sub-io">Read: ' . (isset($cur['read_bw_formatted']) ? $cur['read_bw_formatted'] : '0.0 MiB/s') . ' | Write: ' . (isset($cur['write_bw_formatted']) ? $cur['write_bw_formatted'] : '0.0 MiB/s') . ' | IOPS: ' . (isset($cur['read_iops']) ? $cur['read_iops'] : 0) . ' R / ' . (isset($cur['write_iops']) ? $cur['write_iops'] : 0) . ' W' . $io_limit_str . '</div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-footer-chart">
+                    <div class="uniselv-eq-bars" id="uniselv-eq-io" title="Disk read/write activity">
+                        <span class="eq-bar bar-1"></span>
+                        <span class="eq-bar bar-2"></span>
+                        <span class="eq-bar bar-3"></span>
+                        <span class="eq-bar bar-4"></span>
+                        <span class="eq-bar bar-5"></span>
+                        <span class="eq-bar bar-6"></span>
+                        <span class="eq-bar bar-7"></span>
+                    </div>
+                </div>
+                <div class="uniselv-card-sub" id="uniselv-sub-io">Total<br><span class="sub-muted">Read: ' . (isset($cur['read_bw_formatted']) ? $cur['read_bw_formatted'] : '0.0 MiB/s') . ' | Write: ' . (isset($cur['write_bw_formatted']) ? $cur['write_bw_formatted'] : '0.0 MiB/s') . '<br>IOPS: ' . (isset($cur['read_iops']) ? $cur['read_iops'] : 0) . ' R / ' . (isset($cur['write_iops']) ? $cur['write_iops'] : 0) . ' W' . $io_limit_str . '</span></div>
+            </div>
         </div>
 
-        <!-- Tasks Card -->
-        <div class="uniselv-card" id="uniselv-card-tasks">
+        <!-- 4. Tasks Card -->
+        <div class="uniselv-card uniselv-gauge-card theme-tasks" id="uniselv-card-tasks">
             <div class="uniselv-card-header">
                 <div class="uniselv-card-title-wrap">
                     <div class="uniselv-card-icon icon-tasks">
                         <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </div>
-                    <span class="uniselv-card-title">Tasks & Threads</span>
+                    <div>
+                        <span class="uniselv-card-title">TASKS & THREADS</span>
+                        <div class="uniselv-card-desc">Process and thread count</div>
+                    </div>
                 </div>
                 <span class="uniselv-badge badge-normal" id="uniselv-badge-tasks">NORMAL</span>
             </div>
-            <div class="uniselv-card-mid">
-                <div class="uniselv-card-val-wrap">
-                    <span class="uniselv-metric-big" id="uniselv-val-tasks">' . $task_val . '</span>
-                    <span class="uniselv-metric-core" id="uniselv-max-tasks">/ ' . $task_limit . '</span>
+            <div class="uniselv-gauge-wrap">
+                <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
+                    <defs>
+                        <linearGradient id="gauge-grad-tasks" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#f59e0b"/>
+                            <stop offset="100%" stop-color="#fbbf24"/>
+                        </linearGradient>
+                        <filter id="glow-tasks" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#f59e0b" flood-opacity="0.6"/>
+                        </filter>
+                    </defs>
+                    <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
+                    <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
+                    <circle class="uniselv-gauge-arc arc-tasks" id="uniselv-arc-tasks" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $task_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-tasks" style="transform: rotate(' . (min(100, max(0, $task_pct)) * 3.6) . 'deg);">
+                        <circle cx="100" cy="24" r="5" fill="#f59e0b" filter="url(#glow-tasks)"/>
+                    </g>
+                </svg>
+                <div class="uniselv-particles">
+                    <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
-                <div class="uniselv-sparkline-wrap" aria-hidden="true" title="Waiting for measured samples">
-                    <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
-                        <defs>
-                            <linearGradient id="tasks-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/>
-                                <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.0"/>
-                            </linearGradient>
-                        </defs>
-                        <path d="" fill="url(#tasks-grad)"/>
-                        <path d="" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
+                <div class="uniselv-liquid-circle">
+                    <div class="uniselv-wave-container" id="uniselv-wave-tasks" style="height: ' . (18 + min(100, max(0, $task_pct)) * 0.65) . '%;">
+                        <div class="uniselv-wave wave-back"></div>
+                        <div class="uniselv-wave wave-front"></div>
+                    </div>
+                    <div class="uniselv-gauge-center">
+                        <span class="uniselv-metric-big" id="uniselv-val-tasks">' . $task_val . '</span>
+                        <span class="uniselv-metric-core" id="uniselv-max-tasks">/ ' . $task_limit . '</span>
+                    </div>
                 </div>
             </div>
-            <div class="uniselv-progress-bg">
-                <div class="uniselv-progress-bar bar-tasks ' . (($task_pct > 90) ? 'bg-danger' : '') . '" id="uniselv-bar-tasks" style="width: ' . min(100, $task_pct) . '%;"></div>
+            <div class="uniselv-progress-bg" style="display:none;">
+                <div class="uniselv-progress-bar bar-tasks" id="uniselv-bar-tasks" style="width: ' . min(100, $task_pct) . '%;"></div>
             </div>
-            <div class="uniselv-card-sub" id="uniselv-sub-tasks">Includes Linux process threads. Limit: <strong>' . $task_limit . '</strong> max</div>
+            <div class="uniselv-card-footer">
+                <div class="uniselv-footer-chart">
+                    <div class="uniselv-eq-bars" id="admin-eq-ram" title="Memory budget allocation">
+                        <span class="eq-bar bar-1"></span>
+                        <span class="eq-bar bar-2"></span>
+                        <span class="eq-bar bar-3"></span>
+                        <span class="eq-bar bar-4"></span>
+                        <span class="eq-bar bar-5"></span>
+                        <span class="eq-bar bar-6"></span>
+                        <span class="eq-bar bar-7"></span>
+                    </div>
+                </div>
+                <div class="uniselv-card-sub" id="uniselv-sub-tasks">Includes Linux process threads<br><span class="sub-muted">Limit: <strong>' . $task_limit . '</strong> max</span></div>
+            </div>
         </div>
     </div>';
 

@@ -1,3 +1,38 @@
+## 1.1.22 — 2026-10-22
+
+- Modernize Admin Overview and Enduser Dashboard UI with illuminated neumorphic/glassmorphic gauge cards, dynamic liquid SVG circular fills (0%–100%), 7-bar undulating equalizers, animated sparkline telemetry curves, glowing live telemetry neon capsule badges, and instant zero-latency tab switching.
+- Resolve syntax anomaly in frontend bundle and verify zero console errors/warnings in Chrome DevTools across all resolution viewports.
+- Fix unmanaged PHP physical discovery breaking native plan save transactions and billing adapter synchronizations; isolate isolation reload loops strictly to explicitly managed PHP versions (`/var/lib/webuzo-isolation/installed.json`).
+- Implement dynamic PHP onboarding (`webuzo-isolation.py onboard <version>`) and retirement (`webuzo-isolation.py retire <version>`) with automated compensating rollback and fail-closed checks against active tenant pools.
+- Expose PHP lifecycle inspection and management through background daemon IPC with CSRF enforcement.
+- Update configuration generator PHP version validator to dynamic regex pattern `/^php\d{2,3}$/`, supporting newly introduced PHP versions without validation failures.
+- Transition automated test suites to dynamically provisioned, isolated disposable test fixtures (`disptest`) with comprehensive post-test cleanup, eliminating hardcoded historical account dependencies.
+
+## 1.1.21 — 2026-10-21
+
+- Quarantine standard-shaped native pools whose passwd account and Webuzo userdata are both gone while native deletion/regeneration completes. Never substitute another UID or shared FPM. Preserve strict rejection of privileged, partially deleted and nonstandard pools.
+- Prevent that deletion window from failing the entire version coordinator and blocking unrelated hosting accounts. Native global settings, runtime capacity formulas, physical budgets and the neutral animated 503 page are unchanged.
+- Record seven parser security/regression checks, current-kernel quota repair, real disk/inode boundaries, shared demand, all-version effective settings and bounded resource/load evidence. Native administrative stop/start operations still require maintenance; no zero-downtime or unrestricted production-readiness claim is made.
+
+## 1.1.20 — 2026-10-21
+
+- Yield only quiescent pool reservations when an eligible peer is blocked by shared admission; preserve active/queued requests and complete lease accounting.
+- Bound pressured cold grants by live demand without registered-account counts, native per-user settings or larger physical budgets. Keep native global ceilings, host reserve, account boundaries and neutral animated 503 response.
+- Record 22 regression checks, a bounded 50-actor PHP fixture and three-account sharing/idle-release evidence. Actual WordPress latency and full lifecycle gates remain open.
+
+## 1.1.19 — 2026-10-21
+
+- Fix automatic admission treating clean inactive file cache as permanently occupied account RAM. Preserve active/anonymous/kernel/dirty/writeback memory, existing lease reservations, native account limits and physical host budgets.
+- Record raw memory, clean inactive cache and estimated working set in each new managed runtime lease. Invalid counters fall back to the original conservative calculation.
+- Retain global native PHP-FPM defaults and the neutral white/coral animated capacity page. Bounded uncached validation and known workload/lifecycle limits are documented separately.
+
+## 1.1.18 — 2026-10-20
+
+- Bind an explicitly reviewed root-owned measured generator profile to lifecycle checks; reject hardware/version/native budget drift.
+- Align shared RAM reserves and isolate private health OPcache/string budgets from customer caches.
+- Add a read-only configuration/inheritance audit and dated bounded 256 MiB OPcache deployment evidence.
+- Retain dynamic runtime caps, bounded queues and the neutral animated capacity 503 page. Full changed-profile lifecycle and sustained multi-tenant gates remain open.
+
 # UNISELV Resource Manager — Changelog
 
 All notable changes to the UNISELV Resource Manager for Webuzo are documented in this file.

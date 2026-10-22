@@ -38,14 +38,7 @@ def derive_auto_policy(cpus, total_ram):
   raise RuntimeError(f"Unsupported Hardware: >= 1024 MiB RAM required (detected {total_ram} MiB)")
  customer_cpu = int(round(cpus * 85))
  reserved_cpu = (cpus * 100) - customer_cpu
- if total_ram <= 2048:
-  headroom = 512
- elif total_ram <= 4096:
-  headroom = 768
- elif total_ram <= 8192:
-  headroom = 1280
- else:
-  headroom = max(1536, int(total_ram * 0.15))
+ headroom = max(512, ((total_ram * 5 + 8191) // 8192) * 256)
  hosting_ram = max(512, total_ram - headroom)
  if hosting_ram + headroom > total_ram:
   headroom = max(384, total_ram - hosting_ram)

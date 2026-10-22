@@ -1,0 +1,254 @@
+{
+  "date": "2026-10-21",
+  "status": "1.1.20 deployed; bounded runtime sharing verified; WordPress repairs/capacity remain open",
+  "runtimeCandidate": "1.1.20 / account-demand-v4",
+  "permanentRuntimeDeploymentVerified": true,
+  "publicCloudTestExecuted": true,
+  "cloudTestPrepared": "uniselv-uncached-40-mumbai-optimized-20261020",
+  "cloudTestId": 1397925,
+  "nativeValuesChanged": true,
+  "siteFixDeployed": true,
+  "originResults": [
+    {
+      "label": "before-20",
+      "users": 20,
+      "planned_seconds": 120,
+      "elapsed_seconds": 136.99,
+      "requests": 146,
+      "failed": 0,
+      "p95_seconds": 12.692,
+      "mean_seconds": 8.338972602739727,
+      "min_available_mib": 5460.9375,
+      "max_account_mib": 1970.296875,
+      "oom_kill_delta": 0,
+      "avgAccountCpuPercent": 244.9,
+      "throttledSeconds": 71.6
+    },
+    {
+      "label": "after-20",
+      "users": 20,
+      "planned_seconds": 120,
+      "elapsed_seconds": 134.12,
+      "requests": 216,
+      "failed": 0,
+      "p95_seconds": 5.467,
+      "mean_seconds": 2.615101851851852,
+      "min_available_mib": 5660.8515625,
+      "max_account_mib": 1867.74609375,
+      "oom_kill_delta": 0,
+      "avgAccountCpuPercent": 204.0,
+      "throttledSeconds": 29.7
+    },
+    {
+      "label": "after-40",
+      "users": 40,
+      "planned_seconds": 180,
+      "elapsed_seconds": 202.31,
+      "requests": 338,
+      "failed": 0,
+      "p95_seconds": 16.413,
+      "mean_seconds": 13.32921597633136,
+      "min_available_mib": 5592.6640625,
+      "max_account_mib": 1874.6796875,
+      "oom_kill_delta": 0,
+      "avgAccountCpuPercent": 248.5,
+      "throttledSeconds": 76.6
+    },
+    {
+      "label": "after-40-cache-aware",
+      "users": 40,
+      "planned_seconds": 180,
+      "elapsed_seconds": 199.62,
+      "requests": 349,
+      "failed": 0,
+      "p95_seconds": 21.397,
+      "mean_seconds": 12.575501432664757,
+      "min_available_mib": 5409.1484375,
+      "max_account_mib": 2055.2109375,
+      "oom_kill_delta": 0,
+      "avgAccountCpuPercent": 254.9,
+      "throttledSeconds": 96.4
+    },
+    {
+      "label": "after-30-committed-runtime",
+      "users": 30,
+      "planned_seconds": 120,
+      "elapsed_seconds": 134.2,
+      "requests": 242,
+      "failed": 0,
+      "p95_seconds": 9.714,
+      "mean_seconds": 6.458338842975206,
+      "min_available_mib": 5413.48828125,
+      "max_account_mib": 2075.5390625,
+      "oom_kill_delta": 0,
+      "avgAccountCpuPercent": 241.1,
+      "throttledSeconds": 55.2
+    }
+  ],
+  "runtimeGrantObserved": {
+    "nativeMaxChildren": 8,
+    "runtimeMaxChildren": 8,
+    "leaseCostMiB": 2649,
+    "accountMemoryMiB": 1360.29,
+    "accountCleanInactiveFileMiB": 1214.73,
+    "accountWorkingSetMiB": 145.57
+  },
+  "verificationScope": "1.1.20: native FastCGI 50-actor controlled PHP fixture and three-account pressure sharing; all-version mechanical checks. Actual WooCommerce cloud run 8851312 used 1.1.19 and failed the 15-second latency gate at 40 total VUs. Do not combine these into a post-fix WordPress visitor certification.",
+  "openGates": [
+    "WordPress repairs and repeat 40\u201350-user real workload",
+    "sustained mixed heavy tenants",
+    "cart/checkout/payment capacity",
+    "changed-profile reboot/vendor regeneration",
+    "ImageMagick dependency ABI repair"
+  ],
+  "nativeResourceLimitsChanged": false,
+  "protocolCorrection": {
+    "key": "session.gc_divisor",
+    "before": 0,
+    "after": 100,
+    "versions": [
+      "php74",
+      "php81",
+      "php82",
+      "php84"
+    ],
+    "gcProbabilityPreserved": 0
+  },
+  "cloudRuns": [
+    {
+      "id": 8851195,
+      "status": "Aborted by operator for browser security block",
+      "peakObservedTotalVUs": 23,
+      "declaredPeakTotalVUs": 40,
+      "protocolRequests": 261,
+      "protocolFailures": 0,
+      "protocolP95Seconds": 6.419,
+      "uncachedConfirmedRate": 1,
+      "cloudflareHtmlHitRate": 0,
+      "applicationHtmlHitRate": 0,
+      "browserJourneys": 240,
+      "browserFailedJourneys": 232,
+      "browserFailureRate": 0.9666666666666667,
+      "originBrowserHomepage403": 242,
+      "securitySource": "WP Cerber IP lock; logged status 13, active block reason 707; earlier error-monitor event 711 and tracking REST 429 observed",
+      "uniqueIpPerVuVerified": false,
+      "publicUrl": "https://ivorybean3399.grafana.net/a/k6-app/runs/8851195",
+      "runtimeVersion": "1.1.19"
+    },
+    {
+      "sourceArchive": "cloud-8851312.zip",
+      "protocolRequests": 705,
+      "protocolStatusCounts": {
+        "200": 704,
+        "0": 1
+      },
+      "protocolMeanMs": 6564.353277398583,
+      "protocolDurationMaxMs": 19293.131252,
+      "protocolFailure": {
+        "nonzero": 1,
+        "count": 705,
+        "rate": 0.0014184397163120568
+      },
+      "protocolErrorTags": {
+        "http2: received GoAway with http2 ErrCode NO_ERROR": 1
+      },
+      "pageErrors": {
+        "nonzero": 1,
+        "count": 705,
+        "rate": 0.0014184397163120568
+      },
+      "capacityBusy": {
+        "nonzero": 0,
+        "count": 705,
+        "rate": 0.0
+      },
+      "databaseErrors": {
+        "nonzero": 0,
+        "count": 705,
+        "rate": 0.0
+      },
+      "edgeChallenge": {
+        "nonzero": 0,
+        "count": 705,
+        "rate": 0.0
+      },
+      "cloudflareHtmlHit": {
+        "nonzero": 0,
+        "count": 705,
+        "rate": 0.0
+      },
+      "browserJourneys": {
+        "nonzero": 0,
+        "count": 6,
+        "rate": 0.0
+      },
+      "checks": {
+        "nonzero": 722,
+        "count": 723,
+        "rate": 0.9986168741355463
+      },
+      "browserResourceFailureIncludesBlockedThirdParties": {
+        "nonzero": 3,
+        "count": 1765,
+        "rate": 0.0016997167138810198
+      },
+      "peakObservedTotalVUs": 40.0,
+      "loadGeneratorCpuMaxPercent": 30.653266331668,
+      "loadGeneratorMemoryMaxPercent": 6.79667062300165,
+      "quantileNote": "Per-bucket CSV p95 values are not averaged or treated as an overall p95. Overall p95 is read separately from the finished Grafana UI.",
+      "id": 8851312,
+      "runtimeVersion": "1.1.19",
+      "status": "Failed latency threshold; Cerber disabled by owner",
+      "declaredPeakTotalVUs": 40,
+      "protocolP95Seconds": 15.971,
+      "steadyBrowsingP95Seconds": 15.595,
+      "applicationHtmlHitRate": 0,
+      "uncachedConfirmedRate": 0.9985815602836879,
+      "browserSimulation": "39 protocol shoppers plus one paced Chromium user; not 40 real browsers",
+      "publicUrl": "https://ivorybean3399.grafana.net/a/k6-app/runs/8851312"
+    }
+  ],
+  "fixedVisitorLimitIntroduced": false,
+  "hardwareSafetyBudgetsUnchanged": true,
+  "wordpressWorkBoundary": "Document substantial site/plugin issues for the owner; no further WordPress source fixes in this task",
+  "wordpressBacklog": "WORDPRESS-FIX-BACKLOG.md",
+  "boundedRuntimeFixture": {
+    "runtimeVersion": "1.1.20",
+    "actors": 50,
+    "thinkSeconds": "5\u201310",
+    "durationSeconds": 60,
+    "requests": 377,
+    "failed": 0,
+    "meanSeconds": 0.6848023872679045,
+    "p95Seconds": 1.6985,
+    "cpuTargetMsPerRequest": 300,
+    "memoryAllocationMiBPerRequest": 32,
+    "peerSharingPass": true,
+    "peerStartSeconds": [
+      1.5897,
+      1.7965
+    ],
+    "observedConcurrentWorkerGrants": [
+      3,
+      2,
+      2
+    ],
+    "reservedMiB": 3051,
+    "physicalPhpBudgetMiB": 3127,
+    "testAccountLeasesAfterIdle": 0,
+    "idleLeaseYieldEvents": 1,
+    "temporaryFilesRemoved": true,
+    "minAvailableMiB": 5659,
+    "oomKillDelta": 0,
+    "scope": "50 simulated shoppers on a 300-ms CPU / 32-MiB allocated-memory PHP fixture through native sockets; no WordPress, database, browser assets, orders or cache layer. Then three-account cold-demand sharing. This is not post-fix WooCommerce certification."
+  },
+  "regressionTests": {
+    "resourceManager": 22,
+    "generatorSuites": 25
+  },
+  "runtimeRelease": "1.1.20",
+  "sourceSha256": "4f33f48933fd01a02c7c3a4386929294a2daa70c10badfce5b5807d0badfa64e",
+  "profileSha256": "339f478a5cd9cee039b28c669d5b75434504d4168d53cdc40958bc3aef97592b",
+  "configuredValueChecks": 330,
+  "configuredValueMismatches": 0
+}

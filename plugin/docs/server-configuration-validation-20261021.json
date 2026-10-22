@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-21",
+  "plugin_version": "1.1.21",
+  "scope": "Bounded configuration, enforcement and recovery checks; not full production-readiness certification.",
+  "passed": [
+    "Matching kernel quota modules installed; native user quota enabled; temporary block and inode boundary tests restored original limits.",
+    "Disposable-account tasks, hard RAM boundary with HTTP recovery, and direct disk bandwidth/IOPS enforcement.",
+    "Shared PHP budget pressure: worker leases changed from 8 to 3/2/2; idle account leases released.",
+    "All four effective PHP health configurations and actual customer PHP-version requests.",
+    "Seven deleted-account parser security regressions.",
+    "Deployment source copies synchronized, agent and all four coordinators active; all 25 original accounts retained; temporary accounts and tracing removed.",
+    "Authorized host reboot confirmed by changed boot ID; quotas, account limits, all PHP coordinators and Resource Manager returned automatically; 330 configuration checks had zero mismatches; main website and authenticated uncached database probe recovered with integrity intact."
+  ],
+  "fixes": [
+    "Missing quota kernel prerequisite repaired.",
+    "Deleted standard native PHP pools quarantined after account deletion; malformed or partly deleted pools remain fail-closed."
+  ],
+  "remaining_gates": [
+    "Complete uninstall/reinstall and every native provisioning lifecycle path not certified.",
+    "Native administrative stop/start operations can briefly interrupt requests; zero-downtime lifecycle not established.",
+    "Synthetic tests do not certify 40-50 uncached WordPress shoppers.",
+    "Host swap remains disabled; swap-boundary tests not performed."
+  ],
+  "csf": "No changes; excluded by user.",
+  "evidence_directory": "server-remediation-20261021",
+  "out_of_scope_observation": "lfd.service failed after reboot; CSF/lfd excluded by user and not modified."
+}

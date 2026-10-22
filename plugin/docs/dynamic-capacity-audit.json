@@ -1,0 +1,152 @@
+{
+  "date": "2026-10-20",
+  "status": "Live runtime upgraded; final installed-settings read-only bursts passed",
+  "scope": "One WooCommerce account, six public product URLs, bounded bursts. Not sustained multi-tenant or visitor capacity certification.",
+  "observedHardware": {
+    "vcpu": 4,
+    "visibleRamMiBApprox": 7751,
+    "hostingCpuPercent": 340,
+    "systemCpuHeadroomPercent": 60,
+    "accountCpuPercent": 280,
+    "accountMemoryMiB": 4096,
+    "swapEnabled": false
+  },
+  "findings": [
+    "The old proxy rejected waiting requests after a short admission wait.",
+    "Native PHP-FPM Max Children was 2.",
+    "The database global max_user_connections=6 caused HTTP 500 database connection error pages at 8 PHP workers.",
+    "The load-average circuit breaker halved account CPU quotas while the aggregate kernel CPU guard already preserved host headroom."
+  ],
+  "temporaryExperiments": [
+    {
+      "phase": "Original runtime",
+      "requests": 16,
+      "success": 12,
+      "http503": 4,
+      "durationSeconds": 23.798
+    },
+    {
+      "phase": "8 workers, SQL 6",
+      "requests": 16,
+      "success": 8,
+      "http500DatabaseErrors": 8,
+      "durationSeconds": 27.017
+    },
+    {
+      "phase": "8 workers, SQL 18, temporary 340% account CPU",
+      "requests": 16,
+      "success": 16,
+      "durationSeconds": 19.081
+    },
+    {
+      "phase": "8 workers, SQL 18, temporary 340% account CPU",
+      "requests": 32,
+      "success": 32,
+      "durationSeconds": 38.858,
+      "peakAccountMiB": 1465.9,
+      "minimumHostAvailableMiB": 4977,
+      "oomKills": 0
+    }
+  ],
+  "experimentRestoration": {
+    "runtimeOverridesRemoved": true,
+    "sqlRestoredBeforePermanentSave": true,
+    "nativeCpuRestoredPercent": 280
+  },
+  "permanentChanges": {
+    "pluginVersion": "1.1.17",
+    "accountRuntimeCaps": true,
+    "nativeGlobalPhp84Children": 8,
+    "nativeGlobalPhp84Backlog": 64,
+    "sqlMaxUserConnections": 18,
+    "hostingCpuPercent": 340,
+    "accountCpuPercent": 280,
+    "physicalPhpBudgetMiB": 3235,
+    "hostReserveMiB": 1280,
+    "globalPhpVersions": [
+      "php74",
+      "php81",
+      "php82",
+      "php84"
+    ],
+    "poolBudgetMiB": 2521,
+    "maxActivePoolsLegacyMetadata": 6
+  },
+  "sharing": {
+    "inactiveAccountPhpLeaseMiB": 0,
+    "grantMoment": "Pool cold start",
+    "bounds": [
+      "Native account Memory High or 90% Memory Max",
+      "Account Tasks Max",
+      "Shared physical PHP admission memory",
+      "Host MemAvailable minus host reserve",
+      "Combined active leases for the same UID across PHP versions"
+    ],
+    "release": "Idle proxy stops the backend and releases its lease",
+    "limitation": "A continuously busy pool retains its conservative grant until idle. No unsafe hot reload or forced request termination is used to redistribute a live grant."
+  },
+  "remainingGaps": [
+    "Sustained workload and multiple active tenants",
+    "Fresh install and full reboot/regeneration lifecycle for this new capacity model",
+    "Native hosting-account swap-boundary testing; host swap remains disabled"
+  ],
+  "privateEvidenceDirectories": [
+    "/root/resman-capacity-20261020-r3/",
+    "/root/resman-capacity-20261020-r4/",
+    "/root/resman-runtime-20261020/",
+    "/root/resman-final-capacity-20261020/"
+  ],
+  "finalInstalledSettingsTest": {
+    "temporaryCpuBoost": false,
+    "temporaryConfigurationOverrides": false,
+    "accountCpuMax": "280000 100000",
+    "sqlMaxUserConnections": 18,
+    "configurationUntouched": true,
+    "cacheStatus": "DYNAMIC",
+    "stages": [
+      {
+        "requests": 16,
+        "success": 16,
+        "statuses": {
+          "200": 16
+        },
+        "durationSeconds": 26.134,
+        "medianSeconds": 21.307,
+        "p95Seconds": 26.068,
+        "requestsPerSecond": 0.612,
+        "peakAccountMiB": 1423.7,
+        "minimumHostAvailableMiB": 5378,
+        "averageAccountCpuPercent": 261.8,
+        "oomKills": 0,
+        "databaseErrors": 0
+      },
+      {
+        "requests": 32,
+        "success": 32,
+        "statuses": {
+          "200": 32
+        },
+        "durationSeconds": 38.907,
+        "medianSeconds": 24.298,
+        "p95Seconds": 38.695,
+        "requestsPerSecond": 0.822,
+        "peakAccountMiB": 1481.8,
+        "minimumHostAvailableMiB": 5230,
+        "averageAccountCpuPercent": 259.0,
+        "oomKills": 0,
+        "databaseErrors": 0
+      }
+    ]
+  },
+  "mechanicalChecks": {
+    "pass": true,
+    "managedPools": 25,
+    "activePhpVersion": "php84",
+    "otherInstalledBranchesHaveNoCustomerPools": true
+  },
+  "idleReleaseEvidence": {
+    "activeLeasesAfterIdle": 0,
+    "reservedPhpMiBAfterIdle": 0,
+    "registeredAccounts": 25
+  }
+}
