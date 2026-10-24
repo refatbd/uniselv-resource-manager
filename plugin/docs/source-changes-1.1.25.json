@@ -1,0 +1,332 @@
+{
+  "version": "1.1.25",
+  "scope": "Already-applied release source changes relative to 1.1.24; not extra post-install paste steps. Prefer the reviewed complete package.",
+  "saveAndVerify": [
+    "Back up existing files and ownership/restoration manifests together.",
+    "Use UTF-8/LF. Replace existing files; do not append duplicate imports, functions or directives. New files start at their first line and end at their final line.",
+    "Install through the reviewed privileged deployment workflow. Restore root ownership and installer execution modes.",
+    "Run Python/PHP/JavaScript syntax, regression, service/API/HTTP and ZIP closure checks. Configuration values and full workload/lifecycle readiness remain distinct."
+  ],
+  "files": [
+    {
+      "packagedPath": "uniselv-resman/agent/ipc_server.py",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/agent/ipc_server.py; ALSO /usr/local/uniselv-resman/agent/ipc_server.py",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "d756e66244d3c188fbe216cf80c6ab8bf636866298d3e8ccffffbfd9fab381e5",
+      "blocks": [
+        {
+          "mode": "insert",
+          "after": "        except (OSError, ValueError):\n            aggregate_mem = None",
+          "before": "        gs_status['golden_mem_current_bytes'] = aggregate_mem\n        gs_status['golden_mem_current_formatted'] = format_bytes(aggregate_mem) if aggregate_mem is not None else 'Unavailable'",
+          "existing": "",
+          "generated": "        try:\n            aggregate_max = int(pathlib.Path('/sys/fs/cgroup/golden.slice/memory.max').read_text().strip())\n        except (OSError, ValueError):\n            aggregate_max = None\n        gs_status['golden_mem_max_bytes'] = aggregate_max\n        gs_status['golden_mem_percent'] = aggregate_mem / aggregate_max * 100 if aggregate_mem is not None and aggregate_max is not None and aggregate_max > 0 else None\n        if aggregate_max is not None: gs_status['golden_mem_max_formatted'] = format_bytes(aggregate_max)",
+          "afterEditContext": "        except (OSError, ValueError):\n            aggregate_mem = None\n        try:\n            aggregate_max = int(pathlib.Path('/sys/fs/cgroup/golden.slice/memory.max').read_text().strip())\n        except (OSError, ValueError):\n            aggregate_max = None\n        gs_status['golden_mem_max_bytes'] = aggregate_max\n        gs_status['golden_mem_percent'] = aggregate_mem / aggregate_max * 100 if aggregate_mem is not None and aggregate_max is not None and aggregate_max > 0 else None\n        if aggregate_max is not None: gs_status['golden_mem_max_formatted'] = format_bytes(aggregate_max)\n        gs_status['golden_mem_current_bytes'] = aggregate_mem\n        gs_status['golden_mem_current_formatted'] = format_bytes(aggregate_mem) if aggregate_mem is not None else 'Unavailable'"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/assets/app.js",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/assets/app.js",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "c232af8b0398c20d042edc0804343499f4bf753c4bc650caf79f047f0895e2c7",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "    },\n",
+          "before": "        const arc = document.getElementById('uniselv-arc-' + cardType);\n        if (arc) {",
+          "existing": "        updateGaugeCard: function(cardType, percent) {\n        const validPct = Math.max(0, Math.min(100, parseFloat(percent) || 0));",
+          "generated": "    metricNumber: function(value) {\n        if (!['number','string'].includes(typeof value) || (typeof value==='string' && value.trim()==='')) return null;\n        const number = Number(value);\n        return Number.isFinite(number) ? number : null;\n    },\n\n    adminGaugePercentages: function(host, shield) {\n        const calc = shield.configured_policy || {};\n        const cores = this.metricNumber(host.cpu_cores ?? host.cpu_count);\n        const quota = this.metricNumber(shield.customer_cpu_percent ?? calc.customerCpuPercent);\n        const load = this.metricNumber(host.load1);\n        const used = this.metricNumber(shield.golden_mem_current_bytes);\n        const maxBytes = this.metricNumber(shield.golden_mem_max_bytes);\n        const percent = this.metricNumber(shield.golden_mem_percent);\n        return {hardware:null, cpu:cores>0 && quota!==null ? quota/(cores*100)*100 : null,\n            ram:used!==null && maxBytes>0 ? used/maxBytes*100 : percent,\n            load:cores>0 && load!==null ? load/cores*100 : null};\n    },\n\n    updateGaugeCard: function(cardType, percent) {\n        const number = this.metricNumber(percent);\n        const known = number !== null;\n        const validPct = known ? Math.max(0, Math.min(100, number)) : 0;",
+          "afterEditContext": "    },\n\n    metricNumber: function(value) {\n        if (!['number','string'].includes(typeof value) || (typeof value==='string' && value.trim()==='')) return null;\n        const number = Number(value);\n        return Number.isFinite(number) ? number : null;\n    },\n\n    adminGaugePercentages: function(host, shield) {\n        const calc = shield.configured_policy || {};\n        const cores = this.metricNumber(host.cpu_cores ?? host.cpu_count);\n        const quota = this.metricNumber(shield.customer_cpu_percent ?? calc.customerCpuPercent);\n        const load = this.metricNumber(host.load1);\n        const used = this.metricNumber(shield.golden_mem_current_bytes);\n        const maxBytes = this.metricNumber(shield.golden_mem_max_bytes);\n        const percent = this.metricNumber(shield.golden_mem_percent);\n        return {hardware:null, cpu:cores>0 && quota!==null ? quota/(cores*100)*100 : null,\n            ram:used!==null && maxBytes>0 ? used/maxBytes*100 : percent,\n            load:cores>0 && load!==null ? load/cores*100 : null};\n    },\n\n    updateGaugeCard: function(cardType, percent) {\n        const number = this.metricNumber(percent);\n        const known = number !== null;\n        const validPct = known ? Math.max(0, Math.min(100, number)) : 0;\n        const arc = document.getElementById('uniselv-arc-' + cardType);\n        if (arc) {"
+        },
+        {
+          "mode": "replace",
+          "after": "        const arc = document.getElementById('uniselv-arc-' + cardType);\n        if (arc) {",
+          "before": "        }\n        const thumb = document.getElementById('uniselv-thumb-rot-' + cardType);",
+          "existing": "            arc.style.strokeDashoffset = 477.5 * (1 - validPct / 100);",
+          "generated": "            // SVG pathLength normalizes circle circumference to 100 units.\n            arc.setAttribute('pathLength','100');\n            arc.setAttribute('stroke-dasharray','100');\n            arc.style.strokeDashoffset = String(100-validPct);\n            arc.style.opacity = known && validPct>0 ? '1' : '0';\n            arc.dataset.percent = known ? String(validPct) : '';",
+          "afterEditContext": "        const arc = document.getElementById('uniselv-arc-' + cardType);\n        if (arc) {\n            // SVG pathLength normalizes circle circumference to 100 units.\n            arc.setAttribute('pathLength','100');\n            arc.setAttribute('stroke-dasharray','100');\n            arc.style.strokeDashoffset = String(100-validPct);\n            arc.style.opacity = known && validPct>0 ? '1' : '0';\n            arc.dataset.percent = known ? String(validPct) : '';\n        }\n        const thumb = document.getElementById('uniselv-thumb-rot-' + cardType);"
+        },
+        {
+          "mode": "replace",
+          "after": "        const thumb = document.getElementById('uniselv-thumb-rot-' + cardType);\n        if (thumb) {",
+          "before": "        }\n        const wave = document.getElementById('uniselv-wave-' + cardType);",
+          "existing": "            thumb.style.transform = `rotate(${validPct * 3.6}deg)`;",
+          "generated": "            thumb.style.transform = `rotate(${validPct*3.6}deg)`;\n            thumb.style.opacity = known && validPct>0 ? '1':'0';",
+          "afterEditContext": "        const thumb = document.getElementById('uniselv-thumb-rot-' + cardType);\n        if (thumb) {\n            thumb.style.transform = `rotate(${validPct*3.6}deg)`;\n            thumb.style.opacity = known && validPct>0 ? '1':'0';\n        }\n        const wave = document.getElementById('uniselv-wave-' + cardType);"
+        },
+        {
+          "mode": "replace",
+          "after": "        }\n        const wave = document.getElementById('uniselv-wave-' + cardType);",
+          "before": "        }\n    },",
+          "existing": "        if (wave) {\n            // Full 0% to 100% dynamic height - at 100% fills completely to the top\n            const waveHeight = validPct <= 0 ? 0 : Math.max(6, Math.min(100, validPct));\n            wave.style.height = `${waveHeight}%`;",
+          "generated": "        if (wave) wave.style.height = `${validPct}%`;\n        const wrap = arc?.closest('.uniselv-gauge-wrap');\n        if (wrap) {\n            wrap.dataset.metricState = known ? 'measured':'unavailable';\n            wrap.title = known ? `${number.toFixed(1)}% of this metric boundary${number>100 ? ' (visual fill capped at 100%)':''}` : 'No usage percentage is represented.';",
+          "afterEditContext": "        }\n        const wave = document.getElementById('uniselv-wave-' + cardType);\n        if (wave) wave.style.height = `${validPct}%`;\n        const wrap = arc?.closest('.uniselv-gauge-wrap');\n        if (wrap) {\n            wrap.dataset.metricState = known ? 'measured':'unavailable';\n            wrap.title = known ? `${number.toFixed(1)}% of this metric boundary${number>100 ? ' (visual fill capped at 100%)':''}` : 'No usage percentage is represented.';\n        }\n    },"
+        },
+        {
+          "mode": "replace",
+          "after": "    },\n",
+          "before": "        const minVal = Math.min(...arr.map(p => p.v));\n        const maxVal = Math.max(1, ...arr.map(p => p.v));",
+          "existing": "    updateAdminSparkline: function(wrapId, val) {\n        const wrap = document.getElementById(wrapId);\n        if (!wrap) return;\n        if (!this.adminSparkSamples) this.adminSparkSamples = {};\n        if (!this.adminSparkSamples[wrapId]) {\n            const initVal = parseFloat(val) || 20;\n            this.adminSparkSamples[wrapId] = [\n                { t: Date.now() - 30000, v: Math.max(5, initVal * 0.9) },\n                { t: Date.now() - 20000, v: Math.max(5, initVal * 1.05) },\n                { t: Date.now() - 10000, v: Math.max(5, initVal * 0.95) }\n            ];\n        }\n        const arr = this.adminSparkSamples[wrapId];\n        arr.push({ t: Date.now(), v: parseFloat(val) || 0 });\n        if (arr.length > 20) arr.shift();\n        if (arr.length < 2) return;",
+          "generated": "    updateAdminSparkline: function(wrapId, val, epoch) {\n        const wrap=document.getElementById(wrapId);\n        if(!wrap)return;\n        const value=this.metricNumber(val), timestamp=this.metricNumber(epoch);\n        if(value===null || timestamp===null || timestamp<=0){delete wrap.dataset.measured;return;}\n        if(!this.adminSparkSamples)this.adminSparkSamples={};\n        const arr=this.adminSparkSamples[wrapId] ||= [];\n        if(!arr.length || arr[arr.length-1].t<timestamp)arr.push({t:timestamp,v:value});\n        if(arr.length>20)arr.shift();\n        if(arr.length<2){delete wrap.dataset.measured;return;}\n        wrap.dataset.measured='true';\n        wrap.title='Measured samples since this page opened; independently scaled trend, not an absolute percentage gauge.';",
+          "afterEditContext": "    },\n\n    updateAdminSparkline: function(wrapId, val, epoch) {\n        const wrap=document.getElementById(wrapId);\n        if(!wrap)return;\n        const value=this.metricNumber(val), timestamp=this.metricNumber(epoch);\n        if(value===null || timestamp===null || timestamp<=0){delete wrap.dataset.measured;return;}\n        if(!this.adminSparkSamples)this.adminSparkSamples={};\n        const arr=this.adminSparkSamples[wrapId] ||= [];\n        if(!arr.length || arr[arr.length-1].t<timestamp)arr.push({t:timestamp,v:value});\n        if(arr.length>20)arr.shift();\n        if(arr.length<2){delete wrap.dataset.measured;return;}\n        wrap.dataset.measured='true';\n        wrap.title='Measured samples since this page opened; independently scaled trend, not an absolute percentage gauge.';\n        const minVal = Math.min(...arr.map(p => p.v));\n        const maxVal = Math.max(1, ...arr.map(p => p.v));"
+        },
+        {
+          "mode": "replace",
+          "after": "            // Update Admin Gauges & Dynamic Live Footers\n            if (typeof this.updateGaugeCard === 'function') {",
+          "before": "                // Update Dynamic Footers (Sparklines & Equalizers)\n                if (typeof this.updateAdminSparkline === 'function') {",
+          "existing": "                const cores = host.cpu_cores || host.cpu_count || 4;\n                const load1 = (host.load1 !== undefined && host.load1 !== null) ? parseFloat(host.load1) : 1.0;\n                const loadPct = Math.min(100, Math.max(5, (load1 / cores) * 100));\n                const cCpuPct = shield.customer_cpu_percent ?? calc.customerCpuPercent ?? 85;\n                const ramPct = shield.golden_mem_percent || 45;\n\n                this.updateGaugeCard('admin-hw', 60);\n                this.updateGaugeCard('admin-cpu', cCpuPct);\n                this.updateGaugeCard('admin-ram', ramPct);\n                this.updateGaugeCard('admin-load', loadPct);\n",
+          "generated": "                const metrics = this.adminGaugePercentages(host,shield);\n                const loadPct=metrics.load, cCpuPct=metrics.cpu, ramPct=metrics.ram;\n                this.updateGaugeCard('admin-hw',null);\n                this.updateGaugeCard('admin-cpu',cCpuPct);\n                this.updateGaugeCard('admin-ram',ramPct);\n                this.updateGaugeCard('admin-load',loadPct);\n                const cpuGauge=document.getElementById('uniselv-arc-admin-cpu')?.closest('.uniselv-gauge-wrap');\n                if(cpuGauge && cCpuPct!==null)cpuGauge.title=`Configured hosting allocation: ${cCpuPct.toFixed(1)}% of total visible CPU capacity. This is a policy share, not live CPU usage.`;\n                const loadGauge=document.getElementById('uniselv-arc-admin-load')?.closest('.uniselv-gauge-wrap');\n                if(loadGauge && loadPct!==null)loadGauge.title=`One-minute load divided by vCPU count: ${loadPct.toFixed(1)}%. Load is not CPU utilization; visual fill is capped at 100%.`;",
+          "afterEditContext": "            // Update Admin Gauges & Dynamic Live Footers\n            if (typeof this.updateGaugeCard === 'function') {\n                const metrics = this.adminGaugePercentages(host,shield);\n                const loadPct=metrics.load, cCpuPct=metrics.cpu, ramPct=metrics.ram;\n                this.updateGaugeCard('admin-hw',null);\n                this.updateGaugeCard('admin-cpu',cCpuPct);\n                this.updateGaugeCard('admin-ram',ramPct);\n                this.updateGaugeCard('admin-load',loadPct);\n                const cpuGauge=document.getElementById('uniselv-arc-admin-cpu')?.closest('.uniselv-gauge-wrap');\n                if(cpuGauge && cCpuPct!==null)cpuGauge.title=`Configured hosting allocation: ${cCpuPct.toFixed(1)}% of total visible CPU capacity. This is a policy share, not live CPU usage.`;\n                const loadGauge=document.getElementById('uniselv-arc-admin-load')?.closest('.uniselv-gauge-wrap');\n                if(loadGauge && loadPct!==null)loadGauge.title=`One-minute load divided by vCPU count: ${loadPct.toFixed(1)}%. Load is not CPU utilization; visual fill is capped at 100%.`;\n                // Update Dynamic Footers (Sparklines & Equalizers)\n                if (typeof this.updateAdminSparkline === 'function') {"
+        },
+        {
+          "mode": "replace",
+          "after": "                // Update Dynamic Footers (Sparklines & Equalizers)\n                if (typeof this.updateAdminSparkline === 'function') {",
+          "before": "                }\n                if (typeof this.updateEqualizer === 'function') {",
+          "existing": "                    this.updateAdminSparkline('admin-sparkline-hw', loadPct);\n                    this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct);",
+          "generated": "                    this.updateAdminSparkline('admin-sparkline-hw', loadPct,host.last_sample_epoch);\n                    this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct,host.last_sample_epoch);",
+          "afterEditContext": "                // Update Dynamic Footers (Sparklines & Equalizers)\n                if (typeof this.updateAdminSparkline === 'function') {\n                    this.updateAdminSparkline('admin-sparkline-hw', loadPct,host.last_sample_epoch);\n                    this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct,host.last_sample_epoch);\n                }\n                if (typeof this.updateEqualizer === 'function') {"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/assets/style.css",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/assets/style.css",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "2e989c02c0e56f3685c3a42f27ffa5ede28e7f171710dd701b268e120786927b",
+      "blocks": [
+        {
+          "mode": "insert",
+          "after": "#uniselv-runtime-governance p,.uniselv-governance-note{overflow-wrap:anywhere;font-size:.9rem;line-height:1.6}\n#uniselv-runtime-governance td{white-space:normal;overflow-wrap:anywhere;max-width:420px;min-width:100px}",
+          "before": "<END OF FILE>",
+          "existing": "",
+          "generated": "\n/* Liquid level represents the actual percentage; waves decorate only its surface. */\n.uniselv-wave-container .uniselv-wave{top:0;bottom:auto;height:10px}\n.theme-cpu .uniselv-wave-container{background:rgba(59,130,246,.18)}\n.theme-mem .uniselv-wave-container{background:rgba(139,92,246,.18)}\n.theme-io .uniselv-wave-container{background:rgba(16,185,129,.18)}\n.theme-tasks .uniselv-wave-container{background:rgba(245,158,11,.18)}",
+          "afterEditContext": "#uniselv-runtime-governance p,.uniselv-governance-note{overflow-wrap:anywhere;font-size:.9rem;line-height:1.6}\n#uniselv-runtime-governance td{white-space:normal;overflow-wrap:anywhere;max-width:420px;min-width:100px}\n\n/* Liquid level represents the actual percentage; waves decorate only its surface. */\n.uniselv-wave-container .uniselv-wave{top:0;bottom:auto;height:10px}\n.theme-cpu .uniselv-wave-container{background:rgba(59,130,246,.18)}\n.theme-mem .uniselv-wave-container{background:rgba(139,92,246,.18)}\n.theme-io .uniselv-wave-container{background:rgba(16,185,129,.18)}\n.theme-tasks .uniselv-wave-container{background:rgba(245,158,11,.18)}"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/info.json",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/info.json",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "f1455adb881df1bffff55b5beefba70cc78e60817684789c53b14a45401de305",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",",
+          "before": "  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {",
+          "existing": "  \"version\": \"1.1.24\",",
+          "generated": "  \"version\": \"1.1.25\",",
+          "afterEditContext": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",\n  \"version\": \"1.1.25\",\n  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/uniselv-resman.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/uniselv-resman.php",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "bad1f90d6493df33c5306caa24a5705da0d6aea4ef341ab1862c2909f37a9a7e",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "/*\nPlugin Name: UNISELV Resource Manager",
+          "before": "Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman",
+          "existing": "Version: 1.1.24",
+          "generated": "Version: 1.1.25",
+          "afterEditContext": "/*\nPlugin Name: UNISELV Resource Manager\nVersion: 1.1.25\nDescription: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman"
+        },
+        {
+          "mode": "replace",
+          "after": "    $i18n_dict = uniselv_get_i18n_dict();\n",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.24r2' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.25r2' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.25r2' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';",
+          "before": "\n    echo '<div class=\"uniselv-container\">';",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.24r2' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.25r2' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.25r2' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#3b82f6\"/>\n                    </g>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-cpu\" id=\"uniselv-arc-admin-hw\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"190\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-hw\" style=\"transform: rotate(216deg);\">",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-cpu\" id=\"uniselv-arc-admin-hw\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-hw\" style=\"opacity:0; transform: rotate(0deg);\">",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-cpu\" id=\"uniselv-arc-admin-hw\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-hw\" style=\"opacity:0; transform: rotate(0deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#3b82f6\"/>\n                    </g>"
+        },
+        {
+          "mode": "replace",
+          "after": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-hw\" style=\"height: 52%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-hw\" style=\"height: 0%;\">",
+          "afterEditContext": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-hw\" style=\"height: 0%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <div class=\"uniselv-gauge-center\">\n                        <span class=\"uniselv-metric-big\" id=\"admin-card-hw-cpu\">' . $cpu_cores . ' vCPUs</span>",
+          "before": "                    </div>\n                </div>",
+          "existing": "                        <span class=\"uniselv-metric-core\">Virtual CPUs</span>",
+          "generated": "                        <span class=\"uniselv-metric-core\">Virtual CPUs · inventory</span>",
+          "afterEditContext": "                    <div class=\"uniselv-gauge-center\">\n                        <span class=\"uniselv-metric-big\" id=\"admin-card-hw-cpu\">' . $cpu_cores . ' vCPUs</span>\n                        <span class=\"uniselv-metric-core\">Virtual CPUs · inventory</span>\n                    </div>\n                </div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#8b5cf6\"/>\n                    </g>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-mem\" id=\"uniselv-arc-admin-cpu\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"120\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-cpu\" style=\"transform: rotate(270deg);\">",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-mem\" id=\"uniselv-arc-admin-cpu\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-cpu\" style=\"opacity:0; transform: rotate(0deg);\">",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-mem\" id=\"uniselv-arc-admin-cpu\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-cpu\" style=\"opacity:0; transform: rotate(0deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#8b5cf6\"/>\n                    </g>"
+        },
+        {
+          "mode": "replace",
+          "after": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-cpu\" style=\"height: 60%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-cpu\" style=\"height: 0%;\">",
+          "afterEditContext": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-cpu\" style=\"height: 0%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#10b981\"/>\n                    </g>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-io\" id=\"uniselv-arc-admin-ram\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"260\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-ram\" style=\"transform: rotate(160deg);\">",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-io\" id=\"uniselv-arc-admin-ram\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-ram\" style=\"opacity:0; transform: rotate(0deg);\">",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-io\" id=\"uniselv-arc-admin-ram\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-ram\" style=\"opacity:0; transform: rotate(0deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#10b981\"/>\n                    </g>"
+        },
+        {
+          "mode": "replace",
+          "after": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-ram\" style=\"height: 45%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-ram\" style=\"height: 0%;\">",
+          "afterEditContext": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-ram\" style=\"height: 0%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#f59e0b\"/>\n                    </g>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-tasks\" id=\"uniselv-arc-admin-load\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"360\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-load\" style=\"transform: rotate(88deg);\">",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-tasks\" id=\"uniselv-arc-admin-load\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-load\" style=\"opacity:0; transform: rotate(0deg);\">",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-tasks\" id=\"uniselv-arc-admin-load\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"100\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-admin-load\" style=\"opacity:0; transform: rotate(0deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#f59e0b\"/>\n                    </g>"
+        },
+        {
+          "mode": "replace",
+          "after": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-load\" style=\"height: 32%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-load\" style=\"height: 0%;\">",
+          "afterEditContext": "                <div class=\"uniselv-particles\"><span class=\"particle p-1\"></span><span class=\"particle p-2\"></span><span class=\"particle p-3\"></span></div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-admin-load\" style=\"height: 0%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "    $i18n_dict = uniselv_get_i18n_dict();\n",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.24r2' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.25r2' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.25r2' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';",
+          "before": "\n    echo '<div class=\"uniselv-container\">';",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.24r2' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.25r2' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.25r2' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-cpu\" style=\"transform: rotate(' . (min(100, max(0, $cpu_allowance)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#3b82f6\" filter=\"url(#glow-cpu)\"/>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-cpu\" id=\"uniselv-arc-cpu\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"' . (477.5 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-cpu\" id=\"uniselv-arc-cpu\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-cpu\" id=\"uniselv-arc-cpu\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-cpu\" style=\"transform: rotate(' . (min(100, max(0, $cpu_allowance)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#3b82f6\" filter=\"url(#glow-cpu)\"/>"
+        },
+        {
+          "mode": "replace",
+          "after": "                </div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-cpu\" style=\"height: ' . ($cpu_allowance <= 0 ? 0 : max(6, min(100, $cpu_allowance))) . '%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-cpu\" style=\"height: ' . max(0, min(100, $cpu_allowance)) . '%;\">",
+          "afterEditContext": "                </div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-cpu\" style=\"height: ' . max(0, min(100, $cpu_allowance)) . '%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-mem\" style=\"transform: rotate(' . (min(100, max(0, $mem_pct)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#8b5cf6\" filter=\"url(#glow-mem)\"/>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-mem\" id=\"uniselv-arc-mem\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"' . (477.5 * (1 - min(100, max(0, $mem_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-mem\" id=\"uniselv-arc-mem\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $mem_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-mem\" id=\"uniselv-arc-mem\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $mem_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-mem\" style=\"transform: rotate(' . (min(100, max(0, $mem_pct)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#8b5cf6\" filter=\"url(#glow-mem)\"/>"
+        },
+        {
+          "mode": "replace",
+          "after": "                </div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-mem\" style=\"height: ' . ($mem_pct <= 0 ? 0 : max(6, min(100, $mem_pct))) . '%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-mem\" style=\"height: ' . max(0, min(100, $mem_pct)) . '%;\">",
+          "afterEditContext": "                </div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-mem\" style=\"height: ' . max(0, min(100, $mem_pct)) . '%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-io\" style=\"transform: rotate(' . (min(100, max(0, $io_pct)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#10b981\" filter=\"url(#glow-io)\"/>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-io\" id=\"uniselv-arc-io\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"' . (477.5 * (1 - min(100, max(0, $io_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-io\" id=\"uniselv-arc-io\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $io_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-io\" id=\"uniselv-arc-io\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $io_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-io\" style=\"transform: rotate(' . (min(100, max(0, $io_pct)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#10b981\" filter=\"url(#glow-io)\"/>"
+        },
+        {
+          "mode": "replace",
+          "after": "                </div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-io\" style=\"height: ' . ($io_pct <= 0 ? 0 : max(6, min(100, $io_pct))) . '%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-io\" style=\"height: ' . max(0, min(100, $io_pct)) . '%;\">",
+          "afterEditContext": "                </div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-io\" style=\"height: ' . max(0, min(100, $io_pct)) . '%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        },
+        {
+          "mode": "replace",
+          "after": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />",
+          "before": "                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-tasks\" style=\"transform: rotate(' . (min(100, max(0, $task_pct)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#f59e0b\" filter=\"url(#glow-tasks)\"/>",
+          "existing": "                    <circle class=\"uniselv-gauge-arc arc-tasks\" id=\"uniselv-arc-tasks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" stroke-dasharray=\"477.5\" stroke-dashoffset=\"' . (477.5 * (1 - min(100, max(0, $task_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "generated": "                    <circle class=\"uniselv-gauge-arc arc-tasks\" id=\"uniselv-arc-tasks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $task_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />",
+          "afterEditContext": "                    <circle class=\"uniselv-gauge-ticks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"86\" />\n                    <circle class=\"uniselv-gauge-track\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" />\n                    <circle class=\"uniselv-gauge-arc arc-tasks\" id=\"uniselv-arc-tasks\" fill=\"none\" cx=\"100\" cy=\"100\" r=\"76\" pathLength=\"100\" stroke-dasharray=\"100\" stroke-dashoffset=\"' . (100 * (1 - min(100, max(0, $task_pct)) / 100)) . '\" transform=\"rotate(-90 100 100)\" />\n                    <g class=\"uniselv-gauge-thumb-rot\" id=\"uniselv-thumb-rot-tasks\" style=\"transform: rotate(' . (min(100, max(0, $task_pct)) * 3.6) . 'deg);\">\n                        <circle cx=\"100\" cy=\"24\" r=\"5\" fill=\"#f59e0b\" filter=\"url(#glow-tasks)\"/>"
+        },
+        {
+          "mode": "replace",
+          "after": "                </div>\n                <div class=\"uniselv-liquid-circle\">",
+          "before": "                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>",
+          "existing": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-tasks\" style=\"height: ' . (18 + min(100, max(0, $task_pct)) * 0.65) . '%;\">",
+          "generated": "                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-tasks\" style=\"height: ' . min(100, max(0, $task_pct)) . '%;\">",
+          "afterEditContext": "                </div>\n                <div class=\"uniselv-liquid-circle\">\n                    <div class=\"uniselv-wave-container\" id=\"uniselv-wave-tasks\" style=\"height: ' . min(100, max(0, $task_pct)) . '%;\">\n                        <div class=\"uniselv-wave wave-back\"></div>\n                        <div class=\"uniselv-wave wave-front\"></div>"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/views/admin_help.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/views/admin_help.php",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "9904be2e928335d9d3a7fe4387e1e074b87aa490332783354d48a4b756c3ca42",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "            <h4 class=\"uniselv-help-card-title\">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>\n            <div class=\"uniselv-help-card-desc\">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>",
+          "before": "        </div>\n",
+          "existing": "            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.24.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.24.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>",
+          "generated": "            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.25.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.25.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>",
+          "afterEditContext": "            <h4 class=\"uniselv-help-card-title\">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>\n            <div class=\"uniselv-help-card-desc\">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>\n            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.25.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.25.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n        </div>\n"
+        },
+        {
+          "mode": "insert",
+          "after": "            <h4 class=\"uniselv-help-card-title\">Resource Metrics & Allowance Mathematics</h4>\n            <div class=\"uniselv-help-card-desc\">",
+          "before": "                <strong>1. CPU % (Core Equivalent):</strong> 100% CPU represents one logical CPU/vCPU worth of scheduled execution time; it does not guarantee a dedicated physical core. On a 4 vCPU server, 400% represents total machine capacity.<br>\n                <strong>Allowance Percentage Example:</strong> If an account is assigned a 200% CPU quota (2 cores) and consumes 150% CPU, its allowance usage is:",
+          "existing": "",
+          "generated": "                <strong>Gauge fill:</strong> 0% is empty, 50% half and 100% full. Missing data is neutral. Hardware Detection is inventory; its ring does not represent usage. Admin Shared CPU Headroom shows configured hosting share (340% / 400% = 85% on four vCPUs). RAM is aggregate memory usage / enforced cap; System Load is load1 / vCPU count, not CPU utilization.<br>",
+          "afterEditContext": "            <h4 class=\"uniselv-help-card-title\">Resource Metrics & Allowance Mathematics</h4>\n            <div class=\"uniselv-help-card-desc\">\n                <strong>Gauge fill:</strong> 0% is empty, 50% half and 100% full. Missing data is neutral. Hardware Detection is inventory; its ring does not represent usage. Admin Shared CPU Headroom shows configured hosting share (340% / 400% = 85% on four vCPUs). RAM is aggregate memory usage / enforced cap; System Load is load1 / vCPU count, not CPU utilization.<br>\n                <strong>1. CPU % (Core Equivalent):</strong> 100% CPU represents one logical CPU/vCPU worth of scheduled execution time; it does not guarantee a dedicated physical core. On a 4 vCPU server, 400% represents total machine capacity.<br>\n                <strong>Allowance Percentage Example:</strong> If an account is assigned a 200% CPU quota (2 cores) and consumes 150% CPU, its allowance usage is:"
+        }
+      ]
+    }
+  ]
+}

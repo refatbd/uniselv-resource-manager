@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """Experimental Webuzo FPM launcher integration. Root-only; never falls back to shared FPM."""
 import queue
+import base64
 import argparse,contextlib,fcntl,hashlib,json,os,pathlib,pwd,re,shutil,signal,socket,subprocess,sys,time,select,struct,threading
 BASE=pathlib.Path('/etc/webuzo-isolation')
 STATE=pathlib.Path('/var/lib/webuzo-isolation')
@@ -9,7 +10,9 @@ SELF=pathlib.Path('/usr/local/sbin/webuzo-isolation.py')
 UNITS=pathlib.Path('/etc/systemd/system')
 PROXY='/usr/lib/systemd/systemd-socket-proxyd'
 MARKER='# WEBUZO-ISOLATION MANAGED LAUNCHER'
-CAPACITY_MODEL_VERSION='account-demand-v4'
+CAPACITY_MODEL_VERSION='account-demand-v5-warm'
+NATIVE_CGROUP_USERS=pathlib.Path('/var/webuzo/conf/cgroupusers')
+NATIVE_CGROUP_DROPIN=UNITS/'cgroup.service.d/90-uniselv-resman.conf'
 
 # Self-contained fallback: no PHP, external assets, scripts, or template file I/O.
 CAPACITY_BUSY_HTML = b'<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="robots" content="noindex, nofollow">\n  <meta name="color-scheme" content="light">\n  <title>We\'ll be right with you | Temporarily unavailable</title>\n  <style>\n    *{box-sizing:border-box}html{min-height:100%;background:#faf9f7}body{margin:0;min-height:100svh;color:#25252b;font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;padding:40px 24px;isolation:isolate;overflow-x:hidden}\n    .ambient{position:fixed;z-index:-1;inset:0;pointer-events:none;background:radial-gradient(ellipse at 82% 25%,#ffe9e7aa,transparent 48%),radial-gradient(ellipse at 8% 90%,#f3ebe480,transparent 40%)}.grid{position:fixed;z-index:-1;inset:0;pointer-events:none;background-image:radial-gradient(#c5b6b455 1px,transparent 1px);background-size:24px 24px;mask-image:linear-gradient(transparent,#0003,transparent)}\n    main{width:min(100%,1000px);animation:arrive .7s ease-out both}.brand{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:2px;margin:0 4px 24px;color:#6d6060}.brand svg{width:26px;height:26px}.brand span{letter-spacing:0;font-size:11px;font-weight:400;color:#7c7373;border-left:1px solid #ddd4d1;padding-left:15px;margin-left:6px}\n    .card{position:relative;display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:30px;border:1px solid #ece6e3;border-radius:30px;background:#fff;padding:64px;box-shadow:0 30px 80px -40px #714c4930,0 3px 12px #493c3404;overflow:hidden}.card:before{content:"";position:absolute;top:0;left:12%;right:12%;height:2px;background:linear-gradient(90deg,transparent,#eb6c6355,transparent)}\n    .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid #f5d8d5;border-radius:6px;background:#fff5f3;color:#b23d34;font-size:10px;font-weight:650;letter-spacing:1.4px;text-transform:uppercase}.dot{width:5px;height:5px;border-radius:50%;background:#d9564c;box-shadow:0 0 0 3px #d9564c12;animation:pulse 2.5s ease-in-out infinite}h1{font-size:clamp(36px,4.5vw,50px);font-weight:650;letter-spacing:-2.2px;line-height:1.12;margin:25px 0 20px}h1 span{color:#7e7778;font-weight:450}.description{color:#706b70;font-size:14px;line-height:1.8;max-width:340px;margin:0 0 28px}.retry{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 21px;min-height:48px;border:1px solid #bd4037;border-radius:10px;background:#c3463c;color:#fff;font-size:13px;font-weight:650;text-decoration:none;box-shadow:0 4px 10px #bd403718;transition:background .2s,transform .2s,box-shadow .2s}.retry:hover{background:#a9362e;transform:translateY(-2px);box-shadow:0 8px 20px #bd403728}.retry:focus-visible{outline:3px solid #df8e87;outline-offset:4px}.retry svg{width:16px;height:16px}.hint{display:block;font-size:11px;color:#817878;margin-top:13px}\n    .visual{position:relative;height:340px;display:grid;place-items:center}.halo{position:absolute;width:310px;height:310px;border-radius:50%;background:radial-gradient(circle,#fff1ef,transparent 70%)}.error-number{position:absolute;top:8px;font-size:112px;font-weight:750;letter-spacing:-8px;line-height:1;color:#f8e9e6;user-select:none}.orbit{position:absolute;width:266px;height:266px;border:1px solid #f2ded9;border-radius:50%}.orbit.inner{width:206px;height:206px;border-style:dashed;border-color:#ecd3cd}.satellite{position:absolute;inset:-1px;border-radius:50%;animation:orbit 22s linear infinite}.satellite:before{content:"";position:absolute;top:-4px;left:50%;width:8px;height:8px;background:#df7d72;border:2px solid white;border-radius:50%;box-shadow:0 0 0 4px #f9e6e2}.core{position:relative;width:118px;height:118px;display:grid;place-items:center;border:1px solid #f4d2cc;border-radius:30px;background:linear-gradient(145deg,#fff9f7,#fdeae5);box-shadow:inset 0 2px #fff,0 18px 35px -20px #c8736777;transform:rotate(-8deg);animation:float 6s ease-in-out infinite}.core svg{width:53px;height:53px;color:#c44e42;transform:rotate(8deg)}.alert-badge{position:absolute;right:-10px;top:-10px;width:34px;height:34px;display:grid;place-items:center;border:4px solid white;border-radius:50%;background:#cd5146;color:white;font-size:17px;font-weight:700;line-height:1;box-shadow:0 3px 8px #bf635522}.status{position:absolute;bottom:4px;display:flex;align-items:center;gap:9px;padding:9px 14px;background:#fff;border:1px solid #eee2dd;border-radius:30px;color:#88736e;font-size:10px;box-shadow:0 5px 15px #95605208}.bars{display:flex;gap:3px;align-items:center;height:15px}.bars i{width:3px;height:5px;background:#d9786d;border-radius:2px;animation:bars 1.4s ease-in-out infinite}.bars i:nth-child(2){animation-delay:.15s}.bars i:nth-child(3){animation-delay:.3s}.small-cross{position:absolute;top:70px;right:22px;color:#d49c92;font-size:18px}.code{position:absolute;left:9px;bottom:50px;color:#b1877e;font:9px ui-monospace,monospace;letter-spacing:1.5px}\n    footer{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:22px 4px 0;color:#8b8180;font-size:10px}.foot-status{display:flex;align-items:center;gap:7px}.foot-status:before{content:"";width:5px;height:5px;background:#d17a70;border-radius:50%}\n    @keyframes arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes orbit{to{transform:rotate(360deg)}}@keyframes float{50%{transform:translateY(-9px) rotate(-4deg)}}@keyframes pulse{50%{opacity:.45}}@keyframes bars{50%{height:14px}}\n    @media(max-width:700px){body{padding:28px 18px}.brand{margin-bottom:20px;font-size:10px;letter-spacing:1.5px}.brand span{display:none}.card{grid-template-columns:1fr;padding:30px 26px;gap:24px;border-radius:24px}.visual{grid-row:1;height:240px}.orbit{width:200px;height:200px}.orbit.inner{width:154px;height:154px}.error-number{top:0;font-size:88px}.core{width:94px;height:94px;border-radius:24px}.core svg{width:43px;height:43px}.status{bottom:-7px;font-size:9px}.small-cross{top:38px;right:20px}.code{left:0;bottom:26px;font-size:8px}h1{font-size:38px;letter-spacing:-1.8px;margin-top:20px}.description{max-width:100%;font-size:13px}.hint{font-size:10px}footer{align-items:flex-start;font-size:9px;gap:14px}.foot-status{max-width:145px}}\n    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}\n  </style>\n</head>\n<body>\n  <div class="ambient" aria-hidden="true"></div><div class="grid" aria-hidden="true"></div>\n  <main>\n    <div class="brand"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="8" stroke="#b76b62" stroke-width="1.5"/><path d="M13 12v8m6-8v8" stroke="#b76b62" stroke-width="2.5" stroke-linecap="round"/></svg>A MOMENT, PLEASE<span>We appreciate your patience.</span></div>\n    <section class="card" aria-labelledby="title">\n      <div class="copy">\n        <div class="eyebrow"><span class="dot" aria-hidden="true"></span>Temporarily at capacity</div>\n        <h1 id="title">A little pause.<br><span>We\'ll be right<br>with you.</span></h1>\n        <p class="description">We\'re experiencing high demand right now. Please give us a moment, then try this page again.</p>\n        <a class="retry" href=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4.5 9a8 8 0 0113.2-3L20 9M4 17v-5h5m10.5 3a8 8 0 01-13.2 3L4 15"/></svg>Try Again</a>\n        <small class="hint">Wait a few seconds before trying again.</small>\n      </div>\n      <div class="visual" aria-hidden="true"><div class="halo"></div><span class="error-number">503</span><div class="orbit"><div class="satellite"></div></div><div class="orbit inner"></div><span class="small-cross">+</span><div class="core"><span class="alert-badge">!</span><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="12" width="40" height="16" rx="5"/><rect x="12" y="36" width="40" height="16" rx="5"/><path d="M20 20h1m-1 24h1m17-24h6m-6 24h6M32 28v8"/></svg></div><span class="code">PLEASE STAND BY</span><div class="status"><span class="bars"><i></i><i></i><i></i></span>A moment to catch our breath.</div></div>\n    </section>\n    <footer><span>Thank you for your patience.</span><span class="foot-status">503 &middot; Service temporarily unavailable</span></footer>\n  </main>\n</body>\n</html>\n'
@@ -40,7 +43,178 @@ def policy():
     if type(data.get('opcacheMiB')) is not int or data['opcacheMiB']<0:raise ValueError('Invalid opcacheMiB')
     if data['opcacheMiB']>512 or data['maxActivePools']>64 or data['idleSeconds']<15:raise ValueError('Policy outside tested limits')
     if type(data.get('accountRuntimeCaps',False)) is not bool:raise ValueError('Invalid accountRuntimeCaps')
+    # Retire ondemand workers independently; preserve the master's opcode cache
+    # while measured headroom permits. Waiting peers can reclaim its lease early.
+    data.setdefault('warmIdleSeconds',warm_idle_seconds(data))
+    if type(data['warmIdleSeconds']) is not int or not 15<=data['warmIdleSeconds']<=3600:raise ValueError('Invalid warmIdleSeconds')
     return data
+
+
+def warm_idle_seconds(p):
+    """One minute per affordable warm-master footprint, bounded operational TTL."""
+    return max(60,min(900,int(p['phpBudgetMiB'])//max(1,48+int(p['opcacheMiB']))*60))
+
+
+def idle_retirement_reason(elapsed,ttl,quiescent,peer_waiting,available_mib,reserve_mib):
+    if not quiescent:return None
+    if peer_waiting:return 'waiting_peer_admission'
+    if reserve_mib and (available_mib is None or available_mib<reserve_mib):return 'host_memory_reserve'
+    if elapsed>=ttl:return 'warm_idle_expired'
+    return None
+
+
+def native_account_uids():
+    """Re-read Webuzo's root-owned assignment registry; provisioning is dynamic."""
+    if not NATIVE_CGROUP_USERS.exists():return set()
+    # Webuzo owns this registry as its private service account on native Ubuntu.
+    owners={0};groups={0}
+    try:
+        vendor=pwd.getpwnam('webuzo');owners.add(vendor.pw_uid);groups.add(vendor.pw_gid)
+    except KeyError:pass
+    info=NATIVE_CGROUP_USERS.stat()
+    if (NATIVE_CGROUP_USERS.is_symlink() or info.st_uid not in owners or info.st_mode&0o002
+            or (info.st_mode&0o020 and info.st_gid not in groups)):
+        raise RuntimeError('Unsafe native cgroup registry')
+    values=NATIVE_CGROUP_USERS.read_text().split()
+    if any(not value.isdigit() or int(value)<1 for value in values):raise ValueError('Invalid native account UID registry')
+    result=set()
+    for value in values:
+        uid=int(value)
+        try:user=pwd.getpwuid(uid).pw_name
+        except KeyError:continue
+        # Native registries may also contain nobody/shared service UIDs.
+        if (pathlib.Path('/var/webuzo/users')/user).is_dir():result.add(uid)
+    return result
+
+
+def native_cgroup_target(uid):
+    target=pathlib.Path('/sys/fs/cgroup')/account_cgroup(uid).lstrip('/')
+    if not target.exists() and account_slice(uid).startswith('golden-'):
+        execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)],timeout=30)
+    if not (target/'cgroup.procs').exists():raise RuntimeError('Account cgroup is not provisioned: '+str(uid))
+    return target
+
+
+def native_cgroup_pass():
+    """Preserve managed service subgroups; repair legacy UID placement once per sweep.
+
+    This replaces only the vendor service command through an owned drop-in, never
+    the vendor script. Native-only installations retain the original UID target.
+    """
+    uids=native_account_uids();targets={};moved=0;errors=[]
+    for uid in uids:
+        try:targets[uid]=native_cgroup_target(uid)
+        except (OSError,RuntimeError,ValueError) as exc:
+            # Deletion/provisioning of one account must not stop reconciliation
+            # for every other account. Its own FPM admission remains fail-closed.
+            errors.append({'uid':uid,'error':str(exc)[:160]})
+    for proc in pathlib.Path('/proc').iterdir():
+        if not proc.name.isdigit():continue
+        try:
+            uid=proc.stat().st_uid
+            if uid not in targets:continue
+            if os.readlink(proc/'exe')=='/usr/local/apps/apache2/bin/httpd':continue
+            current=(proc/'cgroup').read_text().strip()
+            expected='0::'+account_cgroup(uid)
+            if current==expected or current.startswith(expected+'/'):continue
+            # Recheck ownership immediately before migration; exited PIDs are benign.
+            if proc.stat().st_uid!=uid:continue
+            place_native_process(uid,int(proc.name),targets[uid])
+            moved+=1
+        except (FileNotFoundError,ProcessLookupError):continue
+        except (OSError,ValueError) as exc:errors.append({'pid':int(proc.name),'error':str(exc)[:160]})
+    return {'moved':moved,'errors':errors,'accounts':len(uids)}
+
+
+def place_native_process(uid,pid,target):
+    if account_slice(uid).startswith('golden-'):
+        # cgroup v2 forbids internal processes in a slice with enabled child
+        # controllers. Adopt legacy CLI/session PIDs into a proper child scope.
+        unit='resman-native-u'+str(uid)+'-p'+str(pid)+'-'+str(time.time_ns())+'.scope'
+        execute(['/usr/bin/busctl','call','org.freedesktop.systemd1','/org/freedesktop/systemd1',
+                 'org.freedesktop.systemd1.Manager','StartTransientUnit','ssa(sv)a(sa(sv))',
+                 unit,'fail','3','Slice','s',account_slice(uid),'PIDs','au','1',str(pid),
+                 'MemorySwapMax','t','0','0'],timeout=10)
+    else:(target/'cgroup.procs').write_text(str(pid))
+
+
+def native_guard_dropin():
+    return ('# UNISELV-RESMAN native cgroup coexistence; vendor source preserved\n'
+            '[Service]\nExecStart=\nExecStart=/usr/bin/python3 '+str(SELF)+' native-cgroup-guard\n'
+            'Restart=on-failure\nRestartSec=2\n')
+
+
+def ensure_native_cgroup_guard():
+    if not account_slice(1).startswith('golden-'):
+        # Without Golden the vendor and managed services already share the
+        # native UID boundary. Restore the untouched vendor command on rollback.
+        remove_native_cgroup_guard()
+        return {'required':False}
+    # No native mover means there is no command to replace on that installation.
+    vendor=pathlib.Path('/usr/local/webuzo/bin/cgroup.sh')
+    if not vendor.exists():return {'required':False}
+    source=vendor.read_text()
+    if 'cgroup.procs' not in source or '/sys/fs/cgroup/' not in source:raise RuntimeError('Unrecognized native cgroup mover; review vendor integration')
+    desired=native_guard_dropin()
+    with lock('native-cgroup-guard'):
+        if NATIVE_CGROUP_DROPIN.is_symlink():raise RuntimeError('Unsafe native cgroup drop-in')
+        if NATIVE_CGROUP_DROPIN.exists() and NATIVE_CGROUP_DROPIN.read_text()!=desired:raise RuntimeError('Native cgroup drop-in changed; refusing overwrite')
+        if not NATIVE_CGROUP_DROPIN.exists():
+            command=execute(['systemctl','show','cgroup.service','-p','ExecStart','--value'],False).stdout
+            if '/usr/local/webuzo/bin/cgroup.sh' not in command:raise RuntimeError('Unexpected cgroup.service command; refusing replacement')
+            # Validate every assigned destination before replacing the competing writer.
+            for uid in native_account_uids():native_cgroup_target(uid)
+            atomic(NATIVE_CGROUP_DROPIN,desired,0o644)
+            try:
+                execute(['systemctl','daemon-reload']);execute(['systemctl','restart','cgroup.service'])
+            except Exception:
+                NATIVE_CGROUP_DROPIN.unlink(missing_ok=True);execute(['systemctl','daemon-reload'],False);execute(['systemctl','restart','cgroup.service'],False);raise
+        if execute(['systemctl','is-active','cgroup.service'],False).returncode:
+            execute(['systemctl','start','cgroup.service'])
+        # Old Golden releases patched the vendor scanner itself. Relinquish
+        # ownership explicitly so a later vendor refresh is neither overwritten
+        # nor mistaken for a change to our new drop-in. Preserve the old receipt.
+        registry=pathlib.Path('/var/lib/golden-shield/shared-files.json')
+        if registry.exists():
+            data=json.loads(registry.read_text());key=str(vendor)
+            if key in data:
+                receipt={'path':key,'retired':data[key],'currentVendorSha256':hashlib.sha256(vendor.read_bytes()).hexdigest(),'at':time.time(),'reason':'Replaced vendor-file patch with owned service drop-in'}
+                atomic(STATE/('native-scanner-ownership-retired-'+str(time.time_ns())+'.json'),json.dumps(receipt,indent=2))
+                del data[key];atomic(registry,json.dumps(data,indent=2))
+    return {'required':True,'active':True}
+
+
+def native_cgroup_guard():
+    alive=threading.Event();alive.set()
+    def stop(*_):alive.clear()
+    for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,stop)
+    while alive.is_set():
+        result=native_cgroup_pass()
+        if result['errors']:print(json.dumps({'event':'native_cgroup_guard',**result}),file=sys.stderr,flush=True)
+        # Five seconds matches the inspected vendor reconciliation cadence.
+        for _ in range(50):
+            if not alive.is_set():break
+            time.sleep(.1)
+
+
+def native_cgroup_drift(uid):
+    """Check actual worker placement, not just the service's declared ControlGroup."""
+    expected='0::'+account_cgroup(uid);outside=[];checked=0
+    for proc in pathlib.Path('/proc').iterdir():
+        if not proc.name.isdigit():continue
+        try:
+            if proc.stat().st_uid!=int(uid):continue
+            if os.readlink(proc/'exe')=='/usr/local/apps/apache2/bin/httpd':continue
+            actual=(proc/'cgroup').read_text().strip();checked+=1
+            if actual!=expected and not actual.startswith(expected+'/'):outside.append(int(proc.name))
+        except (FileNotFoundError,ProcessLookupError,PermissionError):continue
+    return {'expected':account_cgroup(uid),'processesChecked':checked,'outsidePids':outside,'pass':not outside}
+
+
+def remove_native_cgroup_guard():
+    if NATIVE_CGROUP_DROPIN.exists():
+        if NATIVE_CGROUP_DROPIN.read_text()!=native_guard_dropin():raise RuntimeError('Changed native cgroup integration; refusing removal')
+        NATIVE_CGROUP_DROPIN.unlink();execute(['systemctl','daemon-reload']);execute(['systemctl','restart','cgroup.service'])
 
 def versions():
     return sorted(p.name for p in pathlib.Path('/usr/local/apps').glob('php*') if re.fullmatch(r'php\d{2,3}',p.name) and (p/'sbin/php-fpm').is_file() and (p/'etc/php-fpm.conf').is_file())
@@ -81,7 +255,7 @@ def ensure_limits(user,uid):
         execute(['/usr/bin/python3','/usr/local/sbin/golden-shield.py','prepare-account',str(uid)])
     return root
 
-def parse_pools(text,version):
+def parse_pools(text,version,prepare=True):
     prefix=paths(version);sections=list(re.finditer(r'^\[([^\]\r\n]+)\][ \t]*$',text,re.M));rows=[]
     global_match=re.search(r'^\[global\][ \t]*\n(.*?)(?=^\[|\Z)',text,re.M|re.S)
     global_settings=re.sub(r'^\s*(pid|error_log|daemonize)\s*=.*\n?', '', global_match[1] if global_match else '',flags=re.M)
@@ -118,7 +292,7 @@ def parse_pools(text,version):
         if group!=user:raise ValueError('Unexpected account group')
         for control in ['pm','pm.max_children','listen.backlog']:field(control)
         if field('pm')!='ondemand':raise ValueError('This integration currently requires global ondemand')
-        ensure_limits(user,account.pw_uid)
+        if prepare:ensure_limits(user,account.pw_uid)
         rows.append({'user':user,'uid':account.pw_uid,'name':name,'originalSocket':original,'pool':part,'global':global_settings,'maxChildren':int(field('pm.max_children')),'backlog':int(field('listen.backlog'))})
     return rows
 
@@ -265,6 +439,142 @@ def contention_ceiling(ceiling,relay_memory,p,pool_count):
     return min(ceiling,max(1,fair))
 
 
+def private_backend(pool):
+    # Only the root proxy may reach the backend; Apache keeps its native front socket.
+    if re.search(r'^\s*listen\.acl_(users|groups)\s*=\s*[^;\s]',pool,re.M):
+        raise ValueError('Private relay backend does not support native listen ACL overrides')
+    for key,value in [('listen.owner','root'),('listen.group','root'),('listen.mode','0600')]:
+        pattern=r'^(\s*'+re.escape(key)+r'\s*=).*$'
+        count=len(re.findall(pattern,pool,re.M))
+        if count>1:raise ValueError('Duplicate private backend directive: '+key)
+        pool=re.sub(pattern,lambda m:m[1]+' '+value,pool,flags=re.M) if count else pool+'\n'+key+' = '+value+'\n'
+    return pool
+
+
+def elastic_proxy_ready(unit):
+    """A PID/start-token handshake prevents old proxies bypassing the new relay gate."""
+    try:
+        match=re.fullmatch(r'wpiso-fpm-(php\d{2,3})-([a-z_][a-z0-9_-]*)\.service',unit)
+        if not match:return False
+        marker=RUN/'elastic-proxies'/unit
+        if marker.is_symlink():return False
+        row=json.loads(marker.read_text());pid=row['pid']
+        if type(pid) is not int or pid<1:return False
+        proc=pathlib.Path('/proc')/str(pid)
+        if (proc/'stat').read_text().rsplit(')',1)[1].split()[19]!=str(row['startTicks']):return False
+        uid=pwd.getpwnam(match[2]).pw_uid
+        if (proc/'cgroup').read_text().strip()!='0::'+account_cgroup(uid)+'/'+unit.replace('wpiso-fpm-','wpiso-proxy-',1):return False
+        args=(proc/'cmdline').read_bytes().split(b'\0')
+        return row.get('protocol')==1 and len(args)>3 and args[1:4]==[str(SELF).encode(),b'proxy',unit.encode()]
+    except (OSError,ValueError,TypeError,KeyError,IndexError):return False
+
+
+def runtime_dispatch_limit(unit,upper):
+    lease=RUN/'slots'/unit
+    if not lease.exists():return 1  # One cold starter establishes a verified lease.
+    row=json.loads(lease.read_text())
+    grant=row.get('runtimeMaxChildren')
+    if type(grant) is not int or not 1<=grant<=128:raise ValueError('Invalid relay grant')
+    return min(upper,grant) if row.get('relayEnforced') else upper
+
+
+def clear_elastic_demand(unit):
+    ticket=RUN/'waiting'/unit
+    try:
+        if json.loads(ticket.read_text()).get('mode')=='elastic':ticket.unlink(missing_ok=True)
+    except FileNotFoundError:pass
+
+
+def backend_drained(unit,backend):
+    """Verify FPM children are gone or blocked accepting on this private listener.
+
+    A disconnected client is not proof that its PHP/background job has finished.
+    Unknown kernels/proc visibility fail closed until ondemand children exit.
+    """
+    match=re.fullmatch(r'wpiso-fpm-(php\d{2,3})-([a-z_][a-z0-9_-]*)\.service',unit)
+    if not match:raise ValueError('Invalid backend drain unit')
+    uid=pwd.getpwnam(match[2]).pw_uid;expected=account_cgroup(uid)+'/'+unit
+    pidfile=RUN/(match[1]+'-'+match[2]+'.pid')
+    try:
+        pid=int(pidfile.read_text());master=pathlib.Path('/proc')/str(pid)
+        if (master/'cgroup').read_text().strip()!='0::'+expected:return False
+        if not re.search(r'^Uid:\s+0\b',(master/'status').read_text(),re.M):return False
+        children=(master/'task'/str(pid)/'children').read_text().split()
+        if not children:return True
+        inode=None
+        for line in pathlib.Path('/proc/net/unix').read_text().splitlines():
+            values=line.split(maxsplit=7)
+            if len(values)==8 and values[7]==str(backend) and values[3:6]==['00010000','0001','01']:
+                inode=values[6];break
+        if inode is None:return False
+        for child in children:
+            proc=pathlib.Path('/proc')/child
+            try:
+                if (proc/'cgroup').read_text().strip()!='0::'+expected:return False
+                if not re.search(r'^Uid:\s+'+str(uid)+r'\b',(proc/'status').read_text(),re.M):return False
+                call=(proc/'syscall').read_text().split()
+                if len(call)<2 or not (proc/'wchan').read_text().strip().endswith('skb_wait_for_more_packets'):return False
+                fd=int(call[1],0)
+                if str((proc/'fd'/str(fd)).readlink())!='socket:['+inode+']':return False
+            except FileNotFoundError:
+                if proc.exists():return False
+        return True
+    except (OSError,ValueError,IndexError):return False
+
+
+def elastic_regrant_plan(unit,limits,demand):
+    """Plan a drained restart, never resize/stop an in-flight FPM request here."""
+    match=re.fullmatch(r'wpiso-fpm-(php\d{2,3})-([a-z_][a-z0-9_-]*)\.service',unit)
+    if not match:raise ValueError('Invalid elastic runtime unit')
+    p=policy()
+    if not p.get('accountRuntimeCaps',False):return None
+    with lock('admission'):
+        lease=RUN/'slots'/unit
+        if not lease.exists():return None
+        own=json.loads(lease.read_text());uid=pwd.getpwnam(match[2]).pw_uid
+        if own.get('uid')!=uid:raise ValueError('Elastic runtime UID changed')
+        native=int(own['nativeMaxChildren']);current=int(own['runtimeMaxChildren']);old_cost=int(own['costMiB'])
+        if not 1<=current<=native<=128:raise ValueError('Invalid elastic worker lease')
+        ceiling=runtime_ceiling(uid,native,p,limits['queue'],limits['timeout'])
+        peers=waiting_units(unit)
+        leases={path.name:json.loads(path.read_text()) for path in (RUN/'slots').glob('*.service')}
+        target=min(ceiling,contention_ceiling(ceiling,limits['memoryMiB'],p,len(set(leases)|peers))) if peers else ceiling
+        waiting=RUN/'waiting';waiting.mkdir(mode=0o700,exist_ok=True);ticket=waiting/unit
+        def request(cap):
+            atomic(ticket,json.dumps({'mode':'elastic','uid':uid,'ceiling':cap,
+                'expires':time.monotonic()+limits['timeout']+5}))
+        if current>target:
+            request(target)
+            return {'ceiling':target,'previous':current,'reasonDetail':'peer_fair_share' if peers else 'account_boundary'}
+        if demand<=current or current>=target:
+            clear_elastic_demand(unit);return None
+        group=pathlib.Path('/sys/fs/cgroup'+account_cgroup(uid))
+        boundary=int((group/'memory.max').read_text())*.9/1048576
+        high=(group/'memory.high').read_text().strip()
+        if high!='max':boundary=min(boundary,int(high)/1048576)
+        _,_,working=account_memory_usage(int((group/'memory.current').read_text()),(group/'memory.stat').read_text())
+        account_reserved=sum(int(row['costMiB']) for row in leases.values() if row.get('uid')==uid)
+        account_available=boundary-max(account_reserved,working/1048576)+old_cost
+        available=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))//1024
+        # Credit only physically charged backend memory in the host-headroom check.
+        charged=int((group/unit/'memory.current').read_text())/1048576
+        reserved=sum(int(row['costMiB']) for name,row in leases.items() if name!=unit)
+        granted,_=demand_grant(target,limits['memoryMiB'],p,reserved,
+            available+min(old_cost,charged),account_available)
+        if granted>current:
+            if own.get('relayEnforced') and elastic_proxy_ready(unit):
+                own.update(runtimeMaxChildren=granted,costMiB=granted*p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB'],lastResizeAt=time.time())
+                atomic(lease,json.dumps(own));clear_elastic_demand(unit)
+                return {'ceiling':granted,'previous':current,'reasonDetail':'queued_demand_growth','liveGrowth':True}
+            request(granted)
+            return {'ceiling':granted,'previous':current,'reasonDetail':'queued_demand_growth'}
+        next_cost=(current+1)*p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB']
+        if account_available>=next_cost and available-p['hostReserveMiB']>=p['workerRssMiB']:
+            request(target)  # Partial grants must advertise unsatisfied demand too.
+        else:clear_elastic_demand(unit)
+        return None
+
+
 def account_memory_usage(current,stat_text):
     """Admission estimate, not a replacement for kernel memory.current/limits.
 
@@ -298,7 +608,7 @@ def write_pool(version,row,p):
     validate_fpm([str(prefix/'sbin/php-fpm'),'-t','-y',str(config),'-c',str(prefix/'etc/php.ini'),'-d','opcache.memory_consumption='+str(p['opcacheMiB'])])
     unit='[Unit]\nDescription=Isolated Webuzo PHP pool '+version+' '+user+'\nStopWhenUnneeded=no\nRequires='+str(row['uid'])+'.slice\nAfter='+str(row['uid'])+'.slice\n[Service]\nType=simple\nSlice='+account_slice(row['uid'])+'\nWorkingDirectory='+str(prefix)+'\nExecStartPre=/usr/bin/python3 '+str(SELF)+' admit '+fpm+' '+str(row['maxChildren'])+'\nExecStart='+str(prefix/'sbin/php-fpm')+' -F -y '+str(config)+' -c '+str(prefix/'etc/php.ini')+' -d opcache.memory_consumption='+str(p['opcacheMiB'])+'\nExecStartPost=/usr/bin/python3 '+str(SELF)+' wait-socket '+str(backend)+'\nExecStopPost=/usr/bin/python3 '+str(SELF)+' release '+fpm+'\nKillSignal=SIGTERM\nTimeoutStartSec=45\nTimeoutStopSec=10\nRestart=no\n'
     atomic(UNITS/fpm,unit,0o644)
-    unit='[Unit]\nDescription=Bounded FastCGI admission for '+version+' '+user+'\n[Service]\nSlice='+account_slice(row['uid'])+'\nType=simple\nExecStart=/usr/bin/python3 '+str(SELF)+' proxy '+fpm+' '+str(backend)+' '+str(p['idleSeconds'])+' '+str(limits['workers'])+' '+str(limits['queue'])+' '+str(limits['timeout'])+'\nMemoryMax='+str(limits['memoryMiB'])+'M\nMemorySwapMax=0\nTasksMax='+str(limits['tasks'])+'\nLimitNOFILE='+str(limits['fileLimit'])+'\nExecStopPost=/usr/bin/systemctl stop '+fpm+'\nTimeoutStopSec=20\n'
+    unit='[Unit]\nDescription=Bounded FastCGI admission for '+version+' '+user+'\n[Service]\nSlice='+account_slice(row['uid'])+'\nType=simple\nExecStart=/usr/bin/python3 '+str(SELF)+' proxy '+fpm+' '+str(backend)+' '+str(p['warmIdleSeconds'])+' '+str(limits['workers'])+' '+str(limits['queue'])+' '+str(limits['timeout'])+'\nMemoryMax='+str(limits['memoryMiB'])+'M\nMemorySwapMax=0\nTasksMax='+str(limits['tasks'])+'\nLimitNOFILE='+str(limits['fileLimit'])+'\nExecStopPost=/usr/bin/systemctl stop '+fpm+'\nTimeoutStopSec=20\n'
     atomic(UNITS/proxy,unit,0o644)
     unit='[Unit]\nDescription=Preserve native Webuzo socket for '+version+' '+user+'\n[Socket]\nListenStream='+row['originalSocket']+'\nSocketUser=nobody\nSocketGroup=nobody\nSocketMode=0660\nDirectoryMode=0755\nBacklog='+str(row['backlog'])+'\nRemoveOnStop=yes\nService='+proxy+'\n'
     atomic(UNITS/sock,unit,0o644)
@@ -313,6 +623,7 @@ def ensure_health(version):
     execute(['systemctl','start',unit])
 
 def reconcile(version,restart=False):
+    ensure_native_cgroup_guard()
     with lock(version):
         assert_launcher(version);p=policy();source=(paths(version)/'etc/php-fpm.conf').read_text();rows=parse_pools(source,version);old=manifest(version)
         # Validate all eligible pools before changing any running routing.
@@ -379,6 +690,12 @@ def admit(unit,children):
     waiting=RUN/'waiting';waiting.mkdir(mode=0o700,exist_ok=True);ticket=waiting/unit
     grant_ceiling=children
     try:
+        prior=json.loads(ticket.read_text()) if ticket.exists() else {}
+        if (prior.get('mode')=='elastic' and prior.get('uid')==actual_uid
+                and type(prior.get('expires')) in (int,float) and time.monotonic()<prior['expires']<float('inf')
+                and type(prior.get('ceiling')) is int and 1<=prior['ceiling']<=children):
+            grant_ceiling=prior['ceiling']
+
         while True:
             with lock('admission'):
                 lease=slots/unit
@@ -389,7 +706,10 @@ def admit(unit,children):
                 value=re.search(r'^\s*listen.backlog\s*=\s*(\d+)',pool,re.M)
                 backlog=int(value[1]) if value else 511
                 timeout=request_seconds(pool,p.get('requestTimeoutSeconds',120))
-                ceiling=runtime_ceiling(actual_uid,children,p,backlog,timeout)
+                try:ceiling=runtime_ceiling(actual_uid,children,p,backlog,timeout)
+                except (ValueError,OSError):
+                    print(json.dumps({'event':'php_admission','at':time.time(),'unit':unit,'reason':'account_limits'}),file=sys.stderr,flush=True)
+                    raise
                 # Reserve the native relay upper bound even if a plan changed since unit generation.
                 relay=proxy_limits(children,backlog,timeout)
                 lease_paths=list(slots.iterdir());leases=[json.loads(x.read_text()) for x in lease_paths]
@@ -412,20 +732,34 @@ def admit(unit,children):
                         'accountCleanInactiveFileMiB':round(reclaimable/1048576,2),
                         'accountWorkingSetMiB':round(working/1048576,2),
                         'accountMemoryAccounting':'clean-inactive-file-v1'}
+                peer_demand=waiting_units(unit)
+                if peer_demand:
+                    grant_ceiling=min(grant_ceiling,contention_ceiling(ceiling,relay['memoryMiB'],p,len({x.name for x in lease_paths}|peer_demand|{unit})))
                 granted,cost=demand_grant(min(ceiling,grant_ceiling),relay['memoryMiB'],p,reserved,available,account_available)
                 eligible=granted>=1 if dynamic else (granted==children and len(list(slots.iterdir()))<p['maxActivePools'])
                 if eligible:
-                    if dynamic:atomic(pool_path,runtime_pool(pool,granted))
+                    relay_enforced=dynamic and elastic_proxy_ready(unit)
+                    if dynamic:atomic(pool_path,private_backend(runtime_pool(pool,ceiling if relay_enforced else granted)))
                     atomic(lease,json.dumps({'costMiB':cost,'startedAt':time.time(),
                         'nativeMaxChildren':children,'accountCeiling':ceiling,'runtimeMaxChildren':granted,
-                        'contentionCeiling':min(ceiling,grant_ceiling),'uid':actual_uid,'mode':'account-aware' if dynamic else 'global-default',**accounting}));return
+                        'contentionCeiling':min(ceiling,grant_ceiling),'relayEnforced':relay_enforced,'fpmMaxChildren':ceiling if relay_enforced else granted,'uid':actual_uid,'mode':'account-aware' if dynamic else 'global-default',**accounting}));return
                 # Do not recycle other accounts for this account's own RAM shortage.
                 minimum=p['workerRssMiB']+48+p['opcacheMiB']+relay['memoryMiB']
                 if dynamic and account_available>=minimum:
                     peers={x.name for x in lease_paths}|waiting_units()|{unit}
                     grant_ceiling=min(grant_ceiling,contention_ceiling(ceiling,relay['memoryMiB'],p,len(peers)))
                     atomic(ticket,json.dumps({'expires':deadline,'uid':actual_uid,'ceiling':grant_ceiling}))
-            if time.monotonic()>=deadline:raise RuntimeError('Host PHP admission budget full after bounded wait; no shared fallback')
+            if time.monotonic()>=deadline:
+                minimum=p['workerRssMiB']+48+p['opcacheMiB']+relay['memoryMiB']
+                reasons=[]
+                if available-p['hostReserveMiB']<minimum:reasons.append('host_reserve')
+                if p['phpBudgetMiB']-reserved<minimum:reasons.append('shared_php_budget')
+                if account_available is not None and account_available<minimum:reasons.append('account_memory')
+                if not dynamic and len(leases)>=p['maxActivePools']:reasons.append('active_pool_limit')
+                for reason in reasons or ['account_limits']:
+                    print(json.dumps({'event':'php_admission','at':time.time(),'unit':unit,'reason':reason,
+                        'availableMiB':available,'reservedMiB':reserved,'accountAvailableMiB':account_available}),file=sys.stderr,flush=True)
+                raise RuntimeError('Host PHP admission budget full after bounded wait; no shared fallback')
             time.sleep(.25)
     finally:
         ticket.unlink(missing_ok=True)
@@ -463,17 +797,18 @@ def connect_backend(unit, backend, start_lock, deadline=None):
                 return connect()
         finally:start_lock.release()
 
-def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True):
+def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve_mib=0):
     """Fixed relays plus a bounded socket queue, all inside the existing account slice."""
     listener.settimeout(1)
     pending=queue.Queue(maxsize=limits['queue']);lock=threading.Lock();start_lock=threading.Lock()
-    stopping=threading.Event();activity={'last':time.monotonic(),'active':0}
+    stopping=threading.Event();activity={'last':time.monotonic(),'active':0,'forwarded':0}
+    dispatch=threading.Condition(lock);draining=False;regrant=None;rebalance_after=0;drain_deadline=0;dispatch_limit=1 if stop_backend else limits['workers']
     old_signals={}
     if threading.current_thread() is threading.main_thread():
         for sig in (signal.SIGTERM,signal.SIGINT):
             old_signals[sig]=signal.signal(sig,lambda *_:stopping.set())
     def diagnostic(reason, **details):
-        print(json.dumps({'event':'php_proxy','unit':unit,'reason':reason,**details}),file=sys.stderr,flush=True)
+        print(json.dumps({'event':'php_proxy','at':time.time(),'unit':unit,'reason':reason,**details}),file=sys.stderr,flush=True)
     def unavailable(client):
         client.settimeout(2);header=b''
         while len(header)<8:
@@ -511,7 +846,10 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True):
                             if not data:return
                             target=upstream if source is client else client
                             target.settimeout(min(5,remaining));target.sendall(data)
-                            if source is client:forwarded=True
+                            if source is client:
+                                if not forwarded:
+                                    with lock:activity['forwarded']+=1
+                                forwarded=True
                             else:
                                 response_buffer.extend(data)
                                 while len(response_buffer)>=8:
@@ -525,12 +863,17 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True):
         except (OSError,subprocess.TimeoutExpired) as error:
             diagnostic('relay_io_error',error=type(error).__name__,forwarded=forwarded)
         finally:
-            with lock:activity['active']-=1;activity['last']=time.monotonic()
+            with dispatch:
+                activity['active']-=1;activity['forwarded']-=int(forwarded)
+                activity['last']=time.monotonic();dispatch.notify_all()
     def worker():
         while not stopping.is_set():
-            try:item=pending.get(timeout=.25)
-            except queue.Empty:continue
-            with lock:activity['active']+=1
+            with dispatch:
+                while not stopping.is_set() and (draining or pending.empty() or activity['active']>=dispatch_limit):dispatch.wait(.25)
+                if stopping.is_set():return
+                try:item=pending.get_nowait()
+                except queue.Empty:continue
+                activity['active']+=1
             try:handle(*item)
             finally:pending.task_done()
     workers=[]
@@ -542,18 +885,71 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True):
             # Yield only a genuinely quiescent backend; unfinished_tasks also covers
             # the window after a worker dequeues a request but before active++.
             with lock:quiescent=not activity['active'] and pending.unfinished_tasks==0
-            if quiescent and waiting_units(unit):
-                diagnostic('idle_lease_yield',reasonDetail='waiting_peer_admission')
+            available=None
+            if quiescent and host_reserve_mib:
+                try:available=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemAvailable:')))//1024
+                except (OSError,ValueError,StopIteration):pass
+            if stop_backend and time.monotonic()>=rebalance_after and not draining:
+                rebalance_after=time.monotonic()+1
+                try:
+                    limit=runtime_dispatch_limit(unit,limits['workers'])
+                    with dispatch:dispatch_limit=limit;dispatch.notify_all()
+                    with lock:demand=activity['forwarded']+pending.qsize()
+                    plan=elastic_regrant_plan(unit,limits,demand)
+                    if plan:
+                        if plan.get('liveGrowth'):
+                            with dispatch:dispatch_limit=runtime_dispatch_limit(unit,limits['workers']);dispatch.notify_all()
+                            diagnostic('runtime_grant_grown',**plan)
+                        else:
+                            # Rebalancing must not consume a whole client deadline while
+                            # an unforwarded/background PHP job prevents idle proof.
+                            # Retain the full charged grant and resume its queue if this
+                            # small, native-timeout-derived drain window expires.
+                            drain_budget=min(limits['timeout'],max(1,(limits['timeout']+19)//20))
+                            with dispatch:draining=True;regrant=plan;drain_deadline=time.monotonic()+drain_budget
+                            diagnostic('runtime_regrant_drain',drainBudgetSeconds=drain_budget,**plan)
+                except Exception as error:
+                    diagnostic('runtime_regrant_error',error=type(error).__name__)
+                    rebalance_after=time.monotonic()+max(2,min(15,limits['timeout']/4))
+            if draining:
+                with lock:drained=activity['active']==0
+                if drained and not backend_drained(unit,backend):drained=False
+                if not drained and time.monotonic()>=drain_deadline:
+                    clear_elastic_demand(unit)
+                    with dispatch:draining=False;regrant=None;dispatch.notify_all()
+                    rebalance_after=time.monotonic()+max(2,min(15,limits['timeout']/4))
+                    diagnostic('runtime_regrant_deferred',reasonDetail='backend_not_proven_idle')
+                if drained:
+                    # Already-forwarded work completed before any backend stop.
+                    # Queued requests keep their original deadline and are never replayed.
+                    try:
+                        result=execute(['systemctl','stop',unit],False,timeout=20)
+                        if result.returncode:raise RuntimeError('Backend drain stop failed')
+                        diagnostic('runtime_regrant_ready',**regrant)
+                    except Exception as error:
+                        clear_elastic_demand(unit)
+                        diagnostic('runtime_regrant_failed',error=type(error).__name__)
+                    finally:
+                        with dispatch:draining=False;regrant=None;dispatch.notify_all()
+                        with dispatch:dispatch_limit=1;dispatch.notify_all()
+                        rebalance_after=time.monotonic()+1
+                # Accept into the bounded queue while current work drains.
+            has_lease=not stop_backend or (RUN/'slots'/unit).exists()
+            reason=None if draining else idle_retirement_reason(time.monotonic()-activity['last'],int(idle),quiescent,has_lease and bool(waiting_units(unit)),available,host_reserve_mib)
+            if reason:
+                diagnostic('warm_idle_retire' if reason=='warm_idle_expired' else 'idle_lease_yield',reasonDetail=reason)
                 return
+            if pending.full():
+                stopping.wait(.05);continue
             try:client,_=listener.accept()
             except socket.timeout:
-                with lock:done=not activity['active'] and pending.empty() and time.monotonic()-activity['last']>=int(idle)
-                if done:return
                 continue
             accepted=time.monotonic();deadline=accepted+limits['timeout']
             with lock:activity['last']=accepted
             # Apply backpressure; waiting requests never allocate a thread each.
-            try:pending.put((client,deadline,accepted),timeout=limits['timeout'])
+            try:
+                pending.put_nowait((client,deadline,accepted))
+                with dispatch:dispatch.notify_all()
             except queue.Full:
                 diagnostic('queue_full_deadline',queued=pending.qsize())
                 try:unavailable(client)
@@ -561,6 +957,10 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True):
                 client.close()
     finally:
         stopping.set()
+        with dispatch:dispatch.notify_all()
+        if stop_backend:
+            try:clear_elastic_demand(unit)
+            except (OSError,ValueError,TypeError):pass
         while True:
             try:client,_,_=pending.get_nowait()
             except queue.Empty:break
@@ -581,9 +981,17 @@ def fastcgi_proxy(unit,backend,idle,children=None,backlog=None,request_timeout=N
         backlog=value[1] if value else 511
         request_timeout=request_seconds(pool,policy().get('requestTimeoutSeconds',120))
     limits=proxy_limits(children,backlog,request_timeout)
+    directory=RUN/'elastic-proxies';directory.mkdir(mode=0o700,exist_ok=True);marker=directory/unit
+    pid=os.getpid();start=pathlib.Path('/proc/self/stat').read_text().rsplit(')',1)[1].split()[19]
+    atomic(marker,json.dumps({'protocol':1,'pid':pid,'startTicks':start}))
     listener=socket.fromfd(3,socket.AF_UNIX,socket.SOCK_STREAM)
-    try:serve_proxy(listener,unit,backend,idle,limits)
-    finally:listener.close()
+    try:serve_proxy(listener,unit,backend,idle,limits,host_reserve_mib=policy()['hostReserveMiB'])
+    finally:
+        listener.close()
+        try:
+            if json.loads(marker.read_text()).get('pid')==pid:marker.unlink(missing_ok=True)
+        except (OSError,ValueError,TypeError):pass
+
 
 
 def release(unit):
@@ -592,13 +1000,198 @@ def release(unit):
 
 def is_managed(version):
     if not (STATE/'installed.json').exists(): return False
-    try:
-        data = json.loads((STATE/'installed.json').read_text())
-        return version in data.get('versions', [])
-    except Exception:
-        return False
+    data = json.loads((STATE/'installed.json').read_text())
+    versions = data.get('versions')
+    if not isinstance(versions,list) or any(not isinstance(v,str) or not re.fullmatch(r'php\d{2,3}',v) for v in versions):
+        raise ValueError('Invalid managed PHP registry')
+    return version in versions
+
+
+def lifecycle_files(version):
+    """Only this version's owned control files; never snapshot customer content."""
+    exact=[paths(version)/'bin/fpmctl',STATE/'original-launchers'/version,STATE/'installed.json',
+           STATE/(version+'.json'),BASE/'policy.json']
+    prefixes=['wpiso-manager-'+version,'wpiso-health-'+version,'wpiso-fpm-'+version+'-',
+              'wpiso-proxy-'+version+'-']
+    for directory in [UNITS,UNITS/'multi-user.target.wants',UNITS/'sockets.target.wants']:
+        if directory.exists():
+            exact.extend(p for p in directory.iterdir() if p.name.startswith(tuple(prefixes)) or p.name=='php-fpm'+version[3:]+'.service')
+    exact.extend(UNITS/n for n in ['wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'])
+    if BASE.exists():
+        exact.extend(p for p in BASE.glob(version+'-*') if p.is_file())
+    if (BASE/version).exists():exact.extend(p for p in (BASE/version).rglob('*') if p.is_file() or p.is_symlink())
+    return sorted(set(exact),key=str)
+
+
+def lifecycle_units(version):
+    units={'wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'}
+    for p in lifecycle_files(version):
+        if p.parent==UNITS and p.suffix in ['.service','.socket']:units.add(p.name)
+    return sorted(units)
+
+
+def snapshot_file(path):
+    if path.is_symlink():return {'kind':'symlink','target':os.readlink(path)}
+    if not path.exists():return {'kind':'absent'}
+    if not path.is_file():raise RuntimeError('Unexpected lifecycle file type: '+str(path))
+    return {'kind':'file','data':base64.b64encode(path.read_bytes()).decode(),'mode':path.stat().st_mode&0o777}
+
+
+def restore_file(path,record):
+    if path.is_symlink():path.unlink()
+    if record['kind']=='absent':path.unlink(missing_ok=True)
+    elif record['kind']=='symlink':
+        path.unlink(missing_ok=True);path.parent.mkdir(parents=True,exist_ok=True);path.symlink_to(record['target'])
+    else:
+        # Lifecycle control files are UTF-8 text. Existing atomic writer rejects unsafe staging/symlink paths.
+        atomic(path,base64.b64decode(record['data']).decode('utf-8'),record['mode'])
+
+
+def journal_write(path,data):
+    atomic(path,json.dumps(data))
+    with open(path,'r+b') as stream:os.fsync(stream.fileno())
+    if os.name!='nt':
+        fd=os.open(str(pathlib.Path(path).parent),os.O_RDONLY|os.O_DIRECTORY)
+        try:os.fsync(fd)
+        finally:os.close(fd)
+
+
+def restore_lifecycle(journal):
+    version=journal['version']
+    # Stop new routing before restoring its registration/files. Do not stop a native
+    # service after its original launcher has been restored.
+    for unit in lifecycle_units(version):
+        stopped=execute(['systemctl','stop',unit],False,timeout=90)
+        if stopped.returncode not in [0,4,5]:raise RuntimeError('Cannot stop routing for rollback: '+unit)
+    for p in lifecycle_files(version):
+        if str(p) not in journal['files']:p.unlink(missing_ok=True)
+    for name,record in journal['files'].items():restore_file(pathlib.Path(name),record)
+    execute(['systemctl','daemon-reload'])
+    for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)
+    for unit,state in journal['units'].items():
+        if state['enabled'] in ('enabled','disabled'):
+            # Restored owned symlinks already express enablement. Re-running enable
+            # unnecessarily invokes Webuzo's SysV shim, which can lack runlevels.
+            actual=execute(['systemctl','is-enabled',unit],False).stdout.strip()
+            if actual!=state['enabled']:
+                execute(['systemctl','enable' if state['enabled']=='enabled' else 'disable',unit])
+    for unit,state in journal['units'].items():
+        if state['active']:execute(['systemctl','start',unit],timeout=90)
+    journal['status']='rolled-back';journal['restoredAt']=time.time()
+
+
+def prepare_version_budget(version,operation):
+    data=json.loads((STATE/'installed.json').read_text())
+    current=policy()
+    base=data.setdefault('versionBudgetBase',{'count':len(data['versions']),'phpBudgetMiB':current['phpBudgetMiB']})
+    target=len(data['versions'])+(1 if operation=='onboard' and version not in data['versions'] else 0)
+    # Match the generator's per-version 16-MiB bookkeeping + 16-MiB
+    # private health-master estimate. Pool OPcache remains charged per lease.
+    previous=base.get('appliedBudgetMiB',base['phpBudgetMiB'])
+    if current['phpBudgetMiB']!=previous:raise RuntimeError('Reviewed PHP budget changed externally; regenerate version budget accounting before lifecycle changes')
+    budget=base['phpBudgetMiB']-max(0,target-base['count'])*32
+    if budget<current['workerRssMiB']+48+current['opcacheMiB']+32:
+        raise RuntimeError('Additional PHP version cannot fit the reviewed physical budget')
+    if budget!=current['phpBudgetMiB']:
+        with lock('admission'):
+            reserved=0
+            for lease in (RUN/'slots').glob('*.service'):
+                reserved+=int(json.loads(lease.read_text())['costMiB'])
+            if reserved>budget:raise RuntimeError('Wait for PHP leases to quiesce before adding version overhead')
+            automatic_warm=current.get('warmIdleSeconds',warm_idle_seconds(current))==warm_idle_seconds(current)
+            current['phpBudgetMiB']=budget
+            if automatic_warm:current['warmIdleSeconds']=warm_idle_seconds(current)
+            atomic(BASE/'policy.json',json.dumps(current,indent=2))
+    base['appliedBudgetMiB']=budget
+    atomic(STATE/'installed.json',json.dumps(data,indent=2))
+
+
+def recover_lifecycle():
+    with lock('php-lifecycle'):
+        pending=STATE/'lifecycle-pending.json'
+        if not pending.exists():return
+        previous=json.loads(pending.read_text())
+        version=previous.get('version','')
+        if not re.fullmatch(r'php\d{2,3}',version):raise ValueError('Invalid lifecycle recovery version')
+        fixed={str(paths(version)/'bin/fpmctl'),str(STATE/'original-launchers'/version),
+               str(STATE/'installed.json'),str(STATE/(version+'.json')),str(BASE/'policy.json')}
+        prefixes=('wpiso-manager-'+version,'wpiso-health-'+version,'wpiso-fpm-'+version+'-','wpiso-proxy-'+version+'-')
+        for name in previous.get('files',{}):
+            path=pathlib.Path(name)
+            allowed=(name in fixed or (path.parent in [UNITS,UNITS/'multi-user.target.wants',UNITS/'sockets.target.wants'] and
+                     (path.name.startswith(prefixes) or path.name=='php-fpm'+version[3:]+'.service')) or
+                     (path.parent==BASE and path.name.startswith(version+'-')) or
+                     (path.is_absolute() and '..' not in path.parts and path.is_relative_to(BASE/version)))
+            if not allowed:raise ValueError('Recovery journal contains unowned path')
+        if not fixed.issubset(previous.get('files',{})) or not {'wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'}.issubset(previous.get('units',{})) or any(not (u.startswith(prefixes) or u=='php-fpm'+version[3:]+'.service') or '/' in u or '..' in u for u in previous.get('units',{})):
+            raise ValueError('Recovery journal does not match owned lifecycle files/units')
+        if previous.get('status')=='pending':
+            restore_lifecycle(previous)
+            journal_write(STATE/('lifecycle-recovered-'+str(time.time_ns())+'.json'),previous)
+        elif previous.get('status') not in ('committed','rolled-back'):
+            raise ValueError('Unknown lifecycle journal status')
+        pending.unlink()
+
+
+def lifecycle_transaction(version,operation):
+    if not re.fullmatch(r'php\d{2,3}',version):raise ValueError('Invalid PHP version')
+    # Serialize registration read/modify/write across different PHP versions too.
+    with lock('php-lifecycle'):
+        pending=STATE/'lifecycle-pending.json'
+        if pending.exists():
+            previous=json.loads(pending.read_text())
+            if previous['status']=='pending':
+                restore_lifecycle(previous)
+                atomic(STATE/('lifecycle-recovered-'+str(time.time_ns())+'.json'),json.dumps(previous))
+            pending.unlink()
+        ctl=paths(version)/'bin/fpmctl'
+        if ctl.is_symlink() or (STATE/'original-launchers'/version).is_symlink():raise RuntimeError('Refusing launcher/backup symlink: '+version)
+        # Validate pools on both first onboarding and managed repair, before stopping anything.
+        config=paths(version)/'etc/php-fpm.conf'
+        if not config.is_file():raise RuntimeError('Native PHP config missing: '+version)
+        parse_pools(config.read_text(),version,False)
+        if operation=='retire':
+            if not is_managed(version):return _retire(version)
+            if parse_pools(config.read_text(),version,False) or manifest(version).get('pools'):
+                raise RuntimeError('Cannot retire '+version+': customer pools remain.')
+            assert_launcher(version)
+            if not (STATE/'original-launchers'/version).is_file():raise RuntimeError('Native restoration backup missing')
+        elif not is_managed(version):
+            native=UNITS/('php-fpm'+version[3:]+'.service')
+            if native.exists() or native.is_symlink():raise RuntimeError('Existing custom PHP unit requires manual review: '+version)
+        if not (STATE/'installed.json').is_file():raise RuntimeError('Install the reviewed protection stack before PHP lifecycle operations')
+        journal={'version':version,'operation':operation,'status':'pending','startedAt':time.time(),
+                 'files':{str(p):snapshot_file(p) for p in lifecycle_files(version)},'units':{}}
+        for unit in lifecycle_units(version):
+            journal['units'][unit]={'active':execute(['systemctl','is-active',unit],False).returncode==0,
+                'enabled':execute(['systemctl','is-enabled',unit],False).stdout.strip()}
+        journal_write(pending,journal)
+        try:
+            prepare_version_budget(version,operation)
+            (_onboard if operation=='onboard' else _retire)(version)
+            if operation=='retire':prepare_version_budget(version,'retired')
+            journal['status']='committed';journal['finishedAt']=time.time()
+            journal_write(pending,journal)
+        except BaseException as exc:
+            try:restore_lifecycle(journal)
+            except Exception as recovery:
+                raise RuntimeError('Lifecycle failed; recovery is incomplete. Journal retained at '+str(pending)+': '+str(recovery)) from exc
+            atomic(STATE/('lifecycle-rollback-'+str(time.time_ns())+'.json'),json.dumps(journal))
+            pending.unlink(missing_ok=True)
+            raise
+        atomic(STATE/('lifecycle-'+str(time.time_ns())+'.json'),json.dumps(journal))
+        pending.unlink()
+
 
 def onboard(version):
+    return lifecycle_transaction(version,'onboard')
+
+
+def retire(version):
+    return lifecycle_transaction(version,'retire')
+
+
+def _onboard(version):
     if not re.fullmatch(r'php\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))
     p = paths(version)
     if not (p/'sbin/php-fpm').is_file() or not (p/'etc/php-fpm.conf').is_file() or not (p/'bin/fpmctl').is_file():
@@ -613,8 +1206,7 @@ def onboard(version):
             archive = STATE/('backup-vendor-regen-' + str(time.time_ns()))
             archive.mkdir(mode=0o700, exist_ok=True)
             shutil.copy2(ctl, archive/version)
-            if not (backups/version).exists():
-                shutil.copy2(ctl, backups/version)
+            shutil.copy2(ctl, backups/version) # Rebase restoration onto the current vendor launcher; transaction archives the prior baseline.
             execute([str(ctl), 'stop'], False, timeout=45)
             deadline = time.monotonic() + 15
             while True:
@@ -626,11 +1218,7 @@ def onboard(version):
                             remaining.append(d.name)
                     except (FileNotFoundError, ProcessLookupError, PermissionError): pass
                 if not remaining: break
-                if time.monotonic() > deadline:
-                    for pid in remaining:
-                        try: os.kill(int(pid), signal.SIGKILL)
-                        except OSError: pass
-                    break
+                if time.monotonic() > deadline: raise RuntimeError('Native master did not stop gracefully; no forced kill: '+version)
                 time.sleep(.1)
             atomic(ctl, wrapper(version), 0o755)
             print(version + ': repaired vendor-regenerated launcher')
@@ -639,11 +1227,14 @@ def onboard(version):
         unit = 'wpiso-manager-' + version + '.service'
         if execute(['systemctl', 'is-active', unit], False).returncode != 0:
             execute(['systemctl', 'enable', '--now', unit])
+        # Native regeneration can leave the compatibility bridge inactive while
+        # the coordinator is healthy. Repair and activate the checked bridge too.
+        add_bridge(version)
         reconcile(version, True)
         print(version + ': already onboarded; refreshed coordinator and health master')
         return
     # Parse pools to validate configuration
-    parse_pools((p/'etc/php-fpm.conf').read_text(), version)
+    parse_pools((p/'etc/php-fpm.conf').read_text(), version,False)
     backups = STATE/'original-launchers'
     backups.mkdir(mode=0o700, exist_ok=True)
     archive = STATE/('backup-onboard-' + str(time.time_ns()))
@@ -651,10 +1242,10 @@ def onboard(version):
     ctl = p/'bin/fpmctl'
     if ctl.is_symlink(): raise RuntimeError('Unexpected launcher symlink ' + version)
     ctl_text = ctl.read_text()
+    if MARKER in ctl_text: raise RuntimeError('Unregistered managed launcher; recover the lifecycle journal before onboarding: '+version)
     if MARKER not in ctl_text:
         shutil.copy2(ctl, archive/version)
-        if not (backups/version).exists():
-            shutil.copy2(ctl, backups/version)
+        shutil.copy2(ctl, backups/version) # Current native baseline; historical snapshot is retained by transaction.
         execute([str(ctl), 'stop'], False, timeout=45)
         deadline = time.monotonic() + 15
         while True:
@@ -688,38 +1279,36 @@ def onboard(version):
         ensure_health(version)
         count = reconcile(version, True)
         print('Successfully onboarded ' + version + ' with ' + str(count) + ' isolated pools.')
-    except Exception as exc:
-        if version in data['versions']:
-            data['versions'].remove(version)
-            atomic(STATE/'installed.json', json.dumps(data, indent=2))
-        execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], False)
-        execute(['systemctl', 'stop', 'php-fpm' + version[3:] + '.service'], False)
-        execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'], False)
-        raise RuntimeError('Failed to initialize managed services for ' + version + ': ' + str(exc))
+    except Exception:
+        raise # Durable outer transaction restores registration, files and prior service states.
 
-def retire(version):
+
+def _retire(version):
     if not re.fullmatch(r'php\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))
     if not is_managed(version):
         print(version + ': not currently managed in isolation; nothing to retire')
         return
     p = paths(version)
     if (p/'etc/php-fpm.conf').is_file():
-        try:
-            pools = parse_pools((p/'etc/php-fpm.conf').read_text(), version)
-            if pools:
-                active_users = [r['user'] for r in pools]
-                raise RuntimeError('Cannot retire ' + version + ': active customer pools exist: ' + str(active_users) + '. Reassign domains in Webuzo before retiring.')
-        except Exception as e:
-            if 'Cannot retire' in str(e): raise
-    execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], False, timeout=90)
+        pools = parse_pools((p/'etc/php-fpm.conf').read_text(), version,False)
+        if pools or manifest(version).get('pools'):
+            raise RuntimeError('Cannot retire '+version+': customer pools remain; reassign domains and reconcile first.')
+    else:
+        raise RuntimeError('Cannot validate retirement: native PHP configuration is missing for '+version)
+    ctl = p/'bin/fpmctl'
+    if ctl.is_symlink() or not ctl.is_file() or ctl.read_text()!=wrapper(version):
+        raise RuntimeError('Cannot retire changed native launcher; review vendor regeneration first: '+version)
+    if not (STATE/'original-launchers'/version).is_file():
+        raise RuntimeError('Cannot retire without an approved native launcher backup: '+version)
+    execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], timeout=90)
     unit = 'php-fpm' + version[3:] + '.service'
     path = UNITS/unit
     if path.exists() and path.read_text() == bridge(version):
-        execute(['systemctl', 'stop', unit], False, timeout=90)
+        execute(['systemctl', 'stop', unit], timeout=90)
         wanted = UNITS/'multi-user.target.wants'/unit
         if wanted.is_symlink() and wanted.resolve() == path: wanted.unlink()
         path.unlink()
-    execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'], False)
+    execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'])
     (UNITS/('wpiso-health-' + version + '.service')).unlink(missing_ok=True)
     (UNITS/('wpiso-manager-' + version + '.service')).unlink(missing_ok=True)
     m = manifest(version)
@@ -737,6 +1326,8 @@ def retire(version):
     data['lastRetireAt'] = time.time()
     atomic(STATE/'installed.json', json.dumps(data, indent=2))
     execute(['systemctl', 'daemon-reload'])
+    (BASE/(version+'-health.conf')).unlink(missing_ok=True)
+    for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)
     print('Successfully retired ' + version + ' from isolation.')
 
 def action(version,command):
@@ -772,6 +1363,7 @@ def install(policy_file):
         shutil.copy2(ctl,archive/version);shutil.copy2(ctl,backups/version)
     atomic(STATE/'installed.json',json.dumps({'versions':selected,'installedAt':time.time(),'nativeServiceEnablement':{v:execute(['systemctl','is-enabled','php-fpm'+v[3:]+'.service'],False).stdout.strip() for v in selected}}))
     if pathlib.Path(__file__).resolve()!=SELF:atomic(SELF,pathlib.Path(__file__).read_text(),0o755)
+    ensure_native_cgroup_guard()
     for version in selected:
         ctl=paths(version)/'bin/fpmctl';r=execute([str(ctl),'stop'],False,timeout=45)
         # SIGQUIT completion can lag behind PID-file removal; wait for the actual executable.
@@ -795,6 +1387,10 @@ def install(policy_file):
 
 def verify():
     results={'mode':'experimental-custom-integration','policy':policy(),'versions':{},'mechanicalChecksPass':True}
+    drift_cache={}
+    if account_slice(1).startswith('golden-') and pathlib.Path('/usr/local/webuzo/bin/cgroup.sh').exists():
+        guard_ok=NATIVE_CGROUP_DROPIN.exists() and NATIVE_CGROUP_DROPIN.read_text()==native_guard_dropin() and execute(['systemctl','is-active','cgroup.service'],False).returncode==0
+        results['nativeCgroupGuardActive']=guard_ok;results['mechanicalChecksPass']&=guard_ok
     for version in json.loads((STATE/'installed.json').read_text())['versions']:
         try:
             assert_launcher(version);m=manifest(version);sourceHash=hashlib.sha256((paths(version)/'etc/php-fpm.conf').read_bytes()).hexdigest();results['mechanicalChecksPass']&=sourceHash==m.get('sourceHash');active=execute(['systemctl','is-active','wpiso-manager-'+version+'.service'],False).returncode==0
@@ -808,10 +1404,18 @@ def verify():
                 effective=re.search(r'^\s*pm\.max_children\s*=\s*(\d+)',private,re.M)
                 ceiling=runtime_ceiling(row['uid'],native,results['policy'],int(backlog[1]) if backlog else 511,request_seconds(private))
                 lease=RUN/'slots'/fpm
+                grant=json.loads(lease.read_text()) if lease.exists() else {}
                 item.update({'nativeMaxChildren':native,'accountWorkerCeiling':ceiling,
                     'managedMaxChildren':int(effective[1]) if effective else None,
                     'runtimeCapSource':'automatic-account-boundary' if results['policy'].get('accountRuntimeCaps') else 'native-global',
-                    'reservedMiB':json.loads(lease.read_text())['costMiB'] if lease.exists() else 0})
+                    'reservedMiB':grant.get('costMiB',0),'runtimeConcurrencyGrant':grant.get('runtimeMaxChildren'),'relayEnforced':bool(grant.get('relayEnforced'))})
+                if grant.get('relayEnforced'):
+                    backend=RUN/(version+'-'+row['user']+'.sock')
+                    backend_private=backend.exists() and backend.stat().st_uid==0 and backend.stat().st_mode&0o777==0o600
+                    item['backendRootOnly']=backend_private
+                    results['mechanicalChecksPass']&=backend_private and elastic_proxy_ready(fpm) and type(grant.get('runtimeMaxChildren')) is int and 1<=grant['runtimeMaxChildren']<=ceiling and int(effective[1])==ceiling
+                if row['uid'] not in drift_cache:drift_cache[row['uid']]=native_cgroup_drift(row['uid'])
+                item['processPlacement']=drift_cache[row['uid']];results['mechanicalChecksPass']&=item['processPlacement']['pass']
                 results['mechanicalChecksPass']&=socket_ok and item['swapMax']=='0' and item['cpuMax'].split()[0]!='max' and item['memoryMax']!='max' and pwd.getpwnam(row['user']).pw_uid==row['uid'] and (not item['fpmActive'] or item['fpmControlGroup'].startswith(account_cgroup(row['uid'])+'/'));rows.append(item)
             health=execute(['systemctl','is-active','wpiso-health-'+version+'.service'],False).returncode==0
             native_unit=UNITS/('php-fpm'+version[3:]+'.service');bridge_ok=native_unit.exists() and native_unit.read_text()==bridge(version) and execute(['systemctl','is-active','php-fpm'+version[3:]+'.service'],False).returncode==0
@@ -820,7 +1424,22 @@ def verify():
     print(json.dumps(results,indent=2));return results['mechanicalChecksPass']
 
 def uninstall():
+    if pathlib.Path('/var/lib/golden-shield/installed.json').exists():
+        raise RuntimeError('Remove Golden Shield through the reviewed dependency workflow before PHP isolation.')
     data=json.loads((STATE/'installed.json').read_text())
+    versions=data.get('versions')
+    if not isinstance(versions,list) or any(not isinstance(v,str) or not re.fullmatch(r'php\d{2,3}',v) for v in versions):
+        raise ValueError('Invalid managed PHP registry; no services changed')
+    # Validate the entire restore set before stopping the first coordinator.
+    for version in versions:
+        ctl=paths(version)/'bin/fpmctl';original=STATE/'original-launchers'/version
+        if ctl.is_symlink() or original.is_symlink() or not ctl.is_file() or not original.is_file():
+            raise RuntimeError('Unsafe or missing launcher recovery files: '+version)
+        if ctl.read_text()!=wrapper(version) and ctl.read_bytes()!=original.read_bytes():
+            raise RuntimeError('Launcher changed: manually review saved original before restoring '+version)
+        native=UNITS/('php-fpm'+version[3:]+'.service')
+        if native.is_symlink() or (native.exists() and native.read_text()!=bridge(version)):
+            raise RuntimeError('Native service bridge changed; review before removal: '+version)
     for version in data['versions']:execute(['systemctl','disable','--now','wpiso-manager-'+version+'.service'],False,timeout=90)
     for version in data['versions']:
         unit='php-fpm'+version[3:]+'.service';path=UNITS/unit
@@ -850,6 +1469,7 @@ def uninstall():
     for version in data['versions']:
         if data.get('nativeServiceEnablement',{}).get(version)=='disabled':execute(['systemctl','disable','php-fpm'+version[3:]+'.service'],False)
         execute(['systemctl','reset-failed','wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service'],False)
+    remove_native_cgroup_guard()
     print('Native launchers restored. Native startup placement gap returns. PHP tuning and account swap properties were preserved.')
 
 def main():
@@ -861,12 +1481,17 @@ def main():
     elif ns.command=='admit':admit(*ns.args)
     elif ns.command=='release':release(ns.args[0])
     elif ns.command=='proxy':fastcgi_proxy(*ns.args)
+    elif ns.command=='native-cgroup-install':print(json.dumps(ensure_native_cgroup_guard()))
+    elif ns.command=='native-cgroup-remove':remove_native_cgroup_guard()
+    elif ns.command=='native-cgroup-guard':native_cgroup_guard()
+    elif ns.command=='native-cgroup-repair':print(json.dumps(native_cgroup_pass()))
     elif ns.command=='verify':sys.exit(0 if verify() else 1)
     elif ns.command=='reconcile':
         for version in json.loads((STATE/'installed.json').read_text())['versions']:reconcile(version,True)
     elif ns.command=='repair-launchers':
         data=json.loads((STATE/'installed.json').read_text()) if (STATE/'installed.json').exists() else {'versions':[]}
         for v in data.get('versions',[]):onboard(v)
+    elif ns.command=='recover-lifecycle':recover_lifecycle()
     elif ns.command=='onboard':onboard(ns.args[0])
     elif ns.command=='retire':retire(ns.args[0])
     elif ns.command=='wait-socket':

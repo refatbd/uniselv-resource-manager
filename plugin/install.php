@@ -5,6 +5,14 @@ if (PHP_SAPI !== 'cli' || !function_exists('posix_geteuid') || posix_geteuid() !
     uniselv_lifecycle_fail('Installer requires root CLI execution; activate through the privileged Webuzo dispatcher');
 }
 
+// Preflight adopted runtime compatibility before copying any agent files.
+$preflight_runtime = '/usr/local/sbin/webuzo-isolation.py';
+$preflight_bundle = __DIR__ . '/core/webuzo-isolation.py';
+if (is_file($preflight_runtime) && (!is_file($preflight_bundle) || is_link($preflight_runtime) ||
+    hash_file('sha256', $preflight_runtime) !== hash_file('sha256', $preflight_bundle))) {
+    uniselv_lifecycle_fail('Existing isolation runtime differs. Perform a reviewed maintenance upgrade with backups before activation; no agent files were changed');
+}
+
 global $globals;
 
 // Get task ID for Webuzo task progress tracking
@@ -89,6 +97,7 @@ $core_scripts = [
     'webuzo-session-guard-manager.py' => '/usr/local/sbin/webuzo-session-guard-manager.py',
     'apache-fcgi-guard.py' => $agent_dir . '/core/apache-fcgi-guard.py',
     'protection-lifecycle.py' => $agent_dir . '/core/protection-lifecycle.py',
+    'configuration-audit.py' => $agent_dir . '/core/configuration-audit.py',
     'fpm_worker_tracker.php' => $agent_dir . '/core/fpm_worker_tracker.php'
 ];
 
@@ -98,7 +107,7 @@ if (is_dir($src_core)) {
         if (file_exists($src_file)) {
             uniselv_checked_copy($src_file, $agent_dir . '/core/' . $fname, ($fname === 'fpm_worker_tracker.php') ? 0755 : 0750);
             
-            if (!in_array($fname, ['fpm_worker_tracker.php', 'apache-fcgi-guard.py', 'protection-lifecycle.py'])) {
+            if (!in_array($fname, ['fpm_worker_tracker.php', 'apache-fcgi-guard.py', 'protection-lifecycle.py', 'configuration-audit.py'])) {
                 if (!file_exists($dest_path)) {
                     uniselv_checked_copy($src_file, $dest_path, 0750);
                     chown($dest_path, 'root');

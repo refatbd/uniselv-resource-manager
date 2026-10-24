@@ -1,0 +1,252 @@
+{
+  "version": "1.1.30",
+  "scope": "Already-applied release source changes relative to 1.1.29; not extra post-install paste steps. Prefer the reviewed complete package.",
+  "saveAndVerify": [
+    "Back up existing files and ownership/restoration manifests together.",
+    "Use UTF-8/LF. Replace existing files; do not append duplicate imports, functions or directives. New files start at their first line and end at their final line.",
+    "Install through the reviewed privileged deployment workflow. Restore root ownership and installer execution modes.",
+    "Run Python/PHP/JavaScript syntax, regression, service/API/HTTP and ZIP closure checks. Configuration values and full workload/lifecycle readiness remain distinct."
+  ],
+  "files": [
+    {
+      "packagedPath": "uniselv-resman/agent/ipc_server.py",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/agent/ipc_server.py; ALSO /usr/local/uniselv-resman/agent/ipc_server.py",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "03fc878d36ebab961edd1aae6771aa59dee0e3b9ce3e58ea41fc4468494cc276",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "            # Strict complete synchronization requires all parameters, I/O, and ancestor isolation to match\n            is_synchronized = (",
+          "before": "                mem_synced and \n                mem_high_synced and ",
+          "existing": "                uname not in outside_users and cpu_synced and ",
+          "generated": "                uname not in outside_users and cpu_synced and",
+          "afterEditContext": "            # Strict complete synchronization requires all parameters, I/O, and ancestor isolation to match\n            is_synchronized = (\n                uname not in outside_users and cpu_synced and\n                mem_synced and \n                mem_high_synced and "
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/agent/runtime_governance.py",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/agent/runtime_governance.py; ALSO /usr/local/uniselv-resman/agent/runtime_governance.py",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "f46ca415d05f2b6f6b6b0d7f59d498600c92d17cb15a07f809706f04425c183f",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "                _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])\n                _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])",
+          "before": "                if pending['pending']:\n                    entry.update(state='blocked', reason='Pending lifecycle recovery requires review.')",
+          "existing": "                entry.update(coordinator=mgr, healthMaster=health, launcherMatches=launcher_ok)\n                needs = binary_changed or version not in managed or not launcher_ok or mgr != 'active' or health != 'active'",
+          "generated": "                _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])\n                entry.update(coordinator=mgr, healthMaster=health, nativeBridge=native_bridge, launcherMatches=launcher_ok)\n                needs = binary_changed or version not in managed or not launcher_ok or mgr != 'active' or health != 'active' or native_bridge != 'active'",
+          "afterEditContext": "                _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])\n                _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])\n                _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])\n                entry.update(coordinator=mgr, healthMaster=health, nativeBridge=native_bridge, launcherMatches=launcher_ok)\n                needs = binary_changed or version not in managed or not launcher_ok or mgr != 'active' or health != 'active' or native_bridge != 'active'\n                if pending['pending']:\n                    entry.update(state='blocked', reason='Pending lifecycle recovery requires review.')"
+        },
+        {
+          "mode": "replace",
+          "after": "                    _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])\n                    _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])",
+          "before": "                        raise RuntimeError('Post-operation service verification failed')\n                    entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health,",
+          "existing": "                    if version not in registry() or (APPS/version/'bin/fpmctl').read_text() != runtime.wrapper(version) or mgr != 'active' or health != 'active':",
+          "generated": "                    _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])\n                    if version not in registry() or (APPS/version/'bin/fpmctl').read_text() != runtime.wrapper(version) or mgr != 'active' or health != 'active' or native_bridge != 'active':",
+          "afterEditContext": "                    _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])\n                    _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])\n                    _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])\n                    if version not in registry() or (APPS/version/'bin/fpmctl').read_text() != runtime.wrapper(version) or mgr != 'active' or health != 'active' or native_bridge != 'active':\n                        raise RuntimeError('Post-operation service verification failed')\n                    entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health, nativeBridge=native_bridge,"
+        },
+        {
+          "mode": "replace",
+          "after": "                    if version not in registry() or (APPS/version/'bin/fpmctl').read_text() != runtime.wrapper(version) or mgr != 'active' or health != 'active':\n                        raise RuntimeError('Post-operation service verification failed')",
+          "before": "                                 fingerprint=fingerprint(version), launcherMatches=True, reason='Transactional onboarding/repair and service checks passed.')\n                else:",
+          "existing": "                    entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health,",
+          "generated": "                    entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health, nativeBridge=native_bridge,",
+          "afterEditContext": "                    if version not in registry() or (APPS/version/'bin/fpmctl').read_text() != runtime.wrapper(version) or mgr != 'active' or health != 'active' or native_bridge != 'active':\n                        raise RuntimeError('Post-operation service verification failed')\n                    entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health, nativeBridge=native_bridge,\n                                 fingerprint=fingerprint(version), launcherMatches=True, reason='Transactional onboarding/repair and service checks passed.')\n                else:"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/core/golden-shield.py",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/core/golden-shield.py; ALSO /usr/local/uniselv-resman/core/golden-shield.py; ALSO /usr/local/sbin/golden-shield.py",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "999cf575db4bda7aca6ffd6ada0c3ba58f7d9420061f1ac42761e1ce78733520",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "   if path.exists():\n    backup=STATE/'backups'/(hashlib.sha256(key.encode()).hexdigest()+'-'+str(time.time_ns()));atomic(backup,path.read_text(),path.stat().st_mode&0o777)",
+          "before": "  elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:\n   raise RuntimeError('Managed file changed; review before overwriting: '+key)",
+          "existing": "    data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777}\n   else:data[key]={'backup':None,'mode':mode}",
+          "generated": "    data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777,'uid':path.stat().st_uid,'gid':path.stat().st_gid}\n   else:data[key]={'backup':None,'mode':mode,'uid':0,'gid':0}",
+          "afterEditContext": "   if path.exists():\n    backup=STATE/'backups'/(hashlib.sha256(key.encode()).hexdigest()+'-'+str(time.time_ns()));atomic(backup,path.read_text(),path.stat().st_mode&0o777)\n    data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777,'uid':path.stat().st_uid,'gid':path.stat().st_gid}\n   else:data[key]={'backup':None,'mode':mode,'uid':0,'gid':0}\n  elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:\n   raise RuntimeError('Managed file changed; review before overwriting: '+key)"
+        },
+        {
+          "mode": "replace",
+          "after": "  elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:\n   raise RuntimeError('Managed file changed; review before overwriting: '+key)",
+          "before": "\ndef derive_auto_policy(cpus, total_ram):",
+          "existing": "  atomic(path,text,mode);data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))",
+          "generated": "  atomic(path,text,mode);os.chown(path,data[key].get('uid',0),data[key].get('gid',0));data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))",
+          "afterEditContext": "  elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:\n   raise RuntimeError('Managed file changed; review before overwriting: '+key)\n  atomic(path,text,mode);os.chown(path,data[key].get('uid',0),data[key].get('gid',0));data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))\n\ndef derive_auto_policy(cpus, total_ram):"
+        },
+        {
+          "mode": "insert",
+          "after": "  time.sleep(2)\n",
+          "before": "def restart_coordinator(version):\n unit='wpiso-manager-'+version+'.service'",
+          "existing": "",
+          "generated": "# Shared Redis integration is optional, aggregate-bounded, and never creates per-user settings.\nREDIS_CONFIG=pathlib.Path('/usr/local/apps/redis/redis.conf')\nREDIS_DROPIN=UNITS/'redis.service.d/90-golden-shared.conf'\n\ndef shared_redis_model(profile,cpus,total):\n config=profile.get('configuration',profile);hardware=config['globalInputs']['hardware'];m=config['sections']['redis']['model']\n if hardware.get('cpu')!=cpus or hardware.get('measuredRamMiB')!=total:raise RuntimeError('Shared Redis profile hardware differs; regenerate Global Inputs')\n dataset=max(16,int(float(hardware['ram'])*1024//64//16)*16);budget=dataset*4;clients=max(32,cpus*32)\n if m.get('datasetMiB')!=dataset or m.get('serviceBudgetMiB')!=budget or m.get('maxclients')!=clients or config['globalInputs']['sharedServiceBudget']['redisMiB']!=budget:raise RuntimeError('Shared Redis model differs from the common physical budget')\n if budget>total-config['sections']['golden']['golden']['headroomMiB']:raise RuntimeError('Shared Redis exceeds physical hosting budget')\n return {'hostCpuCount':cpus,'measuredRamMiB':total,'datasetMiB':dataset,'memoryMiB':budget,'maxclients':clients,'cacheOnly':True}\n\ndef shared_redis_config(text,model):\n marker=r'(?ms)^# BEGIN Webuzo Planner Shared Redis\\n.*?^# END Webuzo Planner Shared Redis\\n?'\n if text.count('# BEGIN Webuzo Planner Shared Redis')!=text.count('# END Webuzo Planner Shared Redis'):raise RuntimeError('Unbalanced shared Redis config markers')\n text=re.sub(marker,'',text)\n lines=[line for line in text.splitlines() if not re.match(r'^\\s*(?:maxmemory|maxmemory-policy|maxclients|protected-mode)\\s+',line)]\n return '\\n'.join(lines).rstrip()+'\\n\\n# BEGIN Webuzo Planner Shared Redis\\nmaxmemory '+str(model['datasetMiB'])+'mb\\nmaxmemory-policy allkeys-lru\\nmaxclients '+str(model['maxclients'])+'\\nprotected-mode yes\\n# END Webuzo Planner Shared Redis\\n'\n\ndef apply_shared_redis(profile_file=None,cache_only=False):\n if not (STATE/'installed.json').exists():raise RuntimeError('Install Golden Shield before shared Redis resource integration')\n cpus=len(os.sched_getaffinity(0));total=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemTotal:')))//1024\n saved=BASE/'shared-redis-policy.json'\n if profile_file:\n  if not cache_only:raise RuntimeError('Explicit --cache-only confirmation required; do not evict sessions/queues/primary data')\n  source=pathlib.Path(profile_file)\n  if not source.is_file() or source.is_symlink() or source.stat().st_uid!=0 or source.stat().st_mode&0o022:raise RuntimeError('Shared Redis profile must be a root-owned, non-writable regular file')\n  model=shared_redis_model(json.loads(source.read_text()),cpus,total)\n else:\n  if not saved.is_file() or saved.is_symlink() or saved.stat().st_uid!=0 or saved.stat().st_mode&0o022:raise RuntimeError('Shared Redis policy requires reviewed setup')\n  model=json.loads(saved.read_text())\n if model.get('hostCpuCount')!=cpus or model.get('measuredRamMiB')!=total or model.get('cacheOnly') is not True:raise RuntimeError('Shared Redis policy requires new hardware/application review')\n if not all(type(model.get(k)) is int and model[k]>0 for k in ['datasetMiB','memoryMiB','maxclients']) or model['memoryMiB']!=model['datasetMiB']*4 or model['memoryMiB']>policy()['hostingMemoryMaxMiB']:raise RuntimeError('Invalid shared Redis safety budget')\n if not REDIS_CONFIG.is_file() or REDIS_CONFIG.is_symlink() or REDIS_CONFIG.stat().st_uid not in (0,pwd.getpwnam('redis').pw_uid) or REDIS_CONFIG.stat().st_mode&0o022 or REDIS_CONFIG.parent.stat().st_uid!=0 or REDIS_CONFIG.parent.stat().st_mode&0o022:raise RuntimeError('Unsafe native shared Redis configuration')\n current=json.loads(command(['redis-cli','--json','CONFIG','GET','bind','port','protected-mode']).stdout)\n if current.get('port')!='6379' or current.get('protected-mode')!='yes' or not current.get('bind') or any(x not in ['127.0.0.1','::1','-::1'] for x in current['bind'].split()):raise RuntimeError('Expected existing loopback-only Shared Redis service; mode/auth changes require review')\n snapshots={p:(p.read_text(),p.stat().st_mode&0o777,p.stat().st_uid,p.stat().st_gid) if p.exists() and not p.is_symlink() else None for p in [REDIS_CONFIG,REDIS_DROPIN,saved]}\n if REDIS_DROPIN.is_symlink() or saved.is_symlink():raise RuntimeError('Refusing shared Redis managed-path symlink')\n registry=files()\n try:\n  managed(REDIS_CONFIG,shared_redis_config(snapshots[REDIS_CONFIG][0],model),snapshots[REDIS_CONFIG][1])\n  managed(REDIS_DROPIN,'[Service]\\nSlice=golden.slice\\nMemoryMax='+str(model['memoryMiB'])+'M\\nMemorySwapMax=0\\n',0o644)\n  atomic(saved,json.dumps(model,indent=2));command(['systemctl','daemon-reload']);command(['systemctl','restart','redis.service'])\n  deadline=time.monotonic()+30\n  while True:\n   result=command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode'],False)\n   try:actual=json.loads(result.stdout) if result.returncode==0 else {}\n   except ValueError:actual={}\n   unit=properties('redis.service',['ControlGroup','MemoryMax','MemorySwapMax','ActiveState'])\n   if actual.get('maxmemory')==str(model['datasetMiB']*1048576) and actual.get('maxmemory-policy')=='allkeys-lru' and actual.get('maxclients')==str(model['maxclients']) and actual.get('protected-mode')=='yes' and unit.get('ActiveState')=='active' and unit.get('ControlGroup','').startswith('/golden.slice/') and unit.get('MemoryMax')==str(model['memoryMiB']*1048576) and unit.get('MemorySwapMax')=='0':break\n   if time.monotonic()>deadline:raise RuntimeError('Shared Redis runtime readback failed')\n   time.sleep(.25)\n except BaseException:\n  for path,row in snapshots.items():\n   if row:\n    atomic(path,row[0],row[1]);os.chown(path,row[2],row[3])\n   else:path.unlink(missing_ok=True)\n  atomic(STATE/'shared-files.json',json.dumps(registry,indent=2));command(['systemctl','daemon-reload'],False);command(['systemctl','restart','redis.service'],False)\n  raise\n print(json.dumps({'sharedRedisApplied':True,'model':model,'tenantScope':'Shared service; unique cache prefixes are not Unix-account isolation'}))\n\n",
+          "afterEditContext": "  time.sleep(2)\n\n# Shared Redis integration is optional, aggregate-bounded, and never creates per-user settings.\nREDIS_CONFIG=pathlib.Path('/usr/local/apps/redis/redis.conf')\nREDIS_DROPIN=UNITS/'redis.service.d/90-golden-shared.conf'\n\ndef shared_redis_model(profile,cpus,total):\n config=profile.get('configuration',profile);hardware=config['globalInputs']['hardware'];m=config['sections']['redis']['model']\n if hardware.get('cpu')!=cpus or hardware.get('measuredRamMiB')!=total:raise RuntimeError('Shared Redis profile hardware differs; regenerate Global Inputs')\n dataset=max(16,int(float(hardware['ram'])*1024//64//16)*16);budget=dataset*4;clients=max(32,cpus*32)\n if m.get('datasetMiB')!=dataset or m.get('serviceBudgetMiB')!=budget or m.get('maxclients')!=clients or config['globalInputs']['sharedServiceBudget']['redisMiB']!=budget:raise RuntimeError('Shared Redis model differs from the common physical budget')\n if budget>total-config['sections']['golden']['golden']['headroomMiB']:raise RuntimeError('Shared Redis exceeds physical hosting budget')\n return {'hostCpuCount':cpus,'measuredRamMiB':total,'datasetMiB':dataset,'memoryMiB':budget,'maxclients':clients,'cacheOnly':True}\n\ndef shared_redis_config(text,model):\n marker=r'(?ms)^# BEGIN Webuzo Planner Shared Redis\\n.*?^# END Webuzo Planner Shared Redis\\n?'\n if text.count('# BEGIN Webuzo Planner Shared Redis')!=text.count('# END Webuzo Planner Shared Redis'):raise RuntimeError('Unbalanced shared Redis config markers')\n text=re.sub(marker,'',text)\n lines=[line for line in text.splitlines() if not re.match(r'^\\s*(?:maxmemory|maxmemory-policy|maxclients|protected-mode)\\s+',line)]\n return '\\n'.join(lines).rstrip()+'\\n\\n# BEGIN Webuzo Planner Shared Redis\\nmaxmemory '+str(model['datasetMiB'])+'mb\\nmaxmemory-policy allkeys-lru\\nmaxclients '+str(model['maxclients'])+'\\nprotected-mode yes\\n# END Webuzo Planner Shared Redis\\n'\n\ndef apply_shared_redis(profile_file=None,cache_only=False):\n if not (STATE/'installed.json').exists():raise RuntimeError('Install Golden Shield before shared Redis resource integration')\n cpus=len(os.sched_getaffinity(0));total=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemTotal:')))//1024\n saved=BASE/'shared-redis-policy.json'\n if profile_file:\n  if not cache_only:raise RuntimeError('Explicit --cache-only confirmation required; do not evict sessions/queues/primary data')\n  source=pathlib.Path(profile_file)\n  if not source.is_file() or source.is_symlink() or source.stat().st_uid!=0 or source.stat().st_mode&0o022:raise RuntimeError('Shared Redis profile must be a root-owned, non-writable regular file')\n  model=shared_redis_model(json.loads(source.read_text()),cpus,total)\n else:\n  if not saved.is_file() or saved.is_symlink() or saved.stat().st_uid!=0 or saved.stat().st_mode&0o022:raise RuntimeError('Shared Redis policy requires reviewed setup')\n  model=json.loads(saved.read_text())\n if model.get('hostCpuCount')!=cpus or model.get('measuredRamMiB')!=total or model.get('cacheOnly') is not True:raise RuntimeError('Shared Redis policy requires new hardware/application review')\n if not all(type(model.get(k)) is int and model[k]>0 for k in ['datasetMiB','memoryMiB','maxclients']) or model['memoryMiB']!=model['datasetMiB']*4 or model['memoryMiB']>policy()['hostingMemoryMaxMiB']:raise RuntimeError('Invalid shared Redis safety budget')\n if not REDIS_CONFIG.is_file() or REDIS_CONFIG.is_symlink() or REDIS_CONFIG.stat().st_uid not in (0,pwd.getpwnam('redis').pw_uid) or REDIS_CONFIG.stat().st_mode&0o022 or REDIS_CONFIG.parent.stat().st_uid!=0 or REDIS_CONFIG.parent.stat().st_mode&0o022:raise RuntimeError('Unsafe native shared Redis configuration')\n current=json.loads(command(['redis-cli','--json','CONFIG','GET','bind','port','protected-mode']).stdout)\n if current.get('port')!='6379' or current.get('protected-mode')!='yes' or not current.get('bind') or any(x not in ['127.0.0.1','::1','-::1'] for x in current['bind'].split()):raise RuntimeError('Expected existing loopback-only Shared Redis service; mode/auth changes require review')\n snapshots={p:(p.read_text(),p.stat().st_mode&0o777,p.stat().st_uid,p.stat().st_gid) if p.exists() and not p.is_symlink() else None for p in [REDIS_CONFIG,REDIS_DROPIN,saved]}\n if REDIS_DROPIN.is_symlink() or saved.is_symlink():raise RuntimeError('Refusing shared Redis managed-path symlink')\n registry=files()\n try:\n  managed(REDIS_CONFIG,shared_redis_config(snapshots[REDIS_CONFIG][0],model),snapshots[REDIS_CONFIG][1])\n  managed(REDIS_DROPIN,'[Service]\\nSlice=golden.slice\\nMemoryMax='+str(model['memoryMiB'])+'M\\nMemorySwapMax=0\\n',0o644)\n  atomic(saved,json.dumps(model,indent=2));command(['systemctl','daemon-reload']);command(['systemctl','restart','redis.service'])\n  deadline=time.monotonic()+30\n  while True:\n   result=command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode'],False)\n   try:actual=json.loads(result.stdout) if result.returncode==0 else {}\n   except ValueError:actual={}\n   unit=properties('redis.service',['ControlGroup','MemoryMax','MemorySwapMax','ActiveState'])\n   if actual.get('maxmemory')==str(model['datasetMiB']*1048576) and actual.get('maxmemory-policy')=='allkeys-lru' and actual.get('maxclients')==str(model['maxclients']) and actual.get('protected-mode')=='yes' and unit.get('ActiveState')=='active' and unit.get('ControlGroup','').startswith('/golden.slice/') and unit.get('MemoryMax')==str(model['memoryMiB']*1048576) and unit.get('MemorySwapMax')=='0':break\n   if time.monotonic()>deadline:raise RuntimeError('Shared Redis runtime readback failed')\n   time.sleep(.25)\n except BaseException:\n  for path,row in snapshots.items():\n   if row:\n    atomic(path,row[0],row[1]);os.chown(path,row[2],row[3])\n   else:path.unlink(missing_ok=True)\n  atomic(STATE/'shared-files.json',json.dumps(registry,indent=2));command(['systemctl','daemon-reload'],False);command(['systemctl','restart','redis.service'],False)\n  raise\n print(json.dumps({'sharedRedisApplied':True,'model':model,'tenantScope':'Shared service; unique cache prefixes are not Unix-account isolation'}))\n\n\ndef restart_coordinator(version):\n unit='wpiso-manager-'+version+'.service'"
+        },
+        {
+          "mode": "insert",
+          "after": " guard='[Unit]\\nDescription=Golden Shield shared CPU and memory guard\\nAfter=webuzo.service golden-apache.service mariadb.service\\n[Service]\\nType=simple\\nExecStart=/usr/bin/python3 /usr/local/sbin/golden-shield.py serve\\nRestart=on-failure\\nRestartSec=2\\nCPUWeight=10000\\nMemoryLow='+str(p['guardMemoryLowMiB'])+'M\\nMemoryMax='+str(p['guardMemoryMaxMiB'])+'M\\n[Install]\\nWantedBy=multi-user.target\\n'\n managed(UNITS/'golden-shield.service',guard);command(['systemctl','daemon-reload']);command(['systemctl','enable','--now','golden-shield.service'])",
+          "before": "\ndef resume_install():",
+          "existing": "",
+          "generated": " if (BASE/'shared-redis-policy.json').exists():apply_shared_redis()",
+          "afterEditContext": " guard='[Unit]\\nDescription=Golden Shield shared CPU and memory guard\\nAfter=webuzo.service golden-apache.service mariadb.service\\n[Service]\\nType=simple\\nExecStart=/usr/bin/python3 /usr/local/sbin/golden-shield.py serve\\nRestart=on-failure\\nRestartSec=2\\nCPUWeight=10000\\nMemoryLow='+str(p['guardMemoryLowMiB'])+'M\\nMemoryMax='+str(p['guardMemoryMaxMiB'])+'M\\n[Install]\\nWantedBy=multi-user.target\\n'\n managed(UNITS/'golden-shield.service',guard);command(['systemctl','daemon-reload']);command(['systemctl','enable','--now','golden-shield.service'])\n if (BASE/'shared-redis-policy.json').exists():apply_shared_redis()\n\ndef resume_install():"
+        },
+        {
+          "mode": "insert",
+          "after": " report['outsideManagedGroup']=outside;report['checksPass'] &= not outside\n if (RUN/'pressure.json').exists():report['pressure']=json.loads((RUN/'pressure.json').read_text())",
+          "before": " print(json.dumps(report,indent=2));return report['checksPass']\n",
+          "existing": "",
+          "generated": " if (BASE/'shared-redis-policy.json').exists():\n  try:\n   cache=json.loads((BASE/'shared-redis-policy.json').read_text());row=properties('redis.service',['ActiveState','ControlGroup','MemoryMax','MemorySwapMax']);values=json.loads(command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode']).stdout)\n   ok=row.get('ActiveState')=='active' and row.get('ControlGroup','').startswith('/golden.slice/') and row.get('MemoryMax')==str(cache['memoryMiB']*1048576) and row.get('MemorySwapMax')=='0' and values.get('maxmemory')==str(cache['datasetMiB']*1048576) and values.get('maxmemory-policy')=='allkeys-lru' and values.get('maxclients')==str(cache['maxclients']) and str(REDIS_CONFIG) in files()\n   report['sharedRedis']={'passed':ok,'service':row,'settings':values};report['checksPass'] &= ok\n  except Exception:\n   report['sharedRedis']={'passed':False,'reason':'Shared Redis runtime verification unavailable; review selected shared policy and native service'};report['checksPass']=False",
+          "afterEditContext": " report['outsideManagedGroup']=outside;report['checksPass'] &= not outside\n if (RUN/'pressure.json').exists():report['pressure']=json.loads((RUN/'pressure.json').read_text())\n if (BASE/'shared-redis-policy.json').exists():\n  try:\n   cache=json.loads((BASE/'shared-redis-policy.json').read_text());row=properties('redis.service',['ActiveState','ControlGroup','MemoryMax','MemorySwapMax']);values=json.loads(command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode']).stdout)\n   ok=row.get('ActiveState')=='active' and row.get('ControlGroup','').startswith('/golden.slice/') and row.get('MemoryMax')==str(cache['memoryMiB']*1048576) and row.get('MemorySwapMax')=='0' and values.get('maxmemory')==str(cache['datasetMiB']*1048576) and values.get('maxmemory-policy')=='allkeys-lru' and values.get('maxclients')==str(cache['maxclients']) and str(REDIS_CONFIG) in files()\n   report['sharedRedis']={'passed':ok,'service':row,'settings':values};report['checksPass'] &= ok\n  except Exception:\n   report['sharedRedis']={'passed':False,'reason':'Shared Redis runtime verification unavailable; review selected shared policy and native service'};report['checksPass']=False\n print(json.dumps(report,indent=2));return report['checksPass']\n"
+        },
+        {
+          "mode": "insert",
+          "after": " for version in versions:command(['systemctl','stop','wpiso-manager-'+version+'.service'])\n command(['/usr/bin/python3',str(ISO),'native-cgroup-remove'])",
+          "before": " for name,row in data.items():\n  path=pathlib.Path(name)\n  if row['backup']:atomic(path,pathlib.Path(row['backup']).read_text(),row['mode'])",
+          "existing": "",
+          "generated": " redis_managed=str(REDIS_CONFIG) in data\n if redis_managed:command(['systemctl','stop','redis.service'])",
+          "afterEditContext": " for version in versions:command(['systemctl','stop','wpiso-manager-'+version+'.service'])\n command(['/usr/bin/python3',str(ISO),'native-cgroup-remove'])\n redis_managed=str(REDIS_CONFIG) in data\n if redis_managed:command(['systemctl','stop','redis.service'])\n for name,row in data.items():\n  path=pathlib.Path(name)"
+        },
+        {
+          "mode": "replace",
+          "after": " command(['/usr/bin/python3',str(ISO),'native-cgroup-remove'])\n for name,row in data.items():\n  path=pathlib.Path(name)",
+          "before": "  else:path.unlink(missing_ok=True)\n # Shared-unit runtime properties disappear when their units are stopped below.",
+          "existing": "  if row['backup']:atomic(path,pathlib.Path(row['backup']).read_text(),row['mode'])",
+          "generated": "  if row['backup']:\n   atomic(path,pathlib.Path(row['backup']).read_text(),row['mode']);os.chown(path,row.get('uid',0),row.get('gid',0))",
+          "afterEditContext": " for name,row in data.items():\n  path=pathlib.Path(name)\n  if row['backup']:\n   atomic(path,pathlib.Path(row['backup']).read_text(),row['mode']);os.chown(path,row.get('uid',0),row.get('gid',0))\n  else:path.unlink(missing_ok=True)\n # Shared-unit runtime properties disappear when their units are stopped below."
+        },
+        {
+          "mode": "insert",
+          "after": " command(['systemctl','daemon-reload']);command(['systemctl','restart','mariadb.service'])\n command([str(APACHE),'start']);command(['systemctl','restart','cgroup.service'])",
+          "before": " # Switch routing before restart, but retain the installation marker until all\n # restoration steps finish so a failed uninstall cannot masquerade as removed.",
+          "existing": "",
+          "generated": " if redis_managed:command(['systemctl','restart','redis.service'])",
+          "afterEditContext": " command(['systemctl','daemon-reload']);command(['systemctl','restart','mariadb.service'])\n command([str(APACHE),'start']);command(['systemctl','restart','cgroup.service'])\n if redis_managed:command(['systemctl','restart','redis.service'])\n # Switch routing before restart, but retain the installation marker until all\n # restoration steps finish so a failed uninstall cannot masquerade as removed."
+        },
+        {
+          "mode": "replace",
+          "after": "def main():\n if os.geteuid()!=0:raise RuntimeError('Run through sudo.')",
+          "before": " if args.action=='install':install()\n elif args.action=='resume':resume_install()",
+          "existing": " parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap'],nargs='?',default='install');parser.add_argument('uid',nargs='?');args=parser.parse_args()",
+          "generated": " parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()",
+          "afterEditContext": "def main():\n if os.geteuid()!=0:raise RuntimeError('Run through sudo.')\n parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()\n if args.action=='install':install()\n elif args.action=='resume':resume_install()"
+        },
+        {
+          "mode": "insert",
+          "after": " elif args.action=='uninstall':uninstall()\n elif args.action=='apply-memory-cap':apply_memory_cap()",
+          "before": " elif args.action=='repair-native-ownership':repair_native_ownership()\n else:sys.exit(0 if check() else 1)",
+          "existing": "",
+          "generated": " elif args.action=='apply-shared-redis':apply_shared_redis(args.uid,args.cache_only)",
+          "afterEditContext": " elif args.action=='uninstall':uninstall()\n elif args.action=='apply-memory-cap':apply_memory_cap()\n elif args.action=='apply-shared-redis':apply_shared_redis(args.uid,args.cache_only)\n elif args.action=='repair-native-ownership':repair_native_ownership()\n else:sys.exit(0 if check() else 1)"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/core/webuzo-isolation.py",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/core/webuzo-isolation.py; ALSO /usr/local/uniselv-resman/core/webuzo-isolation.py; ALSO /usr/local/sbin/webuzo-isolation.py",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "3ddc6193766463e9a60621f935f676d55ff73eeb24192bf743248295c33460a1",
+      "blocks": [
+        {
+          "mode": "insert",
+          "after": "        if execute(['systemctl', 'is-active', unit], False).returncode != 0:\n            execute(['systemctl', 'enable', '--now', unit])",
+          "before": "        reconcile(version, True)\n        print(version + ': already onboarded; refreshed coordinator and health master')",
+          "existing": "",
+          "generated": "        # Native regeneration can leave the compatibility bridge inactive while\n        # the coordinator is healthy. Repair and activate the checked bridge too.\n        add_bridge(version)",
+          "afterEditContext": "        if execute(['systemctl', 'is-active', unit], False).returncode != 0:\n            execute(['systemctl', 'enable', '--now', unit])\n        # Native regeneration can leave the compatibility bridge inactive while\n        # the coordinator is healthy. Repair and activate the checked bridge too.\n        add_bridge(version)\n        reconcile(version, True)\n        print(version + ': already onboarded; refreshed coordinator and health master')"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/info.json",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/info.json",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "b144ea06d711ea71c88cea336f377efddb87d74687b73b0c82abeaf447165755",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",",
+          "before": "  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {",
+          "existing": "  \"version\": \"1.1.29\",",
+          "generated": "  \"version\": \"1.1.30\",",
+          "afterEditContext": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",\n  \"version\": \"1.1.30\",\n  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {"
+        },
+        {
+          "mode": "replace",
+          "after": "  \"download_url\": \"https://refat.ovh/plugins/uniselv-resman/\",\n  \"download_link\": \"https://refat.ovh/plugins/uniselv-resman/uniselv-resman.zip\",",
+          "before": "  \"homepage\": \"https://refat.ovh\"\n}",
+          "existing": "  \"last_updated\": \"2026-10-24\",",
+          "generated": "  \"last_updated\": \"2026-10-25\",",
+          "afterEditContext": "  \"download_url\": \"https://refat.ovh/plugins/uniselv-resman/\",\n  \"download_link\": \"https://refat.ovh/plugins/uniselv-resman/uniselv-resman.zip\",\n  \"last_updated\": \"2026-10-25\",\n  \"homepage\": \"https://refat.ovh\"\n}"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/uniselv-resman.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/uniselv-resman.php",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "b77901a51c1e5290cd265e2ad0da0eaca7a8ceed04ac72471b4e41223a847df0",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "/*\nPlugin Name: UNISELV Resource Manager",
+          "before": "Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman",
+          "existing": "Version: 1.1.29",
+          "generated": "Version: 1.1.30",
+          "afterEditContext": "/*\nPlugin Name: UNISELV Resource Manager\nVersion: 1.1.30\nDescription: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman"
+        },
+        {
+          "mode": "replace",
+          "after": "    if (rtrim($brand_docs, '/') === 'https://docs.uniselv.com') $brand_docs = ''; // Historical placeholder; use bundled local Help.\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';\n    ",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.30r1' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.30r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "    if (rtrim($brand_docs, '/') === 'https://docs.uniselv.com') $brand_docs = ''; // Historical placeholder; use bundled local Help.\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';",
+          "before": "\n    echo '<div class=\"uniselv-container\">';\n    ",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.30r1' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.30r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        },
+        {
+          "mode": "replace",
+          "after": "    $limits = isset($dash['limits']) ? $dash['limits'] : [];\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';\n\n    // Header",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.30r1' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.30r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "    $limits = isset($dash['limits']) ? $dash['limits'] : [];\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';",
+          "before": "\n    echo '<div class=\"uniselv-container\">';\n\n    // Header",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.30r1' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.30r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/views/admin_help.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/views/admin_help.php",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "1518fa31a747af779b99ef420cccdfe60b4c3612338e0835c57f5db96f1fb897",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "            <h4 class=\"uniselv-help-card-title\">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>\n            <div class=\"uniselv-help-card-desc\">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>",
+          "before": "        </div>\n\n\n        <!-- 1. QUICK START -->",
+          "existing": "            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.29.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.29.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>",
+          "generated": "            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.30.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.30.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>",
+          "afterEditContext": "            <h4 class=\"uniselv-help-card-title\">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>\n            <div class=\"uniselv-help-card-desc\">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>\n            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.30.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.30.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n        </div>\n"
+        }
+      ]
+    }
+  ]
+}

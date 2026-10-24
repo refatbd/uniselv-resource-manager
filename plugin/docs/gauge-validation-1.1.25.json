@@ -1,0 +1,19 @@
+{
+  "release": "1.1.25",
+  "date": "2026-10-24",
+  "scope": "Gauge arithmetic, initial fills, actual memory boundary measurement and focused visual/API checks; resource limits unchanged.",
+  "inputCases": 18,
+  "normalization": "4/8 vCPU, real zero, missing data and memory ratio passed",
+  "visualFixtures": [
+    0,
+    25,
+    50,
+    75,
+    100,
+    "unknown"
+  ],
+  "liveCpuAllocationGaugePercent": 85,
+  "liveRamGauge": "Actual memory.current / memory.max verified; value changes over time.",
+  "priorLifecycleEvidence": "See 1.1.24 and older dated reports; not rerun as full deployment certification.",
+  "productionCertified": false
+}

@@ -1,0 +1,108 @@
+{
+  "version": "1.1.29",
+  "scope": "Already-applied release source changes relative to 1.1.28; not extra post-install paste steps. Prefer the reviewed complete package.",
+  "saveAndVerify": [
+    "Back up existing files and ownership/restoration manifests together.",
+    "Use UTF-8/LF. Replace existing files; do not append duplicate imports, functions or directives. New files start at their first line and end at their final line.",
+    "Install through the reviewed privileged deployment workflow. Restore root ownership and installer execution modes.",
+    "Run Python/PHP/JavaScript syntax, regression, service/API/HTTP and ZIP closure checks. Configuration values and full workload/lifecycle readiness remain distinct."
+  ],
+  "files": [
+    {
+      "packagedPath": "uniselv-resman/core/webuzo-isolation.py",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/core/webuzo-isolation.py; ALSO /usr/local/uniselv-resman/core/webuzo-isolation.py; ALSO /usr/local/sbin/webuzo-isolation.py",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "b3b09a9b8ee3a53271862443225a2949ea83058766815eca1cec29d21c672ada",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "                            diagnostic('runtime_grant_grown',**plan)\n                        else:",
+          "before": "                except Exception as error:\n                    diagnostic('runtime_regrant_error',error=type(error).__name__)",
+          "existing": "                            with dispatch:draining=True;regrant=plan;drain_deadline=time.monotonic()+limits['timeout']\n                            diagnostic('runtime_regrant_drain',**plan)",
+          "generated": "                            # Rebalancing must not consume a whole client deadline while\n                            # an unforwarded/background PHP job prevents idle proof.\n                            # Retain the full charged grant and resume its queue if this\n                            # small, native-timeout-derived drain window expires.\n                            drain_budget=min(limits['timeout'],max(1,(limits['timeout']+19)//20))\n                            with dispatch:draining=True;regrant=plan;drain_deadline=time.monotonic()+drain_budget\n                            diagnostic('runtime_regrant_drain',drainBudgetSeconds=drain_budget,**plan)",
+          "afterEditContext": "                            diagnostic('runtime_grant_grown',**plan)\n                        else:\n                            # Rebalancing must not consume a whole client deadline while\n                            # an unforwarded/background PHP job prevents idle proof.\n                            # Retain the full charged grant and resume its queue if this\n                            # small, native-timeout-derived drain window expires.\n                            drain_budget=min(limits['timeout'],max(1,(limits['timeout']+19)//20))\n                            with dispatch:draining=True;regrant=plan;drain_deadline=time.monotonic()+drain_budget\n                            diagnostic('runtime_regrant_drain',drainBudgetSeconds=drain_budget,**plan)\n                except Exception as error:\n                    diagnostic('runtime_regrant_error',error=type(error).__name__)"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/info.json",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/info.json",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "c6c42d36c7b662c1313ab4d972863e69a156b510396d94893e944be576851937",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",",
+          "before": "  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {",
+          "existing": "  \"version\": \"1.1.28\",",
+          "generated": "  \"version\": \"1.1.29\",",
+          "afterEditContext": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",\n  \"version\": \"1.1.29\",\n  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/uniselv-resman.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/uniselv-resman.php",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "06b8f6bae0deb86cbcc7457b9daf8e63320de901fb2a30fc16b0ba8bee6f80e7",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "/*\nPlugin Name: UNISELV Resource Manager",
+          "before": "Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman",
+          "existing": "Version: 1.1.28",
+          "generated": "Version: 1.1.29",
+          "afterEditContext": "/*\nPlugin Name: UNISELV Resource Manager\nVersion: 1.1.29\nDescription: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman"
+        },
+        {
+          "mode": "replace",
+          "after": "    if (rtrim($brand_docs, '/') === 'https://docs.uniselv.com') $brand_docs = ''; // Historical placeholder; use bundled local Help.\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.28r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';\n    ",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.28r1' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "    if (rtrim($brand_docs, '/') === 'https://docs.uniselv.com') $brand_docs = ''; // Historical placeholder; use bundled local Help.\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.28r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';",
+          "before": "\n    echo '<div class=\"uniselv-container\">';\n    ",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.28r1' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        },
+        {
+          "mode": "replace",
+          "after": "    $limits = isset($dash['limits']) ? $dash['limits'] : [];\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.28r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';\n\n    // Header",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.28r1' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.29r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "    $limits = isset($dash['limits']) ? $dash['limits'] : [];\n\n    $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';\n    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.28r1' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>\nwindow.UNISELV_LOCALE = ' . json_encode($locale) . ';\nwindow.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';",
+          "before": "\n    echo '<div class=\"uniselv-container\">';\n\n    // Header",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.28r1' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.29r1' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/views/admin_help.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/views/admin_help.php",
+      "mode": "Replace the full file; never append duplicate functions/directives. New files run from first through final line.",
+      "sha256": "c4cf4cdfeadbcdc40ea967b2d3c5e8bcaaa90dee7491b40367d165ea6764d12f",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "            <h4 class=\"uniselv-help-card-title\">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>\n            <div class=\"uniselv-help-card-desc\">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>",
+          "before": "        </div>\n\n\n        <!-- 1. QUICK START -->",
+          "existing": "            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.28.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.28.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>",
+          "generated": "            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.29.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.29.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>",
+          "afterEditContext": "            <h4 class=\"uniselv-help-card-title\">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>\n            <div class=\"uniselv-help-card-desc\">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>\n            <details><summary>Operations, expected profile and verification scope</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.29.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n            <details><summary>Exact source replacement and insertion guide</summary><pre style=\"white-space:pre-wrap;overflow-wrap:anywhere\"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.29.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>\n        </div>\n"
+        }
+      ]
+    }
+  ]
+}

@@ -14,6 +14,8 @@ import hashlib
 import secrets
 import uuid
 import stat
+import threading
+import runtime_governance as governance
 try:
     import fcntl
 except ImportError:
@@ -343,6 +345,8 @@ def verify_io_rules(
     return True, ""
 
 class IpcRequestHandler:
+    _override_lock = threading.RLock()
+
     def __init__(self, db_path: str, collector):
         self.db_path = db_path
         self.collector = collector
@@ -378,15 +382,13 @@ class IpcRequestHandler:
 
     def get_managed_phps(self) -> List[str]:
         inst_file = pathlib.Path('/var/lib/webuzo-isolation/installed.json')
-        if inst_file.exists():
-            try:
-                data = json.loads(inst_file.read_text(encoding='utf-8'))
-                versions = data.get('versions', [])
-                if versions and isinstance(versions, list):
-                    return sorted(versions)
-            except Exception:
-                pass
-        return self.get_installed_phps()
+        if not inst_file.exists():
+            return []
+        data = json.loads(inst_file.read_text(encoding='utf-8'))
+        versions = data.get('versions')
+        if not isinstance(versions, list) or any(not isinstance(v,str) or not re.fullmatch(r'php\d{2,3}',v) for v in versions):
+            raise ValueError('Invalid managed PHP registry; refusing physical-version fallback')
+        return sorted(set(versions))
 
     def is_reseller_actor(self, auth: Dict[str, Any], params: Dict[str, Any]) -> tuple:
         """
@@ -482,8 +484,11 @@ class IpcRequestHandler:
                     return self.action_get_audit_log(params, allowed_targets=owned, actor_scope=user)
                 if action in {'get_admin_audit_limits', 'audit_limits'}:
                     result = self.action_admin_audit_limits()
-                    result['audit'] = [row for row in result.get('audit', []) if row.get('username') in owned]
-                    return result
+                    rows = [row for row in result.get('accounts', result.get('audit', [])) if row.get('username') in owned]
+                    return {'success': result.get('success', False), 'accounts': rows, 'audit': rows,
+                        'total_accounts': len(rows), 'mismatch_count': sum(not row.get('is_synchronized', False) for row in rows),
+                        'php_runtime': [row for row in result.get('php_runtime', []) if row.get('user') in owned],
+                        'php_runtime_error': 'Scoped runtime details unavailable; ask the server administrator.' if result.get('php_runtime_error') else None}
                 if action == 'get_enduser_support_export' and not self.is_permission_granted(user, 'reseller', 'can_export_diagnostics'):
                     return {'error': 'Forbidden: Reseller export permission denied', 'status_code': 403}
                 # Keep tenant self-service policies in force for reseller process operations.
@@ -589,6 +594,12 @@ class IpcRequestHandler:
                 return self.action_purge_snapshots(user, params)
             elif action == 'run_adapter_sync':
                 return self.action_run_adapter_sync(user, params)
+            elif action == 'get_runtime_governance':
+                return governance.snapshot()
+            elif action == 'run_runtime_governance':
+                return self.action_runtime_governance(user, params)
+            elif action == 'export_runtime_governance':
+                return {'success': True, 'export': governance.read_json(governance.STORE/'export.json')}
             elif action == 'get_php_lifecycle':
                 return self.action_get_php_lifecycle()
             elif action == 'onboard_php_version':
@@ -1953,6 +1964,13 @@ class IpcRequestHandler:
             aggregate_mem = int(pathlib.Path('/sys/fs/cgroup/golden.slice/memory.current').read_text().strip())
         except (OSError, ValueError):
             aggregate_mem = None
+        try:
+            aggregate_max = int(pathlib.Path('/sys/fs/cgroup/golden.slice/memory.max').read_text().strip())
+        except (OSError, ValueError):
+            aggregate_max = None
+        gs_status['golden_mem_max_bytes'] = aggregate_max
+        gs_status['golden_mem_percent'] = aggregate_mem / aggregate_max * 100 if aggregate_mem is not None and aggregate_max is not None and aggregate_max > 0 else None
+        if aggregate_max is not None: gs_status['golden_mem_max_formatted'] = format_bytes(aggregate_max)
         gs_status['golden_mem_current_bytes'] = aggregate_mem
         gs_status['golden_mem_current_formatted'] = format_bytes(aggregate_mem) if aggregate_mem is not None else 'Unavailable'
         gs_status['memory_measurement'] = 'golden.slice/memory.current' if aggregate_mem is not None else 'unavailable'
@@ -2161,6 +2179,7 @@ class IpcRequestHandler:
         """
         users = self.collector.get_webuzo_users()
         audit_results = []
+        outside_users = {r['username'] for r in self.action_admin_out_of_boundary().get('out_of_bounds_processes', [])}
         for uname, udata in users.items():
             uid = udata['uid']
             plan_name = udata['plan_name']
@@ -2271,7 +2290,7 @@ class IpcRequestHandler:
 
             # Strict complete synchronization requires all parameters, I/O, and ancestor isolation to match
             is_synchronized = (
-                cpu_synced and 
+                uname not in outside_users and cpu_synced and
                 mem_synced and 
                 mem_high_synced and 
                 swap_zero and 
@@ -2306,6 +2325,7 @@ class IpcRequestHandler:
                 'effective_riops': effective_riops,
                 'effective_wiops': effective_wiops,
                 'is_synchronized': is_synchronized,
+                'process_placement_synced': uname not in outside_users,
                 'cpu_synced': cpu_synced,
                 'mem_synced': mem_synced,
                 'mem_high_synced': mem_high_synced,
@@ -2330,6 +2350,8 @@ class IpcRequestHandler:
                     php_runtime.append({'user': user, 'version': manifest.stem,
                         'native_max_children': pool['maxChildren'],
                         'managed_max_children': int(cap[1]) if cap else None,
+                        'concurrency_grant': grant.get('runtimeMaxChildren'),
+                        'enforcement': 'Root-only relay gate' if grant.get('relayEnforced') else 'Legacy FPM cap',
                         'reserved_mib': grant.get('costMiB', 0),
                         'state': 'Leased' if grant else 'Idle / no lease',
                         'source': 'Automatic account boundary / shared grant' if mode else 'Native global default'})
@@ -2362,9 +2384,13 @@ class IpcRequestHandler:
                     stat = os.stat(f'/proc/{pid}')
                     p_uid = stat.st_uid
                     if p_uid in uid_to_user:
+                        # Apache workers can temporarily adopt a request UID via
+                        # mod_ruid2; they remain a shared, aggregate-owned service.
+                        if os.readlink(f'/proc/{pid}/exe') == '/usr/local/apps/apache2/bin/httpd': continue
                         cgroup_content = pathlib.Path(f'/proc/{pid}/cgroup').read_text().strip()
                         # Defect F Fix: Exact cgroup path match, not substring 'golden'
-                        expected_slice = f"/golden.slice/golden-{p_uid}.slice"
+                        golden_active = pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists()
+                        expected_slice = f"/golden.slice/golden-{p_uid}.slice" if golden_active else f"/{p_uid}.slice"
                         is_contained = (cgroup_content == f"0::{expected_slice}" or 
                                         cgroup_content.startswith(f"0::{expected_slice}/"))
                         if not is_contained:
@@ -2420,169 +2446,111 @@ class IpcRequestHandler:
             return False
 
     def action_set_temporary_override(self, admin_user: str, params: Dict[str, Any], is_reseller: bool = False) -> Dict[str, Any]:
-        target_user = params.get('username')
-        override_plan = params.get('override_plan') or params.get('plan')
-        duration_minutes = int(params.get('duration_minutes') or params.get('duration') or 60)
-        reason = params.get('reason', 'Admin temporary boost')
+        with self._override_lock:
+            return self._set_temporary_override(admin_user, params, is_reseller)
 
-        if not target_user or not override_plan:
-            return {'error': 'Username and override_plan are required', 'status_code': 400}
-
-        target_user = str(target_user).strip()
-        override_plan = str(override_plan).strip()
-
-        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$', target_user) or '..' in target_user or '/' in target_user or '\\' in target_user:
-            return {'error': f"Security Refusal: Invalid target username format '{target_user}'", 'status_code': 400}
-
-        if not re.match(r'^[a-zA-Z0-9_.-]{1,64}$', override_plan) or '..' in override_plan or '/' in override_plan or '\\' in override_plan:
-            return {'error': f"Security Refusal: Invalid override plan format '{override_plan}'", 'status_code': 400}
-
-        users = self.collector.get_webuzo_users()
-        if target_user not in users:
+    def _set_temporary_override(self, admin_user: str, params: Dict[str, Any], is_reseller: bool = False) -> Dict[str, Any]:
+        target = str(params.get('username') or '').strip()
+        plan = str(params.get('override_plan') or params.get('plan') or '').strip()
+        try:
+            minutes = int(params.get('duration_minutes', params.get('duration', 60)))
+            if minutes < 1: raise ValueError()
+        except (TypeError, ValueError):
+            return {'error': 'Duration must be a positive number of minutes', 'status_code': 400}
+        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}', target) or '..' in target:
+            return {'error': 'Security Refusal: Invalid target username format', 'status_code': 400}
+        if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,64}', plan) or '..' in plan:
+            return {'error': 'Security Refusal: Invalid override plan format', 'status_code': 400}
+        account = self.collector.get_webuzo_users().get(target)
+        if not account:
             return {'error': 'User not found', 'status_code': 404}
-
-        # B01: Reseller ownership enforcement
-        if is_reseller and admin_user != 'root':
-            target_data = users.get(target_user, {})
-            if target_data.get('owner') != admin_user and target_user != admin_user:
-                return {
-                    'error': f"Forbidden: Reseller '{admin_user}' is not authorized to apply overrides to account '{target_user}'",
-                    'status_code': 403
-                }
-
-        original_plan = users[target_user]['plan_name']
+        if is_reseller and admin_user != 'root' and account.get('owner') != admin_user and target != admin_user:
+            return {'error': 'Forbidden: Reseller cannot boost this account', 'status_code': 403}
+        original = account['plan_name']
         now = int(time.time())
-        expires_at = now + (duration_minutes * 60)
-
-        # Validate target plan exists in Webuzo cgroups
-        plan_file = f"/var/webuzo/cgroups/{override_plan}"
-        if not os.path.exists(plan_file):
-            return {'error': f"Target override plan '{override_plan}' does not exist in /var/webuzo/cgroups/", 'status_code': 422}
-
-        # Transactional update: update Webuzo user info
-        user_info_path = f"/var/webuzo/users/{target_user}/info"
-        if os.path.exists(user_info_path):
-            try:
-                with open(user_info_path, 'r', encoding='utf-8') as f:
-                    u_info = json.load(f)
-                u_info['resource_limit'] = override_plan
-                tmp_path = f"{user_info_path}.tmp.{os.getpid()}"
-                with open(tmp_path, 'w', encoding='utf-8') as f:
-                    json.dump(u_info, f, indent=4)
-                os.replace(tmp_path, user_info_path)
-            except Exception as e:
-                return {'error': f"Failed to update Webuzo user info: {e}"}
-
-        # Sync native slice definition so golden-shield mirror reads active boost plan
-        uid = users[target_user]['uid']
-        self._write_native_slice(uid, override_plan)
-
-        # Apply slice limits immediately
-        prep_res = subprocess.run(['python3', '/usr/local/sbin/golden-shield.py', 'prepare-account', str(uid)], capture_output=True, text=True, timeout=15)
-        if prep_res.returncode != 0:
-            # Revert info file and native slice
-            try:
-                with open(user_info_path, 'r', encoding='utf-8') as f:
-                    u_info = json.load(f)
-                u_info['resource_limit'] = original_plan
-                with open(user_info_path, 'w', encoding='utf-8') as f:
-                    json.dump(u_info, f, indent=4)
-                self._write_native_slice(uid, original_plan)
-                subprocess.run(['python3', '/usr/local/sbin/golden-shield.py', 'prepare-account', str(uid)], capture_output=True, timeout=15)
-            except Exception:
-                pass
-            return {'error': f"Failed to apply slice limits for override: {prep_res.stderr or prep_res.stdout}"}
-
         conn = self.get_db()
         try:
-            cur = conn.cursor()
-            cur.execute("""
-                INSERT INTO temporary_overrides (username, uid, original_plan, override_plan, created_at, expires_at, status, reason)
-                VALUES (?, ?, ?, ?, ?, ?, 'active', ?)
-            """, (target_user, uid, original_plan, override_plan, now, expires_at, reason))
-            new_id = cur.lastrowid
-
-            conn.execute("""
-                INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
-                VALUES (?, ?, 'set_override', ?, ?)
-            """, (now, admin_user, target_user, json.dumps({'override_id': new_id, 'from': original_plan, 'to': override_plan, 'expires_at': expires_at})))
+            if conn.execute("SELECT 1 FROM temporary_overrides WHERE username = ? AND status IN ('applying','active','failed_restoration') LIMIT 1", (target,)).fetchone():
+                return {'error': 'An active or unresolved boost already exists for this account', 'status_code': 409}
+            cur = conn.execute("INSERT INTO temporary_overrides (username,uid,original_plan,override_plan,created_at,expires_at,status,reason) VALUES (?,?,?,?,?,?,'applying',?)",
+                (target, account['uid'], original, plan, now, now + minutes * 60, str(params.get('reason') or 'Admin temporary boost')))
+            override_id = cur.lastrowid
             conn.commit()
         finally:
             conn.close()
+        # Persist intent before mutation, so an agent restart can restore an interrupted boost.
+        try:
+            result = self.action_run_adapter_sync(admin_user, {'adapter': 'temporary_override', 'payload': {'username': target, 'plan': plan},
+                '_expected_native_plan': plan, '_expected_uid': account['uid'], '_expected_current_plans': [original]})
+        except Exception as error:
+            result = {'error': str(error)}
+        success = result.get('success') is True
+        conn = self.get_db()
+        try:
+            conn.execute("UPDATE temporary_overrides SET status = ?, expires_at = ? WHERE id = ?", ('active' if success else 'failed_restoration', now + minutes * 60 if success else now, override_id))
+            conn.execute("INSERT INTO audit_log(timestamp,actor,action,target_account,details_json) VALUES(?,?,?,?,?)",
+                (now, admin_user, 'set_override' if success else 'override_apply_failed', target, json.dumps({'override_id': override_id, 'from': original, 'to': plan, 'result': result})))
+            conn.commit()
+        finally:
+            conn.close()
+        if not success:
+            return {'error': 'Temporary boost was not verified; restoration remains tracked', 'status_code': 500, 'override_id': override_id, 'apply_result': result}
+        return {'success': True, 'override_id': override_id, 'active_plan': plan, 'original_plan': original, 'expires_at': now + minutes * 60, 'message': 'Temporary boost applied and limits verified'}
 
-        return {
-            'success': True,
-            'override_id': new_id,
-            'active_plan': override_plan,
-            'original_plan': original_plan,
-            'expires_at': expires_at,
-            'message': f'Temporary override applied: {target_user} boosted to {override_plan} for {duration_minutes} minutes'
-        }
+    def restore_temporary_override(self, row, actor: str) -> Dict[str, Any]:
+        """Use the normal verified plan transaction; reject UID reuse/manual drift."""
+        target = str(row['username'])
+        original = str(row['original_plan'])
+        if not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}', target) or '..' in target:
+            return {'error': 'Invalid stored override account', 'status_code': 400}
+        if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,64}', original) or '..' in original:
+            return {'error': 'Invalid stored original plan', 'status_code': 400}
+        account = self.collector.get_webuzo_users().get(target)
+        if not account or int(account['uid']) != int(row['uid']):
+            return {'error': 'Override account is missing or UID changed; restoration refused', 'status_code': 409}
+        if account['plan_name'] not in (row['override_plan'], original):
+            return {'error': 'Account plan changed outside this boost; restoration requires review', 'status_code': 409}
+        return self.action_run_adapter_sync(actor, {'adapter': 'temporary_override',
+            'payload': {'username': target, 'plan': original}, '_expected_native_plan': original,
+            '_expected_uid': row['uid'], '_expected_current_plans': [row['override_plan'], original]})
 
     def action_cancel_temporary_override(self, admin_user: str, params: Dict[str, Any], is_reseller: bool = False) -> Dict[str, Any]:
-        override_id = int(params.get('id') or params.get('override_id') or 0)
+        with self._override_lock:
+            return self._cancel_temporary_override(admin_user, params, is_reseller)
+
+    def _cancel_temporary_override(self, admin_user: str, params: Dict[str, Any], is_reseller: bool = False) -> Dict[str, Any]:
+        try:
+            override_id = int(params.get('id') or params.get('override_id') or 0)
+        except (ValueError, TypeError):
+            return {'error': 'Invalid override id', 'status_code': 400}
         conn = self.get_db()
         try:
-            cur = conn.cursor()
             if override_id > 0:
-                cur.execute("SELECT * FROM temporary_overrides WHERE id = ? AND status = 'active'", (override_id,))
+                row = conn.execute("SELECT * FROM temporary_overrides WHERE id = ? AND status IN ('applying','active','failed_restoration')", (override_id,)).fetchone()
             elif 'username' in params:
-                cur.execute("SELECT * FROM temporary_overrides WHERE username = ? AND status = 'active' ORDER BY id DESC LIMIT 1", (params['username'],))
+                row = conn.execute("SELECT * FROM temporary_overrides WHERE username = ? AND status IN ('applying','active','failed_restoration') ORDER BY id DESC LIMIT 1", (params['username'],)).fetchone()
             else:
                 return {'error': 'Missing override id or username'}
-            row = cur.fetchone()
-            if not row:
-                return {'error': 'Active override not found'}
-
-            target_user = row['username']
-            if is_reseller and admin_user != 'root':
-                users = self.collector.get_webuzo_users()
-                target_data = users.get(target_user, {})
-                if target_data.get('owner') != admin_user and target_user != admin_user:
-                    return {
-                        'error': f"Forbidden: Reseller '{admin_user}' is not authorized to cancel overrides for account '{target_user}'",
-                        'status_code': 403
-                    }
-
-            original_plan = row['original_plan']
-            actual_id = row['id']
-
-            # Restore Webuzo user info
-            user_info_path = f"/var/webuzo/users/{target_user}/info"
-            if os.path.exists(user_info_path):
-                try:
-                    with open(user_info_path, 'r', encoding='utf-8') as f:
-                        u_info = json.load(f)
-                    u_info['resource_limit'] = original_plan
-                    tmp_path = f"{user_info_path}.tmp.{os.getpid()}"
-                    with open(tmp_path, 'w', encoding='utf-8') as f:
-                        json.dump(u_info, f, indent=4)
-                    os.replace(tmp_path, user_info_path)
-                except Exception as e:
-                    return {'error': f"Failed to restore Webuzo user info: {e}"}
-
-            users = self.collector.get_webuzo_users()
-            if target_user in users:
-                uid = users[target_user]['uid']
-                self._write_native_slice(uid, original_plan)
-                subprocess.run(['python3', '/usr/local/sbin/golden-shield.py', 'prepare-account', str(uid)], capture_output=True, timeout=15)
-
-            cur.execute("UPDATE temporary_overrides SET status = 'cancelled' WHERE id = ?", (actual_id,))
-            cur.execute("""
-                INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
-                VALUES (?, ?, 'cancel_override', ?, ?)
-            """, (int(time.time()), admin_user, target_user, json.dumps({'override_id': actual_id, 'restored_to': original_plan})))
+        finally:
+            conn.close()
+        if not row:
+            return {'error': 'Active override not found'}
+        if is_reseller and admin_user != 'root':
+            account = self.collector.get_webuzo_users().get(row['username'], {})
+            if account.get('owner') != admin_user and row['username'] != admin_user:
+                return {'error': 'Forbidden: Reseller cannot cancel this account override', 'status_code': 403}
+        result = self.restore_temporary_override(row, admin_user)
+        if result.get('success') is not True:
+            return {'error': 'Override restoration failed', 'status_code': 500, 'restore_result': result, 'override_id': row['id']}
+        conn = self.get_db()
+        try:
+            conn.execute("UPDATE temporary_overrides SET status = 'cancelled' WHERE id = ? AND status IN ('applying','active','failed_restoration')", (row['id'],))
+            conn.execute("INSERT INTO audit_log (timestamp, actor, action, target_account, details_json) VALUES (?, ?, 'cancel_override', ?, ?)",
+                (int(time.time()), admin_user, row['username'], json.dumps({'override_id': row['id'], 'restored_to': row['original_plan']})))
             conn.commit()
         finally:
             conn.close()
-
-        return {
-            'success': True,
-            'override_id': actual_id,
-            'username': target_user,
-            'restored_plan': original_plan,
-            'message': f'Override cancelled. Restored {target_user} to {original_plan}'
-        }
+        return {'success': True, 'override_id': row['id'], 'username': row['username'], 'restored_plan': row['original_plan'], 'message': 'Override cancelled and original limits verified'}
 
     def action_sync_native_plans(self, admin_user: str) -> Dict[str, Any]:
         """
@@ -2607,12 +2575,15 @@ class IpcRequestHandler:
 
         subprocess.run(['systemctl', 'daemon-reload'], check=False)
 
-        # Reconcile isolation on managed PHP versions
+        # Report runtime failures instead of returning a false plan-sync success.
+        runtime_errors = []
         for ver in self.get_managed_phps():
             try:
-                subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, timeout=30)
-            except Exception:
-                pass
+                result = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, text=True, timeout=90)
+                if result.returncode:
+                    runtime_errors.append({'version':ver,'error':result.stderr or result.stdout or 'Runtime reload failed'})
+            except Exception as exc:
+                runtime_errors.append({'version':ver,'error':str(exc)})
 
         conn = self.get_db()
         try:
@@ -2625,12 +2596,81 @@ class IpcRequestHandler:
             conn.close()
 
         return {
-            'success': (len(failed_accounts) == 0),
+            'success': (len(failed_accounts) == 0 and not runtime_errors),
+            'runtime_errors': runtime_errors,
             'synced_count': len(synced_accounts),
             'failed_count': len(failed_accounts),
             'synced_accounts': synced_accounts,
             'failed_accounts': failed_accounts
         }
+
+    _governance_mutex = threading.Lock()
+
+    def action_runtime_governance(self, actor, params):
+        operation = str(params.get('operation', 'scan'))
+        background = actor == 'system' and params.get('_background') is True
+        version = str(params.get('version', ''))
+        if operation not in ('scan', 'export', 'recover', 'retire', 'activate'):
+            return {'success': False, 'error': 'Unknown governance operation'}
+        if operation in ('retire', 'activate') and not governance.VERSION.fullmatch(version):
+            return {'success': False, 'error': 'Choose a valid registered PHP version'}
+        if not self._governance_mutex.acquire(blocking=False):
+            return {'success': False, 'error': 'A governance operation is already running'}
+        job = {'id': uuid.uuid4().hex, 'operation': operation, 'actor': actor, 'version': version,
+               'startedAt': int(time.time()), 'state': 'running', 'agentPid': os.getpid()}
+        job_path = governance.STORE/('background-scan.json' if background else 'job.json')
+        try: governance.write_json(job_path, job)
+        except Exception:
+            self._governance_mutex.release()
+            raise
+        def work():
+            try:
+                governance.write_json(job_path, job)
+                if operation in ('recover', 'retire'):
+                    args = ['python3', governance.CONTROL, 'recover-lifecycle' if operation == 'recover' else 'retire']
+                    if operation == 'retire': args.append(version)
+                    rc, _ = governance.command(args, timeout=240)
+                    if rc: raise RuntimeError('Lifecycle operation failed; review the retained recovery journal and server logs.')
+                if operation in ('retire', 'activate'):
+                    retired = governance.read_json(governance.STORE/'retired.json', {})
+                    if operation == 'retire': retired[version] = {'at': int(time.time()), 'actor': actor}
+                    else: retired.pop(version, None)
+                    governance.write_json(governance.STORE/'retired.json', retired)
+                if operation == 'scan' and not background:
+                    old = governance.read_json(governance.STORE/'snapshot.json', {})
+                    for entry in old.get('versions', {}).values(): entry.update(attempts=0, lastAttempt=0)
+                    old.pop('configurationComparison', None)
+                    if old: governance.write_json(governance.STORE/'snapshot.json', old)
+                if operation == 'export':
+                    governance.write_json(governance.STORE/'export.json', governance.full_export())
+                else:
+                    result = governance.reconcile(automatic=True)
+                    if result.get('error'): raise RuntimeError(result['error'])
+                job['state'] = 'completed'
+            except Exception as error:
+                job.update(state='failed', error=str(error))
+            finally:
+                try:
+                    job['finishedAt'] = int(time.time())
+                    governance.write_json(job_path, job)
+                    record = not background or job['state']=='failed' or any(e.get('action')!='none' for e in locals().get('result',{}).get('versions',{}).values())
+                    if record:
+                        conn = self.get_db()
+                        try:
+                            conn.execute("INSERT INTO audit_log (timestamp, actor, action, target_account, details_json) VALUES (?, ?, 'runtime_governance', 'system', ?)",
+                                         (job['finishedAt'], actor, json.dumps(job)))
+                            conn.commit()
+                        finally: conn.close()
+                finally: self._governance_mutex.release()
+        threading.Thread(target=work, daemon=True).start()
+        return {'success': True, 'queued': True, 'operation': operation, 'jobId': job['id']}
+
+    def governance_tick(self):
+        # Background automation uses the same serialized worker, independent of telemetry sampling.
+        if not self._governance_mutex.acquire(blocking=False): return
+        self._governance_mutex.release()
+        # Internal background value is not accepted from untrusted API parameters.
+        self.action_runtime_governance('system', {'operation': 'scan', '_background': True})
 
     def action_get_php_lifecycle(self) -> Dict[str, Any]:
         installed = self.get_installed_phps()
@@ -2817,7 +2857,39 @@ class IpcRequestHandler:
             cap_bytes = int(cap) if cap.isdigit() else None
         except (OSError, ValueError):
             cap_display, cap_bytes = 'Unavailable', None
+        placement = {'status': 'UNAVAILABLE', 'accounts_checked': 0, 'drift_accounts': [], 'native_guard': 'unavailable'}
+        try:
+            for name, row in self.collector.get_webuzo_users().items():
+                if int(row.get('uid', 0)) <= 0: continue
+                _, metrics = self.collector.read_user_cgroup(int(row['uid']))
+                placement['accounts_checked'] += 1
+                if metrics.get('isolation_drift') or not metrics.get('slice_paths'): placement['drift_accounts'].append(name)
+            guard = pathlib.Path('/etc/systemd/system/cgroup.service.d/90-uniselv-resman.conf')
+            for row in self.action_admin_out_of_boundary().get('out_of_bounds_processes', []):
+                if row['username'] not in placement['drift_accounts']: placement['drift_accounts'].append(row['username'])
+            required = pathlib.Path('/var/lib/golden-shield/installed.json').exists() and not pathlib.Path('/var/lib/golden-shield/disabling.json').exists() and pathlib.Path('/usr/local/webuzo/bin/cgroup.sh').exists()
+            live = subprocess.run(['systemctl', 'show', 'cgroup.service', '-p', 'ActiveState', '-p', 'ExecStart'], capture_output=True, text=True, timeout=3)
+            active = guard.is_file() and 'ActiveState=active' in live.stdout and 'native-cgroup-guard' in live.stdout
+            placement['native_guard'] = ('active' if active else 'missing_or_inactive') if required else 'not_required'
+            placement['status'] = 'DRIFT' if placement['drift_accounts'] or (required and not active) else ('PASS' if placement['accounts_checked'] else 'UNAVAILABLE')
+        except (OSError, ValueError, subprocess.SubprocessError, AttributeError):
+            pass
+        override_recovery = {'status': 'UNAVAILABLE', 'pending': None, 'failed': None}
+        try:
+            conn = self.get_db()
+            try:
+                rows = conn.execute("SELECT status, COUNT(*) AS n FROM temporary_overrides WHERE status IN ('applying','failed_restoration') OR (status = 'active' AND expires_at <= ?) GROUP BY status", (int(time.time()),)).fetchall()
+                counts = {r['status']: int(r['n']) for r in rows}
+                failed = counts.get('failed_restoration', 0)
+                pending = counts.get('applying', 0) + counts.get('active', 0)
+                override_recovery = {'status': 'ATTENTION' if failed else ('PENDING' if pending else 'PASS'), 'pending': pending, 'failed': failed}
+            finally:
+                conn.close()
+        except sqlite3.Error:
+            pass
         return {
+            'override_recovery': override_recovery,
+            'cgroup_integrity': placement,
             'memory_cap_formatted': cap_display,
             'agent_pid': daemon_pid,
             'agent_status': 'active_running',
@@ -3191,11 +3263,20 @@ class IpcRequestHandler:
                 cur.execute("SELECT resource_plan FROM package_mappings WHERE LOWER(billing_package) = LOWER(?)", (billing_plan,))
                 map_row = cur.fetchone()
                 target_plan = map_row['resource_plan'] if map_row else billing_plan
+                if params.get('_expected_native_plan') is not None and target_plan != params['_expected_native_plan']:
+                    return {'error': 'Internal plan restoration mapping mismatch; no limits changed', 'status_code': 409}
             finally:
                 conn.close()
 
             # 5. Validate target user exists
             users = self.collector.get_webuzo_users()
+            # Internal boost transactions must not follow UID reuse or overwrite a newer plan.
+            expected_uid = params.get('_expected_uid')
+            if expected_uid is not None and (target_user not in users or int(users[target_user]['uid']) != int(expected_uid)):
+                return {'error': 'Account identity changed before plan transaction', 'status_code': 409}
+            expected_plans = params.get('_expected_current_plans')
+            if expected_plans is not None and users.get(target_user, {}).get('plan_name') not in expected_plans:
+                return {'error': 'Account plan changed before plan transaction', 'status_code': 409}
             if target_user not in users:
                 return {'error': f"User '{target_user}' does not exist on this Webuzo server", 'status_code': 404}
 

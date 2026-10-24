@@ -1,0 +1,300 @@
+{
+  "version": "1.1.29",
+  "date": "2026-10-24",
+  "status": "current-host-bounded-core-tests-passed-after-fix",
+  "productionCertified": false,
+  "scope": "Current Ubuntu/Webuzo VPS; core resource enforcement, dynamic sharing, finite synthetic workloads and recovery. Website audit/fixes deferred; read-only origin GET latency checked separately.",
+  "sourceCorrection": {
+    "file": "core/webuzo-isolation.py",
+    "sha256": "b3b09a9b8ee3a53271862443225a2949ea83058766815eca1cec29d21c672ada",
+    "before": "Fair-share drain could block dispatch for the full proxy timeout while backend-idle proof was unavailable. Actual sustained run: 16 client timeouts.",
+    "after": "Drain attempt uses five percent of proxy timeout, rounded up to a whole second (minimum one), never beyond that timeout. Deferred attempts retain full charged grant/backend, resume dispatch and preserve cooldown, original client deadlines and no-replay behavior.",
+    "nativeRequestTimeoutSeconds": 120,
+    "proxyTimeoutSeconds": 114,
+    "drainBudgetSeconds": 6,
+    "physicalOrNativeValuesRaised": false
+  },
+  "checks": {
+    "linuxIsolatedTests": 141,
+    "syntax": {
+      "python": 13,
+      "php": 10,
+      "javascript": 64
+    },
+    "generatorHardwareOversellingCases": 8,
+    "configurationChecks": 331,
+    "configurationMismatches": 0,
+    "rebootConfirmed": true,
+    "protectedFilesPreservedAcrossReboot": true,
+    "accountDirectoriesPreservedAcrossReboot": true,
+    "finalAccounts": 25,
+    "allCoreUnitsActive": true,
+    "pendingLifecycleRecovery": false,
+    "accountPlacement": {
+      "status": "PASS",
+      "accounts_checked": 25,
+      "drift_accounts": [],
+      "native_guard": "active"
+    },
+    "boostRecovery": {
+      "status": "PASS",
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failedBefore": {
+    "version": "1.1.28",
+    "requests": 873,
+    "failed": 16,
+    "stages": [
+      {
+        "phase": "sustained-cpu-quota",
+        "durationTargetSeconds": 600,
+        "actors": 16,
+        "competingAccounts": 1,
+        "requests": 873,
+        "failed": 16,
+        "medianSeconds": 2.4834852120002324,
+        "p95Seconds": 10.15516279700023
+      }
+    ],
+    "evidence": "../bottleneck-1.1.28/stability-sustained-failed.json"
+  },
+  "sustainedAfter": {
+    "requests": 2979,
+    "failed": 0,
+    "stages": [
+      {
+        "phase": "sustained-cpu-quota",
+        "durationTargetSeconds": 600,
+        "actors": 16,
+        "competingAccounts": 1,
+        "requests": 2979,
+        "failed": 0,
+        "medianSeconds": 2.3106797420005023,
+        "p95Seconds": 3.970697446002305
+      }
+    ],
+    "meanAccountCpuPercent": 261.893696236873,
+    "peakSampledAccountCpuPercent": 283.61508712151385,
+    "peakAccountMemoryMiB": 1449.60546875,
+    "minimumHostAvailableMiB": 5584.91015625,
+    "maximumReservedMiB": 3100,
+    "hostingOomKillDelta": 0.0,
+    "configurationPreserved": true,
+    "fixturesRemoved": true
+  },
+  "threeAccountSharingAfter": {
+    "requests": 442,
+    "failed": 0,
+    "stages": [
+      {
+        "phase": "three-account-contention",
+        "durationTargetSeconds": 90,
+        "actors": 12,
+        "competingAccounts": 3,
+        "requests": 441,
+        "failed": 0,
+        "medianSeconds": 0.3192996290017618,
+        "p95Seconds": 1.0439803629997186
+      }
+    ],
+    "meanAccountCpuPercent": 62.37664645895097,
+    "peakSampledAccountCpuPercent": 154.57708254730633,
+    "peakAccountMemoryMiB": 1193.9375,
+    "minimumHostAvailableMiB": 5794.48828125,
+    "maximumReservedMiB": 3108,
+    "hostingOomKillDelta": 0.0,
+    "configurationPreserved": true,
+    "fixturesRemoved": true
+  },
+  "controlledBackground": {
+    "backgroundSeconds": 20,
+    "foregroundSeconds": 6.057634396998765,
+    "foregroundCompletedWhileBackgroundStillRunning": true,
+    "peerSeconds": 24.810499145001813,
+    "backgroundFinishedNaturally": true,
+    "fixturesRemoved": true,
+    "passed": true
+  },
+  "liveRebalanceEvents": {
+    "counts": {
+      "started": 2,
+      "runtime_regrant_drain": 18,
+      "runtime_regrant_ready": 17,
+      "runtime_grant_grown": 16,
+      "runtime_regrant_deferred": 1,
+      "idle_lease_yield": 1
+    },
+    "intervals": [
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 0.29381895065307617,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.1462249755859375,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.3089628219604492,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.3775951862335205,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.431861162185669,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_deferred",
+        "seconds": 6.322734832763672,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.0355165004730225,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 2.404557943344116,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.1313364505767822,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.1749062538146973,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.2693696022033691,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.3148272037506104,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 6.276909589767456,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 0.23469758033752441,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 1.1771650314331055,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 0.7529711723327637,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 0.5712649822235107,
+        "budgetSeconds": 6
+      },
+      {
+        "end": "runtime_regrant_ready",
+        "seconds": 0.2378990650177002,
+        "budgetSeconds": 6
+      }
+    ]
+  },
+  "io": {
+    "evidence": "../bottleneck-1.1.28/stability-io.json",
+    "scope": "64-MiB O_DIRECT 4-KiB write/random-read inside unchanged native account boundary. 4-KiB IOPS ceiling plus 1-GiB repeated sequential direct write/read; physical file stays 64 MiB. No whole-disk exhaustion.",
+    "limitsUnchangedByCodeCorrection": true,
+    "passed": true,
+    "configured": {
+      "rbps": 220000000,
+      "wbps": 132000000,
+      "riops": 2647,
+      "wiops": 1764
+    },
+    "measured": {
+      "group": "0::/golden.slice/golden-1020.slice/resman28-io-99183fd951.service",
+      "bytes": 67108864,
+      "block": 4096,
+      "directIO": true,
+      "writeSeconds": 9.305894244997035,
+      "writeAppIops": 1760.6045769119119,
+      "readSeconds": 6.203844985997421,
+      "readAppIops": 2640.9428406061097,
+      "sequentialWriteSeconds": 8.115094236000004,
+      "sequentialBytes": 1073741824,
+      "sequentialWriteBytesPerSecond": 132314153.44959149,
+      "sequentialReadSeconds": 4.8388646640014485,
+      "sequentialReadBytesPerSecond": 221899536.0601965
+    },
+    "fixturesRemoved": true,
+    "limitsPreserved": true
+  },
+  "postRebootOriginBrowsing": {
+    "scope": "Origin anonymous GET, 5-10 second think time, no assets/cart/orders; sample account/native/hosting boundaries and worker/lease/socket/SQL state. Cache bypass verified from headers.",
+    "stages": [
+      {
+        "stage": "10-shoppers",
+        "requests": 59,
+        "failed": 0,
+        "bypass": 59,
+        "cacheHits": 0,
+        "median": 2.9534541339999976,
+        "p95": 9.271180895000015
+      },
+      {
+        "stage": "15-shoppers",
+        "requests": 63,
+        "failed": 0,
+        "bypass": 63,
+        "cacheHits": 0,
+        "median": 8.987158687000033,
+        "p95": 15.943116859999975
+      }
+    ],
+    "requestsIncludingWarmup": 125,
+    "failedIncludingWarmup": 0,
+    "allCacheBypass": true,
+    "higherStageStoppedWhenP95Exceeded15Seconds": true,
+    "cartCheckoutPaymentTested": false
+  },
+  "priorDatedEvidence": {
+    "fullNativeLifecycle": "lifecycle-validation-1.1.27.json",
+    "elasticSecurityAndStartup": "elastic-validation-1.1.28.json",
+    "preCorrectionCrossVersionRecovery": "../bottleneck-1.1.28/stability-extra.json",
+    "scope": "Native PHP83 install/onboard/in-use retirement refusal/remove; global inheritance; native account/plan/boost, hard RAM/tasks/quota, cron/PAM, vhost regeneration/suspension and shared MariaDB/agent recovery are prior dated tests. PHP81/82/84 competition and disposable child/proxy crash/restart passed before the small drain-window correction; current code has fresh Linux regressions, three-account sharing, background-work and whole-host reboot checks."
+  },
+  "retainedFailures": [
+    "First provisioning probe and two cross-version requests ran while asynchronous native PHP rebuild was still stopping/restarting coordinators. Those failed runs remain archived; steady tests were repeated after a 45-second stable-manager/no-jobs barrier.",
+    "A native disposable deletion left empty FTP JSON metadata after passwd/home/native-list removal. Exact empty fixture-only residue was verified before removal. Original 25 account directories were restored.",
+    "Initial post-reboot check observed PHP84 activating and configuration audit unavailable during boot. The settled post-reboot snapshot separately passed all 331 checks.",
+    "The failed 1.1.28 long-load result is retained; it is not relabelled successful."
+  ],
+  "remainingScope": [
+    "Native provisioning, PHP restarts and host reboot can interrupt connections; zero-downtime maintenance is not certified.",
+    "No disposable VPS is available: current-release clean-OS install, full protection uninstall/reinstall and disaster restore are not executed. Owner requested current-host tests only.",
+    "No native vendor PHP patch update was available. Future software layouts/releases and actual physical hardware resize are separate tests.",
+    "Host swap stays off. MemorySwapMax=0 is not an active RAM-plus-swap workload certificate.",
+    "CSF/lfd remains owner-managed. Mail/TLS renewal, Redis tenancy, backup restore, scanners, alert delivery, filesystem jails and per-account SQL CPU/RAM isolation are separate service/architecture scope.",
+    "Optimal native worker-cap alternatives on the real WordPress application were not benchmarked in this pass; global ceiling remains 8 with dynamic account/shared grants. No manual per-user FPM setting was introduced.",
+    "WordPress profiling/fixes, real browser assets, carts, checkout/payment and a maximum shopper certificate remain separate. Finite synthetic success does not establish universal uptime or leak freedom."
+  ]
+}

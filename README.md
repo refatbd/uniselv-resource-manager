@@ -1,4 +1,6 @@
-Current runtime release: **1.1.22**. Dynamic PHP version onboarding/retirement lifecycle, unmanaged physical discovery isolation from plan management, fail-closed validation, and 100% verified regression coverage (28/28 tests passed). See [final audit report](../server-audit-20261022/FINAL-REPORT.md) and [test matrix](../server-audit-20261022/TEST-MATRIX.md).
+Current runtime release: **1.1.30**. Native PHP service bridges are checked and activated during managed-version repair, and runtime governance verifies them before declaring health. Optional Shared Redis uses the common physical profile without per-user allocation. The current-host Webuzo 4.8.6 to 4.8.7 update and reboot passed; see [update evidence](plugin/docs/webuzo-update-4.8.7.md). See [release scope](plugin/docs/release-1.1.30.md), [exact source changes](plugin/docs/source-changes-1.1.30.md), and the dated readiness follow-up. Bounded tests are not universal production, zero-downtime or visitor-count certification.
+
+> Historical release **1.1.22** exercised dynamic PHP version onboarding/retirement and 28 isolated regressions. That dated test count did not establish complete lifecycle or workload coverage.
 
 Previous release: **1.1.21**. Deleted-account native-pool quarantine; physical/default budgets unchanged.
 

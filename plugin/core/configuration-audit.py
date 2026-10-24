@@ -22,10 +22,31 @@ def normalized(value):
 def size(value):
  match=re.fullmatch(r'(\d+)\s*([KMGT]?)',str(value),re.I)
  return int(match[1])*{'':1,'K':1024,'M':1024**2,'G':1024**3,'T':1024**4}[match[2].upper()] if match else value
+def normalize_profile(document):
+ # Accept the native Global Inputs export as well as the historical reviewed wrapper.
+ doc=json.loads(json.dumps(document));c=doc.get('configuration',doc)
+ if not isinstance(c,dict) or not isinstance(c.get('sections'),dict):raise ValueError('Invalid generator configuration export')
+ if c.get('validationErrors'):raise ValueError('Generator export contains validation errors')
+ sections=c['sections'];combined=sections.get('golden',{})
+ if isinstance(combined.get('golden'),dict):
+  if not isinstance(sections.get('isolation',{}).get('policy'),dict):sections['isolation']={'policy':combined['isolation']}
+  sections['golden']={'policy':combined['golden']}
+ hardware=c.get('globalInputs',{}).get('hardware',{})
+ if not hardware.get('phpVersions'):
+  hardware['phpVersions']=c.get('globalInputs',{}).get('workload',{}).get('versions',list(sections.get('phpIni',{}).get('byVersion',{})))
+ return {'configuration':c}
+
+def section_coverage(sections, rows):
+ result=[]
+ for section in sections:
+  checks=[r for r in rows if r['section']==section]
+  result.append({'section':section,'checks':len(checks),'status':('Mismatch' if any(not r['match'] for r in checks) else 'Configured values matched') if checks else 'Not checked by this audit','scope':'Configured-value sample only; lifecycle, application and full deployment evidence are separate.'})
+ return result
+
 def audit(path):
  st=path.stat()
  if path.is_symlink() or st.st_uid!=0 or st.st_mode&0o022:raise RuntimeError('Profile must be a root-owned non-writable file')
- raw=path.read_bytes();doc=json.loads(raw);c=doc['configuration'];h=c['globalInputs']['hardware'];sections=c['sections'];rows=[]
+ raw=path.read_bytes();doc=normalize_profile(json.loads(raw));c=doc['configuration'];h=c['globalInputs']['hardware'];sections=c['sections'];rows=[]
  def compare(section,key,expected,actual,kind=None):
   a,b=(size(expected),size(actual)) if kind=='size' else (normalized(expected),normalized(actual))
   # PHP uses an empty string for disabled bools; numeric configuration zeros remain 0.
@@ -77,7 +98,7 @@ def audit(path):
   for line in file.read_text(errors='replace').splitlines():
    match=re.match(r'^\s*([a-zA-Z_][\w.]*)\s*=',line)
    if match and match[1] in ini_keys:exceptions.append({'path':str(file),'key':match[1]})
- report={'schemaVersion':1,'at':int(time.time()),'profileSha256':hashlib.sha256(raw).hexdigest(),'scope':'Allowlisted saved/configured values, service state and kernel aggregate limits; HTTP and load evidence are separate. Root document .user.ini exceptions are listed; nested/application overrides require HTTP checks. Not a complete virtual-host parser or lifecycle certificate.','checks':len(rows),'mismatches':[row for row in rows if not row['match']],'inheritanceExceptions':exceptions,'rows':rows}
+ report={'schemaVersion':1,'at':int(time.time()),'profileSha256':hashlib.sha256(raw).hexdigest(),'scope':'Allowlisted saved/configured values, service state and kernel aggregate limits; HTTP and load evidence are separate. Root document .user.ini exceptions are listed; nested/application overrides require HTTP checks. Not a complete virtual-host parser or lifecycle certificate.','checks':len(rows),'sectionCoverage':section_coverage(sections,rows),'mismatches':[row for row in rows if not row['match']],'inheritanceExceptions':exceptions,'rows':rows}
  return report
 if __name__=='__main__':
  try:

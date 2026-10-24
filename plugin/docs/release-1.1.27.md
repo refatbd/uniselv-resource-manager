@@ -1,0 +1,28 @@
+# Resource Manager 1.1.27 — lifecycle restoration correction
+
+This release follows the 1.1.26 warm-runtime and cgroup-placement correction. The permanent reviewed physical budgets and existing-version global native PHP-FPM settings are unchanged. Native admission planning now includes the generated warm-retention field; automatic retention recalculates when version overhead changes. Explicit custom retention is preserved.
+
+Temporary boost application, cancellation and expiry now use the existing verified plan transaction. Success requires effective kernel limits and PHP runtime reconciliation. Boost intent is persisted before mutation; interrupted application and failed restoration remain tracked and retryable. An unresolved boost prevents overlapping boosts. Restoration checks the current account UID and current plan, and refuses to overwrite a recreated account or an independently changed plan. Exact native plan names cannot be silently redirected by billing mappings.
+
+Administrator navigation: Webuzo Admin > Plugins > UNISELV Resources > System & Agent Health. The account-placement card adds Temporary boost recovery, Pending and Failed restorations. Audit Log records restoration failures; cancellation does not report success on a failed restore. A PASS result is a current audit, not a full deployment certificate.
+
+The test ledger separates real native events, actual systemd/FPM fixtures, isolated failure tests and unexecuted external-environment scenarios. Website repair/audit is deferred. Checkout, payment, all future vendor releases, clean-provider installation, full protection removal/reinstallation, hardware resizing and backup restoration are not implied by a bounded runtime pass.
+
+Current-host bounded validation is recorded in lifecycle-validation-1.1.27.json; it is not a clean-OS or universal workload certificate. Prefer the complete reviewed package. source-changes-1.1.27.md and .json document exact already-applied source replacements, insertion anchors, contextual examples and save/verification steps. Do not append their code to an already updated installation.
+
+Removal validates every launcher recovery file, managed registry and native service bridge before stopping a service, and requires Golden Shield removal first. Recovery skips redundant enable/disable calls when restored unit links already match the recorded state, avoiding Webuzo SysV synchronization errors. Native `--rebuild-user` is a reset/reconstruction operation that removed disposable content in this test; use native `--rebuild_vhost` when testing non-destructive routing regeneration.
+
+
+The first reboot exposed an Apache ownership defect: the forking unit timed out waiting for its PID file and relied on later monitor retries. The corrected owner runs Apache in the foreground so systemd directly tracks the master. Native environment variables and file-limit setup are retained, reload validates syntax before signalling the tracked master, and native status reads the managed service. The second reboot passed without the first-boot timeout. Native PHP boot reconciliation was briefly pending, then completed with all mechanics and settings matched. Original vendor source and managed restoration receipts are preserved.
+
+Reseller audit responses now scope both account aliases and PHP runtime rows/totals to the reseller's own accounts. Kernel task-limit counters now include descendant-local events; newer kernels expose local counters and must not be double counted. This fixes a real task-refusal fixture where the parent event file remained zero.
+
+Recorded checks include 119 isolated regression tests, four adversarial suites, eight hardware/overselling generator cases, actual native PHP 8.3 install/onboard/HTTP/in-use retirement refusal/removal, account provisioning and Go/Pro transitions, boost cancellation/expiry/restart recovery, suspension and non-destructive vhost regeneration, native cron/PAM startup, process-control authorization, real hard RAM/task/byte/inode refusal, MariaDB recovery, agent crash recovery and final-code reboot. The 64-MiB direct-I/O check is a smoke test, not a fresh throughput-ceiling benchmark. Temporary accounts, cron jobs, files and the disposable PHP version are removed at completion.
+
+The native vendor catalogue offered no PHP patch update during this audit. Isolated vendor replacement/rollback and pending-journal tests passed, but no future vendor release is certified. Do not run `--rebuild-user` on live customer content as a routing smoke test: native reconstruction removed the disposable probe. Use `--rebuild_vhost` when preserving content is required.
+
+The canonical generator is `uniselv.win/webuzo-planner/`. It carries the same isolation implementation and merged Apache ownership helpers with verified embedded hashes. Cache revision r4 prevents stale generator assets. Hardware budgets are unchanged; overselling does not increase physical admission or host safety limits. Current global settings remain shared across versions. The matched profile carries current dated readiness; optional unrelated features retain their own pending evidence.
+
+Journal event sampling is bounded before parsing, avoiding expensive wildcard unit expansion. A journal timeout no longer prevents fresh lifecycle/configuration evidence; unavailable event coverage remains explicit. CSF/lfd is owner-managed and was not changed.
+
+The telemetry storage indicator now uses a warning badge/bar at or above the configured warning size. Percent text may exceed 100 while bar geometry is clamped; the warning size is not a hard storage quota. Unknown values remain unavailable. UI asset key: 1.1.27r3.

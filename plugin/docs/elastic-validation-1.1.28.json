@@ -1,0 +1,136 @@
+{
+  "version": "1.1.28",
+  "date": "2026-10-24",
+  "status": "bounded-elastic-runtime-correction-verified",
+  "productionCertified": false,
+  "scope": "Current Ubuntu/Webuzo installation; native global PHP/hardware budgets unchanged. Website audit/fixes deferred.",
+  "checks": {
+    "isolatedRegressionTests": 140,
+    "syntax": {
+      "python": 13,
+      "php": 10,
+      "javascript": 64
+    },
+    "generatorHardwareOversellingCases": 8,
+    "generatedLiveChecks": 331,
+    "configurationMismatches": 0,
+    "rebootConfirmed": true,
+    "protectedFilesPreservedAcrossReboot": true,
+    "accountCount": 25,
+    "pendingRecovery": false,
+    "placement": "PASS",
+    "boostRecovery": "PASS",
+    "realPrivateBackendTenantConnect": "DENIED",
+    "sameLeaseLiveGrowth": [
+      {
+        "before": 4,
+        "after": 8,
+        "sameLeaseStart": true
+      }
+    ],
+    "maximumSampledReservationMiB": 2994,
+    "unchangedSharedPhpBudgetMiB": 3127,
+    "globalPhpDefaultsUnchanged": true
+  },
+  "before": [
+    {
+      "stage": "5-shoppers",
+      "requests": 18,
+      "failed": 0,
+      "bypass": 18,
+      "cacheHits": 0,
+      "median": 5.318226029000016,
+      "p95": 18.772100771000623
+    }
+  ],
+  "firstCorrected": [
+    {
+      "stage": "5-shoppers",
+      "requests": 24,
+      "failed": 0,
+      "bypass": 24,
+      "cacheHits": 0,
+      "median": 2.0365069524996215,
+      "p95": 2.616323852000278
+    },
+    {
+      "stage": "10-shoppers",
+      "requests": 36,
+      "failed": 0,
+      "bypass": 36,
+      "cacheHits": 0,
+      "median": 4.132924434500637,
+      "p95": 10.83365527299975
+    },
+    {
+      "stage": "20-shoppers",
+      "requests": 55,
+      "failed": 0,
+      "bypass": 55,
+      "cacheHits": 0,
+      "median": 10.378496236000501,
+      "p95": 17.708549733000837
+    }
+  ],
+  "postReboot": {
+    "stages": [
+      {
+        "stage": "5-shoppers",
+        "requests": 24,
+        "failed": 0,
+        "bypass": 24,
+        "cacheHits": 0,
+        "median": 2.2574103954999885,
+        "p95": 2.934925708999998
+      },
+      {
+        "stage": "10-shoppers",
+        "requests": 42,
+        "failed": 0,
+        "bypass": 42,
+        "cacheHits": 0,
+        "median": 2.330506138000004,
+        "p95": 5.882960888000014
+      }
+    ],
+    "maxCpuPercent": 275.9193405232609,
+    "maxPhpWorkers": 8,
+    "minimumAvailableMiB": 5517.84765625,
+    "oomDelta": 0.0,
+    "growth": [
+      {
+        "before": 4,
+        "after": 8,
+        "sameLeaseStart": true
+      }
+    ],
+    "requestsIncludingWarmup": 69,
+    "failedIncludingWarmup": 0
+  },
+  "scopeNotes": [
+    "Origin protocol GET with 5\u201310 second think time; every marked response cache BYPASS, no application cache hits. No carts, orders, payments, WordPress edits or full browser-asset load.",
+    "The corrected first run reached 20 shoppers, with p95 17.709 seconds above the 15-second target despite zero HTTP errors. It is not a 40\u201380-shopper certificate.",
+    "Final post-reboot run tested 5 and 10 shoppers only; 69 requests including warm-up all succeeded. Earlier/later runs are recorded separately, not merged percentiles.",
+    "Initial boot snapshot was taken during native PHP reconciliation; the settled snapshot passed with no pending journal.",
+    "One ConnectionResetError journal event preceded the final test window. It is retained separately and is not a marked test failure; no claim of zero errors for all background traffic.",
+    "Native PHP/vendor install/remove, account provisioning/quota and full protection lifecycle evidence remains dated 1.1.27. No clean-OS/full reset, future vendor, active host swap or universal executor certificate.",
+    "CSF remains owner-managed; no firewall modifications.",
+    "Generator profile readiness metadata was refreshed after reboot evidence capture; generated physical/global values remained identical and 331 checks were repeated."
+  ],
+  "evidenceFiles": [
+    "regressions.json",
+    "syntax-checks.json",
+    "pre-boot.json",
+    "post-boot-early.json",
+    "post-boot.json",
+    "after-first.json",
+    "analysis-first.json",
+    "after-final.json",
+    "analysis-final.json",
+    "elastic-events.json",
+    "private-socket-proof.json",
+    "audit-runtime.png"
+  ],
+  "sourceGuide": "source-changes-1.1.28.md",
+  "canonicalGenerator": "uniselv.win/webuzo-planner/"
+}

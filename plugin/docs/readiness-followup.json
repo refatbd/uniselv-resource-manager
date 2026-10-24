@@ -1,0 +1,296 @@
+{
+  "release": "1.1.30",
+  "date": "2026-10-24",
+  "status": "Current-host core protection and selected Shared Redis lifecycle checks passed",
+  "productionCertified": false,
+  "codeCorrection": {
+    "problem": "Managed-version repair restored coordinator/health master without ensuring the native compatibility bridge was active. Governance could report healthy without checking it.",
+    "beforeEvidence": "Post-reinstall 1.1.29 reboot: PHP84 bridge inactive, direct origin HTTPS 200, mechanical runtime verification false.",
+    "changes": [
+      "Managed onboarding calls the existing hash/layout-checked native bridge installer.",
+      "Governance checks native bridge activity before health, repair decisions and post-operation success.",
+      "Foreign/custom bridge units are not overwritten; existing checked installer refusal is retained."
+    ],
+    "unchanged": [
+      "Physical CPU/RAM safety limits",
+      "Native global PHP-FPM and OPcache defaults",
+      "Per-account resource plans",
+      "PHP admission, proxy and bounded drain algorithms"
+    ]
+  },
+  "tests": {
+    "isolatedRegressions": {
+      "passed": 151,
+      "evidence": "expanded-regressions.json"
+    },
+    "completeProtectionLifecycle": {
+      "passed": true,
+      "releaseTested": "1.1.30",
+      "seconds": 227.04,
+      "scope": "Current-host complete plugin-owned protection uninstall/reinstall with website maintenance; retained plugin history, native global defaults and customer accounts",
+      "policyParity": {
+        "/etc/webuzo-isolation/policy.json": true,
+        "/etc/golden-shield/policy.json": true,
+        "/var/webuzo/conf/php-fpm": true
+      },
+      "sharedRedisLifecyclePassed": true,
+      "note": "Actual 1.1.30 removal restored native Shared Redis settings; reinstall reapplied the retained selected shared policy with native file ownership preserved."
+    },
+    "bridgeRecovery": {
+      "scope": "Actual current PHP84 inactive native bridge recovery through the patched governance path; global settings unchanged",
+      "before": "inactive",
+      "governanceResult": {
+        "action": "onboard_or_repair",
+        "state": "healthy",
+        "installed": true,
+        "managed": true,
+        "fingerprint": "3b0e3e44083afb571f78ee25aaea80ad6e1bd4264e08710a01a2d1088c466db7",
+        "attempts": 1,
+        "lastAttempt": 1792858745,
+        "stable": true,
+        "binarySignature": "cd3499fb253d2098a657c97dff22b6b076bba96170f3c3c044c0d080cb9b28de",
+        "pendingBinaryChange": false,
+        "coordinator": "active",
+        "healthMaster": "active",
+        "nativeBridge": "active",
+        "launcherMatches": true,
+        "reason": "Transactional onboarding/repair and service checks passed."
+      },
+      "after": "active",
+      "passed": true
+    },
+    "finalReleaseReboot": {
+      "rebootConfirmed": true,
+      "policyAndSourceHashesPreserved": true,
+      "accountsPreserved": true
+    },
+    "configurationAudit": {
+      "checks": 331,
+      "mismatches": 0
+    },
+    "placement": {
+      "accounts": 25,
+      "status": "PASS",
+      "httpRoutes": 25,
+      "httpPassed": true,
+      "httpFixturesRemoved": true
+    },
+    "nativeAccountBackup": {
+      "account": "rmb814959",
+      "scope": "Native full account backup and in-place file restore on disposable account; not bare-metal disaster recovery",
+      "tests": [],
+      "backupArchiveReadable": true,
+      "restoredHashMatches": true,
+      "ownerPreserved": true,
+      "archiveBytes": 5000,
+      "passed": true
+    },
+    "separateDatabaseLogicalRestore": {
+      "scope": "Disposable MariaDB logical backup/restore using native dump client; no customer database touched; separate from populated-account Backuply recovery",
+      "passed": true,
+      "rowCount": 1000,
+      "dumpBytes": 75533,
+      "contentSha256": "a882c52bc0c0ebcc21ed801cc3308166d59a588a875f88cb47b95e822c459c05",
+      "fixtureDatabaseRemoved": true
+    },
+    "rollbackPreparation": {
+      "archiveBytes": 269189120,
+      "archiveSha256": "f2a436947247b1815b5b036bdcfa3d890c7a64054db33ca0604f59dfb65bcbe6",
+      "regularFilesVerified": 1108,
+      "members": 1457,
+      "scratchRestorePassed": true,
+      "containsCredentials": "Private root-only recovery archive; never distribute"
+    },
+    "offHostControlArchiveCopy": {
+      "verified": true,
+      "bytes": 265390080,
+      "scope": "Private pre-maintenance 1.1.29 control snapshot, not a complete server image. Never included in distributable archives."
+    },
+    "mail": {
+      "authorizedTestMessages": 1,
+      "smtpAccepted": true,
+      "transport": "TLS 1.3",
+      "gmailResponse": "250 2.0.0 OK",
+      "ownerConfirmedReceipt": true,
+      "scope": "One controlled outbound delivery, not every mailbox quota/provider or automatic alert delivery."
+    },
+    "inAppReport": {
+      "generated": true,
+      "reportId": 6,
+      "listResponseKeys": [
+        "success",
+        "reports"
+      ],
+      "scope": "In-app stored report generation; this action does not send SMTP email",
+      "healthResponseKeys": [
+        "override_recovery",
+        "cgroup_integrity",
+        "memory_cap_formatted",
+        "agent_pid",
+        "agent_status",
+        "agent_rss_bytes",
+        "agent_rss_formatted",
+        "memory_cap_bytes",
+        "memory_health",
+        "db_size_bytes",
+        "wal_size_bytes",
+        "shm_size_bytes",
+        "total_storage_bytes",
+        "storage_formatted",
+        "maintenance_mode"
+      ]
+    },
+    "manualScanner": {
+      "scope": "Bounded manual scanner detection; original daemon enablement retained",
+      "tests": [
+        {
+          "fixture": "scanner-clean.txt",
+          "exit": 0,
+          "detected": false,
+          "seconds": 19.701
+        },
+        {
+          "fixture": "scanner-eicar.txt",
+          "exit": 1,
+          "detected": true,
+          "seconds": 17.821
+        }
+      ],
+      "passed": true,
+      "fixturesRemoved": true
+    },
+    "publicTls": [
+      {
+        "host": "uniselv.com",
+        "verified": true,
+        "protocol": "TLSv1.3",
+        "notAfter": "Dec 11 22:10:01 2026 GMT",
+        "scope": "Public endpoint; CDN certificate may differ from origin"
+      },
+      {
+        "host": "panel-host.example.invalid",
+        "verified": true,
+        "protocol": "TLSv1.3",
+        "notAfter": "Jan 18 04:09:00 2027 GMT",
+        "scope": "Public endpoint; CDN certificate may differ from origin",
+        "redaction": "Original panel hostname omitted from public release evidence."
+      },
+      {
+        "host": "dlone.uniselv.com",
+        "verified": true,
+        "protocol": "TLSv1.3",
+        "notAfter": "Dec 11 22:10:01 2026 GMT",
+        "scope": "Public endpoint; CDN certificate may differ from origin"
+      }
+    ],
+    "sharedRedisPostboot": {
+      "date": "2026-10-24",
+      "ownerSelectedMode": "shared",
+      "units": {
+        "redis": "active",
+        "cron": "active"
+      },
+      "config": {
+        "maxmemory": "134217728",
+        "bind": "127.0.0.1",
+        "maxclients": "128",
+        "protected-mode": "yes",
+        "maxmemory-policy": "allkeys-lru",
+        "port": "6379"
+      },
+      "service": {
+        "ControlGroup": "/golden.slice/redis.service",
+        "MemoryMax": "536870912",
+        "MemorySwapMax": "0"
+      },
+      "configOwner": 986,
+      "originUncachedHttp": "200",
+      "passed": true
+    },
+    "sharedRedisPrivateLimits": {
+      "scope": "Private Redis instance only, same shared dataset/client/RAM model; no live Redis keys read, pressured or evicted",
+      "model": {
+        "hostCpuCount": 4,
+        "measuredRamMiB": 7751,
+        "datasetMiB": 128,
+        "memoryMiB": 512,
+        "maxclients": 128,
+        "cacheOnly": true
+      },
+      "evictedKeys": 670,
+      "usedMemoryBytes": 134155208,
+      "usedRssBytes": 122814464,
+      "writes": 2300,
+      "additionalClientsAdmitted": 127,
+      "connectionLimitRefusals": 4,
+      "serviceLimits": {
+        "ControlGroup": "/golden.slice/golden-1004.slice/resman-redis-fixture-6a43b372.service",
+        "MemoryMax": "536870912",
+        "MemorySwapMax": "0"
+      },
+      "passed": true,
+      "fixtureRemoved": true
+    },
+    "nativePopulatedAccountRestore": {
+      "scope": "Full native Backuply account archive containing known file and populated MariaDB database, restored in-place into the disposable account; not fresh-server disaster restore",
+      "restoreExit": 0,
+      "sqlDumpCount": 1,
+      "databaseRows": 1000,
+      "databaseRestored": true,
+      "fileRestored": true,
+      "fileOwnerPreserved": true,
+      "archiveBytes": 48901,
+      "passed": true
+    },
+    "fixtureCleanup": {
+      "temporaryAccountRemoved": true,
+      "accounts": 25,
+      "retainedFixtureBackupsRootPrivate": true,
+      "noPerUserRedisInstanceEnabled": true
+    }
+  },
+  "currentGaps": [
+    {
+      "item": "Backup schedule and disaster recovery",
+      "status": "No scheduled jobs configured at current inspection",
+      "details": "A disposable native full-account archive restored an intentionally corrupted file and 1,000-row database. Separate MariaDB logical restore also passed. Current scheduled retention, complete disaster restore and off-host recovery are not implied."
+    },
+    {
+      "item": "Automatic mail/scanner/alert integrations",
+      "status": "Manual transport, report storage and scanner fixtures passed only",
+      "details": "The report API stores reports in-app; it does not implement SMTP delivery. ClamAV daemons retained disabled state. The EICAR fixture does not attest a scheduled scan, signature updater, mail routing on detection, or unattended completion."
+    },
+    {
+      "item": "Actual certificate renewal",
+      "status": "Not due; native Renew controls disabled",
+      "details": "Current public certificates passed validation. No forced production reissuance or future-CA success is claimed."
+    },
+    {
+      "item": "External environments",
+      "status": "Separate environment/access required",
+      "details": "No disposable clean VPS is available. Actual provider hardware resize, clean-OS installation, full bare-metal disaster restore and unavailable future vendor releases cannot be proven on this current host."
+    },
+    {
+      "item": "Application workload capacity",
+      "status": "Website audit deferred by owner",
+      "details": "No WordPress fixes, orders, payments or new maximum-shopper claim. Prior bounded sustained/runtime and website-latency evidence remains dated 1.1.29."
+    }
+  ],
+  "ownerManaged": [
+    "CSF/lfd; no changes made"
+  ],
+  "cleanup": {
+    "temporaryAccountRemoved": true,
+    "temporaryDatabaseRemoved": true,
+    "scannerFixturesRemoved": true,
+    "maintenanceRuleRemoved": true,
+    "cronRestored": true,
+    "rollbackTimerDisarmed": true,
+    "privateRecoveryArchivesRetained": true
+  },
+  "ownerSelectedSharedRedis": {
+    "item": "Owner-selected Shared Redis trust scope",
+    "status": "Explicitly accepted shared mode; no per-user migration",
+    "details": "One shared loopback service has common hardware-derived limits and Golden placement. Accounts are not isolated from each other within Shared Redis. Current namespace inspection attributed all keys to rebuildable SuperRocket object cache; PHP sessions use files. Future durable consumers require review."
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "date": "2026-10-24",
+  "plugin_version": "1.1.23",
+  "scope": "Current Ubuntu/Webuzo host and bounded lifecycle failure tests; not universal lifecycle or WordPress-capacity certification.",
+  "passed": [
+    "28 local tests: 15 lifecycle transactions, 7 capacity, 4 startup-wait, 1 managed-registry and 1 plan-sync error propagation.",
+    "8 deleted-pool security regressions against the deployed runtime.",
+    "Actual systemd synthetic PHP fixture: injected startup failure restored native launcher, registration, policy and unit files; successful retry activated coordinator/health; retirement restored the budget from 3095 to 3127 MiB and removed fixture directory.",
+    "Actual vendor-regenerated PHP 8.1/8.2 launcher repair; all four installed PHP coordinators active.",
+    "330 allowlisted configured-value checks: zero mismatches.",
+    "UI: browser console clean; read-only PHP runtime status table; 390-pixel page has no horizontal overflow, table scrolls locally.",
+    "Canonical installer runtime/source/checksum parity and idempotent Golden patch integration; four/five-version generator profiles validated.",
+    "16 native disposable-account stages: create, all four PHP version assignments with actual HTTP/UID/cgroup and inherited settings, controlled restarts, Pro-to-Go transitions, unchanged global FPM defaults and complete account/probe/manifest cleanup.",
+    "Resource Manager 1.1.23 host reboot: agent/four coordinators recovered automatically; quota and account CPU/RAM/tasks/IO/swap boundaries persisted; 25 accounts retained; main HTTP and authenticated uncached database integrity passed; 330 comparisons passed again.",
+    "Six JavaScript Bulk Sync response cases passed: success, legacy success, runtime failure, partial account failure, missing response and unverifiable response. Complete generated Golden Shield shell passed Bash syntax validation."
+  ],
+  "fixes": [
+    "Retirement parser failures fail closed before mutation.",
+    "Durable serialized lifecycle journal with failure/next-operation recovery.",
+    "Vendor launcher restoration baseline rebased, historical snapshots retained; no forced SIGKILL.",
+    "Additional PHP-version reserve reduces and returns shared PHP capacity within the reviewed baseline.",
+    "Managed registry no physical fallback; plan sync reports runtime reload errors.",
+    "Installer bundle no longer ships older isolation/Golden patch integration; explicit reviewed PHP target validation.",
+    "PHP ZipArchive packager with source closure, forward-slash paths, UNIX directory 0755/file 0644 and asset version checks."
+  ],
+  "observations": [
+    "One account has 11 root .user.ini entries; application configuration was not changed.",
+    "CSF/lfd excluded and not modified."
+  ],
+  "remaining_gates": [
+    "No clean-OS/fresh-provider deployment, full protection uninstall/reinstall or every Webuzo account/domain/vendor-update combination certified.",
+    "Synthetic PHP layout exercises real systemd/FPM but is not a real Webuzo software package installation.",
+    "No new WordPress/cart/payment stress test; 40\u201350 uncached shoppers not certified.",
+    "Host swap remains disabled; no new RAM-plus-swap boundary test."
+  ],
+  "runtime_sha256": "f664674c18627621f4b0b70c5dfcb1ba8cde7d71fc976d36e0ed726fa485ab88"
+}

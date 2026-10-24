@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "version": "1.1.26",
+  "date": "2026-10-24",
+  "status": "bounded-tests-passed",
+  "productionCertified": false,
+  "coreSha256": "a4c381539432a1b5e5d0b42c2e87b2dc206f428222dde18bff11536237be8170",
+  "regressionCases": 92,
+  "generatorHardwareOversellingCases": 8,
+  "configurationChecks": 331,
+  "configurationMismatches": 0,
+  "accountIntegrity": {
+    "status": "PASS",
+    "accounts_checked": 25,
+    "drift_accounts": [],
+    "native_guard": "active"
+  },
+  "planAuditMismatches": 0,
+  "outsideCustomerProcesses": 0,
+  "nativeMoverVendorSourcePreserved": true,
+  "warmIdleSeconds": 600,
+  "liveBoundedTests": {
+    "phpInsideAtFirstAndAfterSevenSeconds": true,
+    "opcacheSurvivesOldIdleCutoff": true,
+    "legacyNativeCliAdoptedIntoChildScope": true,
+    "accountCpuQuota": {
+      "requests": 8,
+      "configuredPercent": 280,
+      "observedPercent": 276.56,
+      "throttledPeriods": 54
+    },
+    "hostingAggregateQuota": {
+      "actors": 4,
+      "accounts": 2,
+      "configuredPercent": 340,
+      "observedPercent": 325.63,
+      "throttledPeriods": 37
+    },
+    "peerPhpRequestSucceeded": true,
+    "privateFixturesRemoved": true
+  },
+  "websiteSmoke": [
+    {
+      "path": "/free-fire-diamond-bd/",
+      "cacheMode": "normal",
+      "status": 200,
+      "seconds": 0.067691,
+      "cf": "HIT",
+      "applicationCache": "STORE",
+      "html": true,
+      "capacityBusy": false,
+      "criticalError": false
+    },
+    {
+      "path": "/free-fire-diamond-bd/",
+      "cacheMode": "uncached",
+      "status": 200,
+      "seconds": 3.705634,
+      "cf": "DYNAMIC",
+      "applicationCache": "BYPASS",
+      "html": true,
+      "capacityBusy": false,
+      "criticalError": false
+    },
+    {
+      "path": "/product-category/gift-card/",
+      "cacheMode": "uncached",
+      "status": 200,
+      "seconds": 1.696493,
+      "cf": "DYNAMIC",
+      "applicationCache": "BYPASS",
+      "html": true,
+      "capacityBusy": false,
+      "criticalError": false
+    }
+  ],
+  "postMaintenanceIdleHttp": [
+    {
+      "label": "first-after-maintenance",
+      "status": 200,
+      "seconds": 3.916162,
+      "cf": "DYNAMIC",
+      "applicationCache": "BYPASS",
+      "genuineHtml": true,
+      "capacityBusy": false
+    },
+    {
+      "label": "after-30s-idle",
+      "status": 200,
+      "seconds": 3.477466,
+      "cf": "DYNAMIC",
+      "applicationCache": "BYPASS",
+      "genuineHtml": true,
+      "capacityBusy": false
+    }
+  ],
+  "readinessLimits": [
+    "Selective current-host bounded tests, not every OS/vendor combination.",
+    "No new full clean-OS install, full protection uninstall/reinstall or reboot certificate for this release.",
+    "The latest Grafana visitor-capacity run predates these fixes; no new 40/50-user capacity claim.",
+    "WordPress/theme/plugin rendering and background Meta queue issues remain outside these server changes.",
+    "Configuration audit has per-section coverage; untested sections remain explicitly unverified."
+  ]
+}

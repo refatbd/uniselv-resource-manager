@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-20",
+  "pluginVersion": "1.1.18",
+  "status": "Bounded measured-profile verification passed; full deployment gates remain",
+  "scope": "Dated checks on one existing Ubuntu/Webuzo server; not sustained visitor, payment, disaster recovery, fresh-install or reboot certification for this changed profile.",
+  "hardware": {
+    "vCPU": 4,
+    "advertisedRamGiB": 8,
+    "measuredRamMiB": 7751,
+    "hostingCpuPercent": 340,
+    "hostingMemoryMiB": 6471,
+    "hostReserveMiB": 1280,
+    "phpBudgetMiB": 3127,
+    "installedPhpVersions": [
+      "php74",
+      "php81",
+      "php82",
+      "php84"
+    ]
+  },
+  "configurationAudit": {
+    "checks": 326,
+    "mismatches": 0,
+    "rootUserIniExceptions": 0
+  },
+  "firstProductTest": {
+    "configuration": "256-MiB cache before removal of existing site overrides",
+    "stages": [
+      {
+        "concurrency": 16,
+        "success": 16,
+        "seconds": 25.106
+      },
+      {
+        "concurrency": 32,
+        "success": 32,
+        "seconds": 35.925
+      }
+    ],
+    "oomKills": 0,
+    "databaseErrors": 0,
+    "http503": 0,
+    "peakAccountMiB": 1173.7,
+    "minimumAvailableMiB": 5569
+  },
+  "postInheritancePublicRetest": {
+    "requests": 16,
+    "curlConnectTimeouts": 1,
+    "partialResponseTimeouts": 1,
+    "http503": 0,
+    "databaseErrors": 0,
+    "oomKills": 0,
+    "status": "Retained earlier failure: the VPS-to-edge run had one connection timeout and one partial-response timeout. Separate final operator-network compressed 16/32 bursts and direct-origin 16/32/64 bursts passed. This does not establish a universal edge latency guarantee."
+  },
+  "runtime": {
+    "phpMemory": "256M",
+    "opcacheMiB": 256,
+    "internedStringsMiB": 16,
+    "warmCachedScripts": 4910,
+    "warmCacheUsedMiB": 164.12730407714844,
+    "cacheFull": false,
+    "sessionVersion": "php84",
+    "siteOverridesCommented": 11
+  },
+  "mixedAccountProbe": {
+    "scope": "Token-protected native FastCGI probes across three existing accounts, not mixed CMS throughput",
+    "passed": true,
+    "responses": [
+      {
+        "plan": "Enterprise",
+        "seconds": 22.735
+      },
+      {
+        "plan": "Turbo",
+        "seconds": 44.281
+      },
+      {
+        "plan": "Pro",
+        "seconds": 0.75
+      }
+    ],
+    "allTemporaryFilesRemoved": true,
+    "quiescentEarlierIdleLeaseCount": 0,
+    "laterProbeObservedLiveLeases": 2
+  },
+  "sharingLimit": "Cold-start conservative grants persist until idle. Continuously busy pools are not hot-resized; another account may queue. No guaranteed per-tenant minimum is claimed.",
+  "sections": {
+    "resourcePlans": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "phpFpm": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "apache": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "phpIni": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "mysql": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "swap": {
+      "status": "Disabled; unchanged",
+      "scope": "No new native RAM-plus-swap boundary test; do not enable from this audit."
+    },
+    "isolation": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "malware": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "golden": {
+      "status": "Applied to measured host; saved/runtime scope checked",
+      "scope": "Configuration parity and bounded checks; changed-profile full lifecycle remains open."
+    },
+    "packages": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "extensions": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "backuply": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "redis": {
+      "status": "Existing native service retained; custom per-account integration remains excluded",
+      "scope": "The planner reserve is a model, not a new enforced per-account Redis boundary."
+    },
+    "functions": {
+      "status": "Existing empty list and unchecked lock explicitly preserved",
+      "scope": "Generic hardening list was not rolled out; application compatibility remains a separate review."
+    },
+    "waf": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "email": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "tls": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "cron": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "filesystem": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "monitoring": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "logs": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "maintenance": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "provisioning": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    },
+    "recovery": {
+      "status": "Existing setting retained; no new deployment or lifecycle certification",
+      "scope": "Use the individual section readiness and historical evidence."
+    }
+  },
+  "highlights": [
+    "326 saved/global configuration checks, 30 effective HTTP INI values and all 25 native account limits matched. Four PHP coordinators and their private health masters were active.",
+    "Final direct-origin bursts: 16/16 in 21.647s, 32/32 in 29.655s and 64/64 in 59.424s. No HTTP 503, curl failure, database/critical error or OOM kill.",
+    "Final operator-network requests through Cloudflare: 16/16 in 28.377s and 32/32 in 53.628s. All responses were DYNAMIC, not HTML cache hits.",
+    "A warm product request cached 4910 scripts and used about 164 MiB of the 256-MiB OPcache region.",
+    "Three native account probes passed with waits up to about 44s. Grants release when idle; busy pools are not hot-resized. An earlier quiescent check found zero leases.",
+    "The earlier short-deadline/public timeout run is retained in the evidence. Passing bounded retests does not promise zero network timeouts or sustained visitor capacity."
+  ],
+  "finalGate": {
+    "passed": true,
+    "configurationChecks": 326,
+    "configurationMismatches": 0,
+    "httpIniChecks": 30,
+    "httpIniMismatches": 0,
+    "nativeAccounts": 25,
+    "nativeLimitMismatches": 0,
+    "sourceFilesVerified": 14,
+    "mechanicalChecksPass": true,
+    "goldenChecksPass": true,
+    "allTemporaryPhpProbesRemoved": true
+  },
+  "finalOriginProductTest": {
+    "route": "Direct origin HTTPS with a valid publicly trusted certificate; normal 280% account CPU and 340% aggregate CPU; no native/CPU/SQL overrides during the test",
+    "clientDeadlines": {
+      "connectSeconds": 90,
+      "totalSeconds": 100
+    },
+    "stages": [
+      {
+        "concurrency": 16,
+        "success": 16,
+        "seconds": 21.647,
+        "peakAccountMiB": 1760.9,
+        "minimumAvailableMiB": 5685
+      },
+      {
+        "concurrency": 32,
+        "success": 32,
+        "seconds": 29.655,
+        "peakAccountMiB": 1749.4,
+        "minimumAvailableMiB": 5623
+      },
+      {
+        "concurrency": 64,
+        "success": 64,
+        "seconds": 59.424,
+        "peakAccountMiB": 1785.5,
+        "minimumAvailableMiB": 5508
+      }
+    ],
+    "http503": 0,
+    "curlFailures": 0,
+    "databaseErrors": 0,
+    "criticalErrors": 0,
+    "oomKills": 0,
+    "nativeConfigHashUnchanged": true,
+    "longestObservedTlsHandshakeSeconds": 42.123491
+  },
+  "operatorPublicProductTest": [
+    {
+      "route": "Operator network through Cloudflare; compressed anonymous GETs",
+      "requests": 16,
+      "success": 16,
+      "seconds": 28.377,
+      "curlFailures": 0,
+      "cacheStatuses": [
+        "DYNAMIC"
+      ]
+    },
+    {
+      "route": "Operator network through Cloudflare; compressed anonymous GETs",
+      "requests": 32,
+      "success": 32,
+      "seconds": 53.628,
+      "curlFailures": 0,
+      "cacheStatuses": [
+        "DYNAMIC"
+      ]
+    }
+  ],
+  "testHarnessCorrection": "The initial 8-second connection deadline was shorter than the measured origin TLS queue (up to 42.1 seconds at 64 concurrent connections). Only the test client deadline changed for the final origin run; server settings were unchanged. Partial HTTP 200 responses now fail the test when curl exits nonzero.",
+  "localTests": {
+    "plannerSuites": 25,
+    "pluginUnitTests": 14,
+    "browserProfileImport": "Passed with the actual measured JSON file; generated 6471-MiB hosting ceiling, 3127-MiB PHP budget, 2649-MiB full pool estimate and all four target versions."
+  },
+  "privateEvidenceDirectory": "/root/resman-matched-20261020"
+}

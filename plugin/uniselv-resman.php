@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.22
+Version: 1.1.30
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -355,7 +355,7 @@ function uniselv_resman_admin() {
             'save_report_schedule', 'branding_save', 'mark_notification',
             'save_package_mapping', 'delete_package_mapping', 'webhook',
             'save_account_permission', 'save_role_permission',
-            'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php'
+            'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php', 'run_governance'
         ];
         
         if (in_array($subact, $mutation_actions)) {
@@ -419,7 +419,10 @@ function uniselv_resman_admin() {
             'snapshot_detail' => 'get_snapshot_detail',
             'onboard_php' => 'onboard_php_version',
             'retire_php' => 'retire_php_version',
-            'php_lifecycle' => 'get_php_lifecycle'
+            'php_lifecycle' => 'get_php_lifecycle',
+            'runtime_governance' => 'get_runtime_governance',
+            'run_governance' => 'run_runtime_governance',
+            'export_governance' => 'export_runtime_governance'
         ];
 
         if (isset($action_map[$subact])) {
@@ -467,13 +470,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.22r4' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.30r1' . '">';
     echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.22r4' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.30r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -595,20 +598,20 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-admin-hw" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="190" transform="rotate(-90 100 100)" />
-                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-hw" style="transform: rotate(216deg);">
+                    <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-admin-hw" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-hw" style="opacity:0; transform: rotate(0deg);">
                         <circle cx="100" cy="24" r="5" fill="#3b82f6"/>
                     </g>
                 </svg>
                 <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-admin-hw" style="height: 52%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-hw" style="height: 0%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
                     <div class="uniselv-gauge-center">
                         <span class="uniselv-metric-big" id="admin-card-hw-cpu">' . $cpu_cores . ' vCPUs</span>
-                        <span class="uniselv-metric-core">Physical Cores</span>
+                        <span class="uniselv-metric-core">Virtual CPUs · inventory</span>
                     </div>
                 </div>
             </div>
@@ -648,14 +651,14 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-mem" id="uniselv-arc-admin-cpu" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="120" transform="rotate(-90 100 100)" />
-                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-cpu" style="transform: rotate(270deg);">
+                    <circle class="uniselv-gauge-arc arc-mem" id="uniselv-arc-admin-cpu" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-cpu" style="opacity:0; transform: rotate(0deg);">
                         <circle cx="100" cy="24" r="5" fill="#8b5cf6"/>
                     </g>
                 </svg>
                 <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-admin-cpu" style="height: 60%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-cpu" style="height: 0%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
@@ -701,14 +704,14 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-io" id="uniselv-arc-admin-ram" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="260" transform="rotate(-90 100 100)" />
-                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-ram" style="transform: rotate(160deg);">
+                    <circle class="uniselv-gauge-arc arc-io" id="uniselv-arc-admin-ram" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-ram" style="opacity:0; transform: rotate(0deg);">
                         <circle cx="100" cy="24" r="5" fill="#10b981"/>
                     </g>
                 </svg>
                 <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-admin-ram" style="height: 45%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-ram" style="height: 0%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
@@ -758,14 +761,14 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-tasks" id="uniselv-arc-admin-load" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="360" transform="rotate(-90 100 100)" />
-                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-load" style="transform: rotate(88deg);">
+                    <circle class="uniselv-gauge-arc arc-tasks" id="uniselv-arc-admin-load" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 100 100)" />
+                    <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-load" style="opacity:0; transform: rotate(0deg);">
                         <circle cx="100" cy="24" r="5" fill="#f59e0b"/>
                     </g>
                 </svg>
                 <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-admin-load" style="height: 32%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-admin-load" style="height: 0%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
@@ -1205,10 +1208,10 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </table>
             </div>
         </div>';
-    echo '<div class="uniselv-card mb-3"><h3>Automatic PHP Runtime Capacity</h3><p>Native global defaults remain inherited. Private runtime caps follow account RAM/Tasks boundaries and available shared PHP capacity. Idle accounts reserve zero; busy pools retain their grant until idle. This is a planning estimate, not a visitor guarantee.</p><div style="overflow-x:auto"><table class="uniselv-table"><thead><tr><th>Account</th><th>PHP</th><th>Native ceiling</th><th>Managed cap</th><th>Reserved MiB</th><th>Lease state</th><th>Source</th></tr></thead><tbody>';
+    echo '<div class="uniselv-card mb-3"><h3>Automatic PHP Runtime Capacity</h3><p>Native global defaults remain inherited. Private runtime caps follow account RAM/Tasks boundaries and available shared PHP capacity. Unleased accounts reserve zero; warm pools retain a reclaimable reservation. Concurrent grants grow with queued demand; reductions drain forwarded work before restarting the backend. This is a planning estimate, not a visitor guarantee.</p><div style="overflow-x:auto"><table class="uniselv-table"><thead><tr><th>Account</th><th>PHP</th><th>Native ceiling</th><th>Private FPM ceiling</th><th>Concurrent grant</th><th>Enforcement</th><th>Reserved MiB</th><th>Lease state</th><th>Source</th></tr></thead><tbody>';
     foreach (($audit['php_runtime'] ?? []) as $runtime) {
         echo '<tr>';
-        foreach (['user','version','native_max_children','managed_max_children','reserved_mib','state','source'] as $field) {
+        foreach (['user','version','native_max_children','managed_max_children','concurrency_grant','enforcement','reserved_mib','state','source'] as $field) {
             echo '<td>' . htmlspecialchars((string)($runtime[$field] ?? 'Unknown'), ENT_QUOTES, 'UTF-8') . '</td>';
         }
         echo '</tr>';
@@ -1754,6 +1757,27 @@ Do not use the customer port (2003). An unattended external provider route has n
 
     // TAB 5: HEALTH, FEATURE GOVERNANCE & RETENTION SETTINGS
     echo '<div id="tab-health" class="uniselv-tab-content">
+        <div class="uniselv-card mb-4">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+                <h5>PHP Runtime Registration</h5>
+                <button class="uniselv-btn btn-outline" onclick="UniselvResMan.loadPhpLifecycle()">Refresh PHP Status</button>
+            </div>
+            <p>Global PHP settings are inherited. Installed versions must also be registered with the managed runtime. Stopped services need review before assigning a site.</p>
+            <div id="uniselv-php-lifecycle" class="uniselv-table-wrap" role="status" aria-live="polite">Open this section to load PHP status.</div>
+        </div>
+        <div class="uniselv-card mb-4" id="uniselv-governance-card">
+            <h5>Runtime Governance &amp; Configuration Evidence</h5>
+            <p>PHP installations and vendor changes are checked every minute. Automatic onboarding/repair requires a stable installation, matching reviewed global settings and successful lifecycle preflight. No account-specific PHP settings are created.</p>
+            <div class="uniselv-governance-actions">
+                <button class="uniselv-btn btn-outline" id="governance-refresh">Refresh Evidence</button>
+                <button class="uniselv-btn btn-primary" id="governance-scan">Reconcile PHP Changes</button>
+                <button class="uniselv-btn btn-outline" id="governance-recover">Recover Pending Operation</button>
+                <button class="uniselv-btn btn-outline" id="governance-export">Prepare &amp; Download Comparison</button>
+            </div>
+            <p id="governance-job" role="status" aria-live="polite"></p>
+            <div id="uniselv-runtime-governance">Open this section to load evidence.</div>
+            <p class="uniselv-governance-note">Before uninstalling PHP, move its sites to another registered version, then use Retire Runtime below. Missing installation files block automatic retirement. Exports contain account paths; share only with your administrator.</p>
+        </div>
         <!-- Card 1: Feature Controls & Self-Service Governance -->
         <div class="uniselv-card mb-4">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
@@ -1941,7 +1965,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                         <span id="storage-used-pct" class="uniselv-badge badge-normal">0%</span>
                     </div>
                     <div class="uniselv-storage-bar-bg">
-                        <div id="storage-bar-fill" class="uniselv-storage-bar-fill" style="width: 1%;"></div>
+                        <div id="storage-bar-fill" class="uniselv-storage-bar-fill" style="width: 0%;"></div>
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; font-size: 0.82rem; color: #475569;">
                         <div><strong>Samples:</strong> <span id="storage-samples-count">--</span></div>
@@ -2009,6 +2033,15 @@ Do not use the customer port (2003). An unattended external provider route has n
                         <label style="font-size: 0.85rem; color:#64748b;">Systemd Memory Constraint</label>
                         <div style="font-weight: 700; font-size: 1.1rem; color: var(--uniselv-success);">' . (isset($health['memory_cap_formatted']) ? htmlspecialchars($health['memory_cap_formatted']) : 'Unavailable') . '</div>
                     </div>
+                </div>
+
+                <div style="margin-top:16px;padding:14px;border:1px solid #cbd5e1;border-radius:10px;">
+                    <strong>Account cgroup placement: ' . htmlspecialchars($health['cgroup_integrity']['status'] ?? 'UNAVAILABLE') . '</strong>
+                    <div>Accounts checked: ' . intval($health['cgroup_integrity']['accounts_checked'] ?? 0) . ' · Native coexistence guard: ' . htmlspecialchars($health['cgroup_integrity']['native_guard'] ?? 'unavailable') . '</div>
+                    <small>Page-load audit. Usage combines disjoint native and managed account groups. A DRIFT result requires investigation; it is not a healthy isolation certificate.</small>
+                    <div>' . htmlspecialchars(implode(', ', $health['cgroup_integrity']['drift_accounts'] ?? [])) . '</div>
+                    <div style="margin-top:8px;"><strong>Temporary boost recovery: ' . htmlspecialchars($health['override_recovery']['status'] ?? 'UNAVAILABLE') . '</strong> · Pending: ' . htmlspecialchars(strval($health['override_recovery']['pending'] ?? 'Unavailable')) . ' · Failed restorations: ' . htmlspecialchars(strval($health['override_recovery']['failed'] ?? 'Unavailable')) . '</div>
+                    <small>Failed restorations remain visible and retryable; inspect Audit Log before changing a conflicting account plan.</small>
                 </div>
 
                 <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 20px;">
@@ -2183,13 +2216,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.22r4' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.30r1' . '">';
     echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.22r4' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.30r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2290,7 +2323,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-cpu" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-cpu" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' . (100 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '" transform="rotate(-90 100 100)" />
                     <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-cpu" style="transform: rotate(' . (min(100, max(0, $cpu_allowance)) * 3.6) . 'deg);">
                         <circle cx="100" cy="24" r="5" fill="#3b82f6" filter="url(#glow-cpu)"/>
                     </g>
@@ -2299,7 +2332,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-cpu" style="height: ' . ($cpu_allowance <= 0 ? 0 : max(6, min(100, $cpu_allowance))) . '%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-cpu" style="height: ' . max(0, min(100, $cpu_allowance)) . '%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
@@ -2356,7 +2389,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-mem" id="uniselv-arc-mem" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $mem_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <circle class="uniselv-gauge-arc arc-mem" id="uniselv-arc-mem" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' . (100 * (1 - min(100, max(0, $mem_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
                     <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-mem" style="transform: rotate(' . (min(100, max(0, $mem_pct)) * 3.6) . 'deg);">
                         <circle cx="100" cy="24" r="5" fill="#8b5cf6" filter="url(#glow-mem)"/>
                     </g>
@@ -2365,7 +2398,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-mem" style="height: ' . ($mem_pct <= 0 ? 0 : max(6, min(100, $mem_pct))) . '%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-mem" style="height: ' . max(0, min(100, $mem_pct)) . '%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
@@ -2421,7 +2454,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-io" id="uniselv-arc-io" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $io_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <circle class="uniselv-gauge-arc arc-io" id="uniselv-arc-io" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' . (100 * (1 - min(100, max(0, $io_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
                     <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-io" style="transform: rotate(' . (min(100, max(0, $io_pct)) * 3.6) . 'deg);">
                         <circle cx="100" cy="24" r="5" fill="#10b981" filter="url(#glow-io)"/>
                     </g>
@@ -2430,7 +2463,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-io" style="height: ' . ($io_pct <= 0 ? 0 : max(6, min(100, $io_pct))) . '%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-io" style="height: ' . max(0, min(100, $io_pct)) . '%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>
@@ -2486,7 +2519,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
-                    <circle class="uniselv-gauge-arc arc-tasks" id="uniselv-arc-tasks" fill="none" cx="100" cy="100" r="76" stroke-dasharray="477.5" stroke-dashoffset="' . (477.5 * (1 - min(100, max(0, $task_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
+                    <circle class="uniselv-gauge-arc arc-tasks" id="uniselv-arc-tasks" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' . (100 * (1 - min(100, max(0, $task_pct)) / 100)) . '" transform="rotate(-90 100 100)" />
                     <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-tasks" style="transform: rotate(' . (min(100, max(0, $task_pct)) * 3.6) . 'deg);">
                         <circle cx="100" cy="24" r="5" fill="#f59e0b" filter="url(#glow-tasks)"/>
                     </g>
@@ -2495,7 +2528,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span><span class="particle p-4"></span><span class="particle p-5"></span>
                 </div>
                 <div class="uniselv-liquid-circle">
-                    <div class="uniselv-wave-container" id="uniselv-wave-tasks" style="height: ' . (18 + min(100, max(0, $task_pct)) * 0.65) . '%;">
+                    <div class="uniselv-wave-container" id="uniselv-wave-tasks" style="height: ' . min(100, max(0, $task_pct)) . '%;">
                         <div class="uniselv-wave wave-back"></div>
                         <div class="uniselv-wave wave-front"></div>
                     </div>

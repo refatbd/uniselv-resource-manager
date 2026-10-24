@@ -1,0 +1,83 @@
+{
+  "startedDate": "2026-10-24",
+  "completedDate": "2026-10-25",
+  "resmanVersion": "1.1.30",
+  "webuzoUpgrade": {
+    "from": "4.8.6",
+    "to": "4.8.7",
+    "nativePanelAndLogVerified": true
+  },
+  "passed": true,
+  "scope": "Actual current-host native Webuzo update, Resman compatibility and bounded recovery tests. Not certification of every future vendor release.",
+  "sourceOrPolicyFixRequired": false,
+  "configurationChecks": 331,
+  "configurationMismatches": 0,
+  "isolatedRegressions": 151,
+  "nativeProvisioning": {
+    "versions": [
+      "7.4",
+      "8.1",
+      "8.2",
+      "8.4"
+    ],
+    "allStagesPassed": true,
+    "globalFpmDefaultsPreserved": true,
+    "temporaryAccountAndProbesRemoved": true,
+    "maintenanceMayInterruptRequests": true
+  },
+  "httpPlacement": {
+    "accounts": 25,
+    "allPassed": true,
+    "temporaryFilesRemoved": true
+  },
+  "boundedCpuSmoke": {
+    "quotaPercent": 280.0,
+    "workerCpuPercent": 182.6759168617129,
+    "throttleEvents": 0,
+    "insideAtFirstInstruction": true,
+    "note": "Four requests, up to five seconds each. A two-worker pool cannot prove a 200% quota alone; cross-version four-worker proof is separate.",
+    "scope": "Below-ceiling placement/load observation only. No throttle events were observed; this run did not establish the 280 percent saturation ceiling or a shopper count."
+  },
+  "updateComparison": {
+    "sourceAndPolicyHashesPreserved": true,
+    "accountsPreserved": true
+  },
+  "rebootComparison": {
+    "rebootConfirmed": true,
+    "policyAndSourceHashesPreserved": true,
+    "accountsPreserved": true
+  },
+  "sharedRedis": {
+    "config": {
+      "maxmemory": "134217728",
+      "port": "6379",
+      "maxmemory-policy": "allkeys-lru",
+      "maxclients": "128",
+      "bind": "127.0.0.1",
+      "protected-mode": "yes"
+    },
+    "service": {
+      "ControlGroup": "/golden.slice/redis.service",
+      "MemoryMax": "536870912",
+      "MemorySwapMax": "0",
+      "ActiveState": "active"
+    },
+    "configOwner": 986,
+    "originUncachedHttp": "200",
+    "passed": true
+  },
+  "manualRepairAfterUpdateOrBoot": false,
+  "automaticGovernanceComparison": {
+    "success": true,
+    "checks": 331,
+    "mismatches": 0,
+    "startupTransient": "Initial comparison was unavailable while services started; the existing five-minute comparison retry refreshed it successfully. No manual scan or repair was used."
+  },
+  "unchangedScope": [
+    "No WordPress code or customer database edits",
+    "No CSF configuration edits",
+    "Shared Redis retained; no per-user migration",
+    "Native global FPM inheritance retained"
+  ],
+  "privateRecoveryArchiveExcluded": true
+}

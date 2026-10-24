@@ -1,0 +1,80 @@
+{
+  "release": "1.1.24",
+  "date": "2026-10-24",
+  "readiness": {
+    "certified": false,
+    "status": "Validated for the recorded checks; broader lifecycle and capacity certification remains incomplete",
+    "unverified": [
+      "Clean operating-system deployment",
+      "Real Webuzo package-manager install/update/uninstall combinations",
+      "Full protection uninstall/reinstall",
+      "Every account/domain/UID-reuse transition",
+      "Alternative-root and application-level INI override coverage",
+      "Host swap boundary tests (swap remains disabled)",
+      "WordPress shopping/payment workload capacity",
+      "New 1.1.24 host reboot (1.1.23 evidence remains historical)"
+    ]
+  },
+  "regressions": {
+    "localCases": 43,
+    "linuxGovernanceAndIpcCases": 36,
+    "deployedPoolParserCases": 8,
+    "total": 87,
+    "failures": 0
+  },
+  "frontend": {
+    "bulkSyncResponseCases": 6,
+    "notificationEscaping": "passed",
+    "liveRefreshReconcileExportAndRecovery": "passed",
+    "mobileViewportWidth": 390,
+    "observedDocumentWidth": 375,
+    "tableOverflow": "contained within table wrappers",
+    "consoleErrors": 0
+  },
+  "configuredValues": {
+    "checks": 330,
+    "mismatches": 0,
+    "scope": "Current release configured-value, service, IPC authorization and HTTP smoke checks; no new reboot/full vendor package installation/workload capacity certification.",
+    "sectionCoverage": "Every generator section is listed; only sections with explicit configured-value checks can report matched. Unchecked sections remain Not checked by this audit."
+  },
+  "actualSystemdFixtures": {
+    "startupFailureRollback": true,
+    "onboardAndRetire": true,
+    "governance": {
+      "scope": "Synthetic unused PHP layout with actual systemd/FPM and governance reconciler; not a vendor software installation or customer load test",
+      "explicit_interrupted_recovery": true,
+      "unstable_install_waits": true,
+      "automatic_real_onboard": true,
+      "added_version_budget": 3095,
+      "automatic_vendor_repair": true,
+      "drift_blocks_automatic_mutation": true,
+      "intentional_retirement_persists": true,
+      "budget_restored": true,
+      "fixture_removed": true,
+      "native_registry_restored": true
+    }
+  },
+  "physicalBudget": {
+    "phpBudgetMiB": 3127,
+    "swapBytes": 0,
+    "accountCount": 25,
+    "oversellingInflatesLimits": false
+  },
+  "security": {
+    "tenantEndpointsDenied": true,
+    "versionCommandInjectionRejected": true,
+    "credentialOrPrivateJournalExport": false
+  },
+  "packaging": "PHP native ZipArchive, forward slashes, module root, 0755 directories / 0644 files; final closure/hash verification recorded separately",
+  "installer": "Generated script syntax checked; not executed as a fresh installer",
+  "canonicalSource": "uniselv.win/",
+  "serverPluginDeployed": true,
+  "staticWebsiteUploaded": false,
+  "helpAndAboutRevision": {
+    "dynamicVersionOsKernelPanel": "passed",
+    "runtimeTopicSearchAndCategoryFilter": "passed",
+    "rootIpcDiagnosticCommand": "passed",
+    "phpSyntax": "passed",
+    "scope": "Documentation-only revision; runtime tuning unchanged"
+  }
+}

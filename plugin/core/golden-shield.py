@@ -27,11 +27,11 @@ def managed(path,text,mode=0o600):
   if key not in data:
    if path.exists():
     backup=STATE/'backups'/(hashlib.sha256(key.encode()).hexdigest()+'-'+str(time.time_ns()));atomic(backup,path.read_text(),path.stat().st_mode&0o777)
-    data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777}
-   else:data[key]={'backup':None,'mode':mode}
+    data[key]={'backup':str(backup),'mode':path.stat().st_mode&0o777,'uid':path.stat().st_uid,'gid':path.stat().st_gid}
+   else:data[key]={'backup':None,'mode':mode,'uid':0,'gid':0}
   elif path.exists() and hashlib.sha256(path.read_bytes()).hexdigest()!=data[key]['hash']:
    raise RuntimeError('Managed file changed; review before overwriting: '+key)
-  atomic(path,text,mode);data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
+  atomic(path,text,mode);os.chown(path,data[key].get('uid',0),data[key].get('gid',0));data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
 
 def derive_auto_policy(cpus, total_ram):
  if total_ram < 1024:
@@ -172,21 +172,28 @@ def patch_isolation():
   source=source.replace("startswith('/'+str(row['uid'])+'.slice/')", "startswith(account_cgroup(row['uid'])+'/')")
  # Socket proxies are hosting work too; keep them inside the same aggregate parent.
  compile(source,str(ISO),'exec');managed(ISO,source,0o755)
- scanner=SCANNER.read_text();needle='\t\t\t\techo $pid >>'
- if needle not in scanner:raise RuntimeError('Unsupported native process scanner.')
- scanner=scanner if "grep -q '/golden.slice/' /proc/$pid/cgroup 2>/dev/null && continue" in scanner else scanner.replace(needle,"\t\t\t\t# Golden Shield: never move already-contained workers out of the aggregate group.\n\t\t\t\tgrep -q '/golden.slice/' /proc/$pid/cgroup 2>/dev/null && continue\n"+needle)
- managed(SCANNER,scanner,0o755)
+ # The owned service drop-in survives a vendor scanner refresh.
+ command(['/usr/bin/python3',str(ISO),'native-cgroup-install'])
+
 def remember(unit,settings):
  path=STATE/'shared-properties.json';data=json.loads(path.read_text()) if path.exists() else {}
  if unit not in data:data[unit]=properties(unit,list(settings));atomic(path,json.dumps(data,indent=2))
  managed(UNITS/(unit+'.d')/'90-golden-shield.conf','[Slice]\n'+'\n'.join(k+'='+v for k,v in settings.items())+'\n' if unit.endswith('.slice') else '[Service]\n'+'\n'.join(k+'='+v for k,v in settings.items())+'\n')
  command(['systemctl','set-property','--runtime',unit]+[k+'='+v for k,v in settings.items()])
+def apache_launcher(original):
+ return '#!/bin/sh\n# Golden Shield shared Apache launcher\ncase "${1:-}" in\n start|stop|restart|reload) exec /bin/systemctl "$1" golden-apache.service ;;\n graceful) exec /bin/systemctl reload golden-apache.service ;;\n graceful-stop) exec /bin/systemctl stop golden-apache.service ;;\n status) if /bin/systemctl is-active --quiet golden-apache.service; then echo "httpd is running"; else echo "httpd is stopped"; exit 1; fi ;;\n *) exec '+shlex.quote(str(original))+' "$@" ;;\nesac\n'
+
+def apache_service_unit():
+ # Track the foreground master directly; native boot cleanup may remove a PID file.
+ # Type=simple remains compatible with older supported systemd implementations.
+ return '[Unit]\nDescription=Golden Shield shared hosting Apache\nWants=httpd.service\nAfter=network.target\n[Service]\nType=simple\nSlice=golden.slice\nExecStartPre=/usr/local/apps/apache2/bin/httpd -t\nExecStart=/bin/sh -c \'if [ -f /usr/local/apps/apache2/bin/envvars ]; then . /usr/local/apps/apache2/bin/envvars; fi; ulimit -S -n "$$(ulimit -H -n)"; exec /usr/local/apps/apache2/bin/httpd -DFOREGROUND\'\nExecReload=/usr/local/apps/apache2/bin/httpd -t\nExecReload=/bin/kill -USR1 $MAINPID\nKillSignal=SIGWINCH\nKillMode=mixed\nTimeoutStartSec=30\nTimeoutStopSec=30\nRestart=on-failure\nRestartSec=2\n[Install]\nWantedBy=multi-user.target\n'
+
 def apache_integration():
- # Preserve both native control entry points. The managed unit executes the saved original, avoiding recursion.
+ # Preserve both native control entry points. The managed unit tracks the foreground binary; other commands use the saved original.
  if INIT.is_symlink() and INIT.resolve()!=APACHE.resolve():raise RuntimeError('Unsupported Apache init symlink target.')
  original=STATE/'apachectl.original'
  atomic(original,APACHE.read_text(),0o755)
- wrapper='#!/bin/sh\n# Golden Shield shared Apache launcher\ncase "${1:-}" in\n start|stop|restart|reload) exec /bin/systemctl "$1" golden-apache.service ;;\n graceful) exec /bin/systemctl reload golden-apache.service ;;\n graceful-stop) exec /bin/systemctl stop golden-apache.service ;;\n *) exec '+shlex.quote(str(original))+' "$@" ;;\nesac\n'
+ wrapper=apache_launcher(original)
  command([str(APACHE),'configtest'])
  pidfile=pathlib.Path('/usr/local/apps/apache2/logs/httpd.pid')
  old=int(pidfile.read_text().strip()) if pidfile.exists() else None
@@ -195,20 +202,23 @@ def apache_integration():
  while old and pathlib.Path('/proc',str(old)).exists():
   if time.monotonic()>deadline:raise RuntimeError('Old Apache master has not stopped; review before retrying.')
   time.sleep(.2)
- unit='[Unit]\nDescription=Golden Shield shared hosting Apache\nAfter=network.target\n[Service]\nType=forking\nSlice=golden.slice\nPIDFile=/usr/local/apps/apache2/logs/httpd.pid\nExecStart='+str(original)+' start\nExecStop='+str(original)+' graceful-stop\nExecReload='+str(original)+' graceful\nTimeoutStopSec=30\n[Install]\nWantedBy=multi-user.target\n'
+ unit=apache_service_unit()
  managed(UNITS/'golden-apache.service',unit);managed(APACHE,wrapper,0o755)
  if not INIT.is_symlink():managed(INIT,wrapper,0o755)
  command(['systemctl','daemon-reload']);command(['systemctl','enable','--now','golden-apache.service'])
 def repair_native_ownership():
+ apache_unit=UNITS/'golden-apache.service';desired=apache_service_unit()
+ changed=apache_unit.read_text()!=desired
+ command(['/usr/local/apps/apache2/bin/httpd','-t'])
+ managed(apache_unit,desired,0o644)
+ wrapper=apache_launcher(STATE/'apachectl.original');managed(APACHE,wrapper,0o755)
+ if not INIT.is_symlink():managed(INIT,wrapper,0o755)
  # Do not let SysV PID guessing adopt the managed Apache master twice.
  bridge='[Unit]\nDescription=Webuzo Apache control bridge to Golden Shield\nWants=golden-apache.service\nAfter=golden-apache.service\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/bin/systemctl start golden-apache.service\nExecStop=/bin/systemctl stop golden-apache.service\nExecReload=/bin/systemctl reload golden-apache.service\n[Install]\nWantedBy=multi-user.target\n'
  managed(UNITS/'httpd.service',bridge,0o644)
  managed(UNITS/'webuzo-onboot.service.d'/'60-golden-ownership.conf','[Service]\nType=oneshot\nRemainAfterExit=yes\n',0o644)
- apache_unit=UNITS/'golden-apache.service'
- apache_text=apache_unit.read_text()
- if 'Wants=httpd.service\n' not in apache_text:
-  managed(apache_unit,apache_text.replace('[Unit]\n','[Unit]\nWants=httpd.service\n',1))
  command(['systemctl','daemon-reload'])
+ if changed:command(['systemctl','restart','golden-apache.service'])
  command(['systemctl','reset-failed','httpd.service','webuzo-onboot.service'],False)
  command(['systemctl','start','httpd.service'])
  # Starting the boot orchestrator is intentionally left to the controlled boot test.
@@ -263,6 +273,68 @@ def serve():
    except Exception as e:print('GUARD ERROR (protection incomplete): '+str(e),flush=True)
   time.sleep(2)
 
+# Shared Redis integration is optional, aggregate-bounded, and never creates per-user settings.
+REDIS_CONFIG=pathlib.Path('/usr/local/apps/redis/redis.conf')
+REDIS_DROPIN=UNITS/'redis.service.d/90-golden-shared.conf'
+
+def shared_redis_model(profile,cpus,total):
+ config=profile.get('configuration',profile);hardware=config['globalInputs']['hardware'];m=config['sections']['redis']['model']
+ if hardware.get('cpu')!=cpus or hardware.get('measuredRamMiB')!=total:raise RuntimeError('Shared Redis profile hardware differs; regenerate Global Inputs')
+ dataset=max(16,int(float(hardware['ram'])*1024//64//16)*16);budget=dataset*4;clients=max(32,cpus*32)
+ if m.get('datasetMiB')!=dataset or m.get('serviceBudgetMiB')!=budget or m.get('maxclients')!=clients or config['globalInputs']['sharedServiceBudget']['redisMiB']!=budget:raise RuntimeError('Shared Redis model differs from the common physical budget')
+ if budget>total-config['sections']['golden']['golden']['headroomMiB']:raise RuntimeError('Shared Redis exceeds physical hosting budget')
+ return {'hostCpuCount':cpus,'measuredRamMiB':total,'datasetMiB':dataset,'memoryMiB':budget,'maxclients':clients,'cacheOnly':True}
+
+def shared_redis_config(text,model):
+ marker=r'(?ms)^# BEGIN Webuzo Planner Shared Redis\n.*?^# END Webuzo Planner Shared Redis\n?'
+ if text.count('# BEGIN Webuzo Planner Shared Redis')!=text.count('# END Webuzo Planner Shared Redis'):raise RuntimeError('Unbalanced shared Redis config markers')
+ text=re.sub(marker,'',text)
+ lines=[line for line in text.splitlines() if not re.match(r'^\s*(?:maxmemory|maxmemory-policy|maxclients|protected-mode)\s+',line)]
+ return '\n'.join(lines).rstrip()+'\n\n# BEGIN Webuzo Planner Shared Redis\nmaxmemory '+str(model['datasetMiB'])+'mb\nmaxmemory-policy allkeys-lru\nmaxclients '+str(model['maxclients'])+'\nprotected-mode yes\n# END Webuzo Planner Shared Redis\n'
+
+def apply_shared_redis(profile_file=None,cache_only=False):
+ if not (STATE/'installed.json').exists():raise RuntimeError('Install Golden Shield before shared Redis resource integration')
+ cpus=len(os.sched_getaffinity(0));total=int(next(x.split()[1] for x in pathlib.Path('/proc/meminfo').read_text().splitlines() if x.startswith('MemTotal:')))//1024
+ saved=BASE/'shared-redis-policy.json'
+ if profile_file:
+  if not cache_only:raise RuntimeError('Explicit --cache-only confirmation required; do not evict sessions/queues/primary data')
+  source=pathlib.Path(profile_file)
+  if not source.is_file() or source.is_symlink() or source.stat().st_uid!=0 or source.stat().st_mode&0o022:raise RuntimeError('Shared Redis profile must be a root-owned, non-writable regular file')
+  model=shared_redis_model(json.loads(source.read_text()),cpus,total)
+ else:
+  if not saved.is_file() or saved.is_symlink() or saved.stat().st_uid!=0 or saved.stat().st_mode&0o022:raise RuntimeError('Shared Redis policy requires reviewed setup')
+  model=json.loads(saved.read_text())
+ if model.get('hostCpuCount')!=cpus or model.get('measuredRamMiB')!=total or model.get('cacheOnly') is not True:raise RuntimeError('Shared Redis policy requires new hardware/application review')
+ if not all(type(model.get(k)) is int and model[k]>0 for k in ['datasetMiB','memoryMiB','maxclients']) or model['memoryMiB']!=model['datasetMiB']*4 or model['memoryMiB']>policy()['hostingMemoryMaxMiB']:raise RuntimeError('Invalid shared Redis safety budget')
+ if not REDIS_CONFIG.is_file() or REDIS_CONFIG.is_symlink() or REDIS_CONFIG.stat().st_uid not in (0,pwd.getpwnam('redis').pw_uid) or REDIS_CONFIG.stat().st_mode&0o022 or REDIS_CONFIG.parent.stat().st_uid!=0 or REDIS_CONFIG.parent.stat().st_mode&0o022:raise RuntimeError('Unsafe native shared Redis configuration')
+ current=json.loads(command(['redis-cli','--json','CONFIG','GET','bind','port','protected-mode']).stdout)
+ if current.get('port')!='6379' or current.get('protected-mode')!='yes' or not current.get('bind') or any(x not in ['127.0.0.1','::1','-::1'] for x in current['bind'].split()):raise RuntimeError('Expected existing loopback-only Shared Redis service; mode/auth changes require review')
+ snapshots={p:(p.read_text(),p.stat().st_mode&0o777,p.stat().st_uid,p.stat().st_gid) if p.exists() and not p.is_symlink() else None for p in [REDIS_CONFIG,REDIS_DROPIN,saved]}
+ if REDIS_DROPIN.is_symlink() or saved.is_symlink():raise RuntimeError('Refusing shared Redis managed-path symlink')
+ registry=files()
+ try:
+  managed(REDIS_CONFIG,shared_redis_config(snapshots[REDIS_CONFIG][0],model),snapshots[REDIS_CONFIG][1])
+  managed(REDIS_DROPIN,'[Service]\nSlice=golden.slice\nMemoryMax='+str(model['memoryMiB'])+'M\nMemorySwapMax=0\n',0o644)
+  atomic(saved,json.dumps(model,indent=2));command(['systemctl','daemon-reload']);command(['systemctl','restart','redis.service'])
+  deadline=time.monotonic()+30
+  while True:
+   result=command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode'],False)
+   try:actual=json.loads(result.stdout) if result.returncode==0 else {}
+   except ValueError:actual={}
+   unit=properties('redis.service',['ControlGroup','MemoryMax','MemorySwapMax','ActiveState'])
+   if actual.get('maxmemory')==str(model['datasetMiB']*1048576) and actual.get('maxmemory-policy')=='allkeys-lru' and actual.get('maxclients')==str(model['maxclients']) and actual.get('protected-mode')=='yes' and unit.get('ActiveState')=='active' and unit.get('ControlGroup','').startswith('/golden.slice/') and unit.get('MemoryMax')==str(model['memoryMiB']*1048576) and unit.get('MemorySwapMax')=='0':break
+   if time.monotonic()>deadline:raise RuntimeError('Shared Redis runtime readback failed')
+   time.sleep(.25)
+ except BaseException:
+  for path,row in snapshots.items():
+   if row:
+    atomic(path,row[0],row[1]);os.chown(path,row[2],row[3])
+   else:path.unlink(missing_ok=True)
+  atomic(STATE/'shared-files.json',json.dumps(registry,indent=2));command(['systemctl','daemon-reload'],False);command(['systemctl','restart','redis.service'],False)
+  raise
+ print(json.dumps({'sharedRedisApplied':True,'model':model,'tenantScope':'Shared service; unique cache prefixes are not Unix-account isolation'}))
+
+
 def restart_coordinator(version):
  unit='wpiso-manager-'+version+'.service'
  result=command(['systemctl','restart',unit],False)
@@ -281,11 +353,12 @@ def finish_install():
   restart_coordinator(version)
  guard='[Unit]\nDescription=Golden Shield shared CPU and memory guard\nAfter=webuzo.service golden-apache.service mariadb.service\n[Service]\nType=simple\nExecStart=/usr/bin/python3 /usr/local/sbin/golden-shield.py serve\nRestart=on-failure\nRestartSec=2\nCPUWeight=10000\nMemoryLow='+str(p['guardMemoryLowMiB'])+'M\nMemoryMax='+str(p['guardMemoryMaxMiB'])+'M\n[Install]\nWantedBy=multi-user.target\n'
  managed(UNITS/'golden-shield.service',guard);command(['systemctl','daemon-reload']);command(['systemctl','enable','--now','golden-shield.service'])
+ if (BASE/'shared-redis-policy.json').exists():apply_shared_redis()
 
 def resume_install():
  if not (STATE/'installed.json').exists():raise RuntimeError('No partial installation to resume')
  prerequisites(policy());data=files()
- required=[str(ISO),str(SCANNER),str(APACHE),str(UNITS/'httpd.service'),str(UNITS/'mariadb.service.d'/'90-golden-shared.conf')]
+ required=[str(ISO),str(APACHE),str(UNITS/'httpd.service'),str(UNITS/'mariadb.service.d'/'90-golden-shared.conf')]
  if not INIT.is_symlink():required.append(str(INIT))
  elif INIT.resolve()!=APACHE.resolve():raise RuntimeError('Apache init target changed')
  if not all(k in data for k in required):raise RuntimeError('Earlier install stage incomplete; review rollback, do not resume blindly')
@@ -355,6 +428,13 @@ def check():
   except OSError:pass
  report['outsideManagedGroup']=outside;report['checksPass'] &= not outside
  if (RUN/'pressure.json').exists():report['pressure']=json.loads((RUN/'pressure.json').read_text())
+ if (BASE/'shared-redis-policy.json').exists():
+  try:
+   cache=json.loads((BASE/'shared-redis-policy.json').read_text());row=properties('redis.service',['ActiveState','ControlGroup','MemoryMax','MemorySwapMax']);values=json.loads(command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode']).stdout)
+   ok=row.get('ActiveState')=='active' and row.get('ControlGroup','').startswith('/golden.slice/') and row.get('MemoryMax')==str(cache['memoryMiB']*1048576) and row.get('MemorySwapMax')=='0' and values.get('maxmemory')==str(cache['datasetMiB']*1048576) and values.get('maxmemory-policy')=='allkeys-lru' and values.get('maxclients')==str(cache['maxclients']) and str(REDIS_CONFIG) in files()
+   report['sharedRedis']={'passed':ok,'service':row,'settings':values};report['checksPass'] &= ok
+  except Exception:
+   report['sharedRedis']={'passed':False,'reason':'Shared Redis runtime verification unavailable; review selected shared policy and native service'};report['checksPass']=False
  print(json.dumps(report,indent=2));return report['checksPass']
 
 def uninstall():
@@ -376,9 +456,13 @@ def uninstall():
  # Stop customer routing while restoring the original native placement implementation.
  versions=json.loads(pathlib.Path('/var/lib/webuzo-isolation/installed.json').read_text())['versions']
  for version in versions:command(['systemctl','stop','wpiso-manager-'+version+'.service'])
+ command(['/usr/bin/python3',str(ISO),'native-cgroup-remove'])
+ redis_managed=str(REDIS_CONFIG) in data
+ if redis_managed:command(['systemctl','stop','redis.service'])
  for name,row in data.items():
   path=pathlib.Path(name)
-  if row['backup']:atomic(path,pathlib.Path(row['backup']).read_text(),row['mode'])
+  if row['backup']:
+   atomic(path,pathlib.Path(row['backup']).read_text(),row['mode']);os.chown(path,row.get('uid',0),row.get('gid',0))
   else:path.unlink(missing_ok=True)
  # Shared-unit runtime properties disappear when their units are stopped below.
  props=STATE/'shared-properties.json'
@@ -387,6 +471,7 @@ def uninstall():
    command(['systemctl','set-property','--runtime',unit]+[k+'='+('100' if v=='[not set]' else v) for k,v in values.items()])
  command(['systemctl','daemon-reload']);command(['systemctl','restart','mariadb.service'])
  command([str(APACHE),'start']);command(['systemctl','restart','cgroup.service'])
+ if redis_managed:command(['systemctl','restart','redis.service'])
  # Switch routing before restart, but retain the installation marker until all
  # restoration steps finish so a failed uninstall cannot masquerade as removed.
  atomic(STATE/'disabling.json',json.dumps({'startedAt':time.time()}))
@@ -402,7 +487,7 @@ def uninstall():
 
 def main():
  if os.geteuid()!=0:raise RuntimeError('Run through sudo.')
- parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap'],nargs='?',default='install');parser.add_argument('uid',nargs='?');args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()
  if args.action=='install':install()
  elif args.action=='resume':resume_install()
  elif args.action=='preflight':p=effective_memory_cap(policy());prerequisites(p);print('New policy preflight passed.')
@@ -410,6 +495,7 @@ def main():
  elif args.action=='prepare-account':prepare_account(args.uid or '')
  elif args.action=='uninstall':uninstall()
  elif args.action=='apply-memory-cap':apply_memory_cap()
+ elif args.action=='apply-shared-redis':apply_shared_redis(args.uid,args.cache_only)
  elif args.action=='repair-native-ownership':repair_native_ownership()
  else:sys.exit(0 if check() else 1)
 if __name__=='__main__':

@@ -1,0 +1,311 @@
+{
+  "version": "1.1.23",
+  "scope": "Changes already applied in this release; not additional post-install paste steps.",
+  "verification": [
+    "Save UTF-8 with LF newlines.",
+    "Run Python/PHP/JavaScript syntax checks and the dated regression suite.",
+    "Verify source hashes and restore ownership metadata together."
+  ],
+  "newFiles": "New builder/tests/docs begin at their first line and end at their final line. Existing files are replaced, not appended.",
+  "files": [
+    {
+      "packagedPath": "uniselv-resman/core/webuzo-isolation.py",
+      "installedPath": "/usr/local/sbin/webuzo-isolation.py",
+      "mode": "Replace the complete installed file with reviewed release content. Do not append duplicate functions.",
+      "blocks": [
+        {
+          "mode": "insert",
+          "after": "import queue",
+          "before": "import argparse,contextlib,fcntl,hashlib,json,os,pathlib,pwd,re,shutil,signal,socket,subprocess,sys,time,select,struct,threading",
+          "existing": "",
+          "generated": "import base64",
+          "afterEditContext": "\"\"\"Experimental Webuzo FPM launcher integration. Root-only; never falls back to shared FPM.\"\"\"\nimport queue\nimport base64\nimport argparse,contextlib,fcntl,hashlib,json,os,pathlib,pwd,re,shutil,signal,socket,subprocess,sys,time,select,struct,threading\nBASE=pathlib.Path('/etc/webuzo-isolation')"
+        },
+        {
+          "mode": "replace",
+          "after": "",
+          "before": "    prefix=paths(version);sections=list(re.finditer(r'^\\[([^\\]\\r\\n]+)\\][ \\t]*$',text,re.M));rows=[]",
+          "existing": "def parse_pools(text,version):",
+          "generated": "def parse_pools(text,version,prepare=True):",
+          "afterEditContext": "    return root\n\ndef parse_pools(text,version,prepare=True):\n    prefix=paths(version);sections=list(re.finditer(r'^\\[([^\\]\\r\\n]+)\\][ \\t]*$',text,re.M));rows=[]\n    global_match=re.search(r'^\\[global\\][ \\t]*\\n(.*?)(?=^\\[|\\Z)',text,re.M|re.S)"
+        },
+        {
+          "mode": "replace",
+          "after": "        if field('pm')!='ondemand':raise ValueError('This integration currently requires global ondemand')",
+          "before": "        rows.append({'user':user,'uid':account.pw_uid,'name':name,'originalSocket':original,'pool':part,'global':global_settings,'maxChildren':int(field('pm.max_children')),'backlog':int(field('listen.backlog'))})",
+          "existing": "        ensure_limits(user,account.pw_uid)",
+          "generated": "        if prepare:ensure_limits(user,account.pw_uid)",
+          "afterEditContext": "        for control in ['pm','pm.max_children','listen.backlog']:field(control)\n        if field('pm')!='ondemand':raise ValueError('This integration currently requires global ondemand')\n        if prepare:ensure_limits(user,account.pw_uid)\n        rows.append({'user':user,'uid':account.pw_uid,'name':name,'originalSocket':original,'pool':part,'global':global_settings,'maxChildren':int(field('pm.max_children')),'backlog':int(field('listen.backlog'))})\n    return rows"
+        },
+        {
+          "mode": "replace",
+          "after": "    if not (STATE/'installed.json').exists(): return False",
+          "before": "",
+          "existing": "    try:\n        data = json.loads((STATE/'installed.json').read_text())\n        return version in data.get('versions', [])\n    except Exception:\n        return False",
+          "generated": "    data = json.loads((STATE/'installed.json').read_text())\n    versions = data.get('versions')\n    if not isinstance(versions,list) or any(not isinstance(v,str) or not re.fullmatch(r'php\\d{2,3}',v) for v in versions):\n        raise ValueError('Invalid managed PHP registry')\n    return version in versions\n\n\ndef lifecycle_files(version):\n    \"\"\"Only this version's owned control files; never snapshot customer content.\"\"\"\n    exact=[paths(version)/'bin/fpmctl',STATE/'original-launchers'/version,STATE/'installed.json',\n           STATE/(version+'.json'),BASE/'policy.json']\n    prefixes=['wpiso-manager-'+version,'wpiso-health-'+version,'wpiso-fpm-'+version+'-',\n              'wpiso-proxy-'+version+'-']\n    for directory in [UNITS,UNITS/'multi-user.target.wants',UNITS/'sockets.target.wants']:\n        if directory.exists():\n            exact.extend(p for p in directory.iterdir() if p.name.startswith(tuple(prefixes)) or p.name=='php-fpm'+version[3:]+'.service')\n    exact.extend(UNITS/n for n in ['wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'])\n    if BASE.exists():\n        exact.extend(p for p in BASE.glob(version+'-*') if p.is_file())\n    if (BASE/version).exists():exact.extend(p for p in (BASE/version).rglob('*') if p.is_file() or p.is_symlink())\n    return sorted(set(exact),key=str)\n\n\ndef lifecycle_units(version):\n    units={'wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'}\n    for p in lifecycle_files(version):\n        if p.parent==UNITS and p.suffix in ['.service','.socket']:units.add(p.name)\n    return sorted(units)\n\n\ndef snapshot_file(path):\n    if path.is_symlink():return {'kind':'symlink','target':os.readlink(path)}\n    if not path.exists():return {'kind':'absent'}\n    if not path.is_file():raise RuntimeError('Unexpected lifecycle file type: '+str(path))\n    return {'kind':'file','data':base64.b64encode(path.read_bytes()).decode(),'mode':path.stat().st_mode&0o777}\n\n\ndef restore_file(path,record):\n    if path.is_symlink():path.unlink()\n    if record['kind']=='absent':path.unlink(missing_ok=True)\n    elif record['kind']=='symlink':\n        path.unlink(missing_ok=True);path.parent.mkdir(parents=True,exist_ok=True);path.symlink_to(record['target'])\n    else:\n        # Lifecycle control files are UTF-8 text. Existing atomic writer rejects unsafe staging/symlink paths.\n        atomic(path,base64.b64decode(record['data']).decode('utf-8'),record['mode'])\n\n\ndef journal_write(path,data):\n    atomic(path,json.dumps(data))\n    with open(path,'r+b') as stream:os.fsync(stream.fileno())\n    if os.name!='nt':\n        fd=os.open(str(pathlib.Path(path).parent),os.O_RDONLY|os.O_DIRECTORY)\n        try:os.fsync(fd)\n        finally:os.close(fd)\n\n\ndef restore_lifecycle(journal):\n    version=journal['version']\n    # Stop new routing before restoring its registration/files. Do not stop a native\n    # service after its original launcher has been restored.\n    for unit in lifecycle_units(version):\n        stopped=execute(['systemctl','stop',unit],False,timeout=90)\n        if stopped.returncode not in [0,4,5]:raise RuntimeError('Cannot stop routing for rollback: '+unit)\n    for p in lifecycle_files(version):\n        if str(p) not in journal['files']:p.unlink(missing_ok=True)\n    for name,record in journal['files'].items():restore_file(pathlib.Path(name),record)\n    execute(['systemctl','daemon-reload'])\n    for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)\n    for unit,state in journal['units'].items():\n        if state['enabled']=='enabled':execute(['systemctl','enable',unit])\n        elif state['enabled']=='disabled':execute(['systemctl','disable',unit])\n    for unit,state in journal['units'].items():\n        if state['active']:execute(['systemctl','start',unit],timeout=90)\n    journal['status']='rolled-back';journal['restoredAt']=time.time()\n\n\ndef prepare_version_budget(version,operation):\n    data=json.loads((STATE/'installed.json').read_text())\n    current=policy()\n    base=data.setdefault('versionBudgetBase',{'count':len(data['versions']),'phpBudgetMiB':current['phpBudgetMiB']})\n    target=len(data['versions'])+(1 if operation=='onboard' and version not in data['versions'] else 0)\n    # Match the generator's per-version 16-MiB bookkeeping + 16-MiB\n    # private health-master estimate. Pool OPcache remains charged per lease.\n    previous=base.get('appliedBudgetMiB',base['phpBudgetMiB'])\n    if current['phpBudgetMiB']!=previous:raise RuntimeError('Reviewed PHP budget changed externally; regenerate version budget accounting before lifecycle changes')\n    budget=base['phpBudgetMiB']-max(0,target-base['count'])*32\n    if budget<current['workerRssMiB']+48+current['opcacheMiB']+32:\n        raise RuntimeError('Additional PHP version cannot fit the reviewed physical budget')\n    if budget!=current['phpBudgetMiB']:\n        with lock('admission'):\n            reserved=0\n            for lease in (RUN/'slots').glob('*.service'):\n                reserved+=int(json.loads(lease.read_text())['costMiB'])\n            if reserved>budget:raise RuntimeError('Wait for PHP leases to quiesce before adding version overhead')\n            current['phpBudgetMiB']=budget\n            atomic(BASE/'policy.json',json.dumps(current,indent=2))\n    base['appliedBudgetMiB']=budget\n    atomic(STATE/'installed.json',json.dumps(data,indent=2))\n\n\ndef lifecycle_transaction(version,operation):\n    if not re.fullmatch(r'php\\d{2,3}',version):raise ValueError('Invalid PHP version')\n    # Serialize registration read/modify/write across different PHP versions too.\n    with lock('php-lifecycle'):\n        pending=STATE/'lifecycle-pending.json'\n        if pending.exists():\n            previous=json.loads(pending.read_text())\n            if previous['status']=='pending':\n                restore_lifecycle(previous)\n                atomic(STATE/('lifecycle-recovered-'+str(time.time_ns())+'.json'),json.dumps(previous))\n            pending.unlink()\n        ctl=paths(version)/'bin/fpmctl'\n        if ctl.is_symlink() or (STATE/'original-launchers'/version).is_symlink():raise RuntimeError('Refusing launcher/backup symlink: '+version)\n        # Validate pools on both first onboarding and managed repair, before stopping anything.\n        config=paths(version)/'etc/php-fpm.conf'\n        if not config.is_file():raise RuntimeError('Native PHP config missing: '+version)\n        parse_pools(config.read_text(),version,False)\n        if operation=='retire':\n            if not is_managed(version):return _retire(version)\n            if parse_pools(config.read_text(),version,False) or manifest(version).get('pools'):\n                raise RuntimeError('Cannot retire '+version+': customer pools remain.')\n            assert_launcher(version)\n            if not (STATE/'original-launchers'/version).is_file():raise RuntimeError('Native restoration backup missing')\n        elif not is_managed(version):\n            native=UNITS/('php-fpm'+version[3:]+'.service')\n            if native.exists() or native.is_symlink():raise RuntimeError('Existing custom PHP unit requires manual review: '+version)\n        if not (STATE/'installed.json').is_file():raise RuntimeError('Install the reviewed protection stack before PHP lifecycle operations')\n        journal={'version':version,'operation':operation,'status':'pending','startedAt':time.time(),\n                 'files':{str(p):snapshot_file(p) for p in lifecycle_files(version)},'units':{}}\n        for unit in lifecycle_units(version):\n            journal['units'][unit]={'active':execute(['systemctl','is-active',unit],False).returncode==0,\n                'enabled':execute(['systemctl','is-enabled',unit],False).stdout.strip()}\n        journal_write(pending,journal)\n        try:\n            prepare_version_budget(version,operation)\n            (_onboard if operation=='onboard' else _retire)(version)\n            if operation=='retire':prepare_version_budget(version,'retired')\n            journal['status']='committed';journal['finishedAt']=time.time()\n            journal_write(pending,journal)\n        except BaseException as exc:\n            try:restore_lifecycle(journal)\n            except Exception as recovery:\n                raise RuntimeError('Lifecycle failed; recovery is incomplete. Journal retained at '+str(pending)+': '+str(recovery)) from exc\n            atomic(STATE/('lifecycle-rollback-'+str(time.time_ns())+'.json'),json.dumps(journal))\n            pending.unlink(missing_ok=True)\n            raise\n        atomic(STATE/('lifecycle-'+str(time.time_ns())+'.json'),json.dumps(journal))\n        pending.unlink()\n",
+          "afterEditContext": "def is_managed(version):\n    if not (STATE/'installed.json').exists(): return False\n    data = json.loads((STATE/'installed.json').read_text())\n    versions = data.get('versions')\n    if not isinstance(versions,list) or any(not isinstance(v,str) or not re.fullmatch(r'php\\d{2,3}',v) for v in versions):\n        raise ValueError('Invalid managed PHP registry')\n    return version in versions\n\n\ndef lifecycle_files(version):\n    \"\"\"Only this version's owned control files; never snapshot customer content.\"\"\"\n    exact=[paths(version)/'bin/fpmctl',STATE/'original-launchers'/version,STATE/'installed.json',\n           STATE/(version+'.json'),BASE/'policy.json']\n    prefixes=['wpiso-manager-'+version,'wpiso-health-'+version,'wpiso-fpm-'+version+'-',\n              'wpiso-proxy-'+version+'-']\n    for directory in [UNITS,UNITS/'multi-user.target.wants',UNITS/'sockets.target.wants']:\n        if directory.exists():\n            exact.extend(p for p in directory.iterdir() if p.name.startswith(tuple(prefixes)) or p.name=='php-fpm'+version[3:]+'.service')\n    exact.extend(UNITS/n for n in ['wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'])\n    if BASE.exists():\n        exact.extend(p for p in BASE.glob(version+'-*') if p.is_file())\n    if (BASE/version).exists():exact.extend(p for p in (BASE/version).rglob('*') if p.is_file() or p.is_symlink())\n    return sorted(set(exact),key=str)\n\n\ndef lifecycle_units(version):\n    units={'wpiso-manager-'+version+'.service','wpiso-health-'+version+'.service','php-fpm'+version[3:]+'.service'}\n    for p in lifecycle_files(version):\n        if p.parent==UNITS and p.suffix in ['.service','.socket']:units.add(p.name)\n    return sorted(units)\n\n\ndef snapshot_file(path):\n    if path.is_symlink():return {'kind':'symlink','target':os.readlink(path)}\n    if not path.exists():return {'kind':'absent'}\n    if not path.is_file():raise RuntimeError('Unexpected lifecycle file type: '+str(path))\n    return {'kind':'file','data':base64.b64encode(path.read_bytes()).decode(),'mode':path.stat().st_mode&0o777}\n\n\ndef restore_file(path,record):\n    if path.is_symlink():path.unlink()\n    if record['kind']=='absent':path.unlink(missing_ok=True)\n    elif record['kind']=='symlink':\n        path.unlink(missing_ok=True);path.parent.mkdir(parents=True,exist_ok=True);path.symlink_to(record['target'])\n    else:\n        # Lifecycle control files are UTF-8 text. Existing atomic writer rejects unsafe staging/symlink paths.\n        atomic(path,base64.b64decode(record['data']).decode('utf-8'),record['mode'])\n\n\ndef journal_write(path,data):\n    atomic(path,json.dumps(data))\n    with open(path,'r+b') as stream:os.fsync(stream.fileno())\n    if os.name!='nt':\n        fd=os.open(str(pathlib.Path(path).parent),os.O_RDONLY|os.O_DIRECTORY)\n        try:os.fsync(fd)\n        finally:os.close(fd)\n\n\ndef restore_lifecycle(journal):\n    version=journal['version']\n    # Stop new routing before restoring its registration/files. Do not stop a native\n    # service after its original launcher has been restored.\n    for unit in lifecycle_units(version):\n        stopped=execute(['systemctl','stop',unit],False,timeout=90)\n        if stopped.returncode not in [0,4,5]:raise RuntimeError('Cannot stop routing for rollback: '+unit)\n    for p in lifecycle_files(version):\n        if str(p) not in journal['files']:p.unlink(missing_ok=True)\n    for name,record in journal['files'].items():restore_file(pathlib.Path(name),record)\n    execute(['systemctl','daemon-reload'])\n    for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)\n    for unit,state in journal['units'].items():\n        if state['enabled']=='enabled':execute(['systemctl','enable',unit])\n        elif state['enabled']=='disabled':execute(['systemctl','disable',unit])\n    for unit,state in journal['units'].items():\n        if state['active']:execute(['systemctl','start',unit],timeout=90)\n    journal['status']='rolled-back';journal['restoredAt']=time.time()\n\n\ndef prepare_version_budget(version,operation):\n    data=json.loads((STATE/'installed.json').read_text())\n    current=policy()\n    base=data.setdefault('versionBudgetBase',{'count':len(data['versions']),'phpBudgetMiB':current['phpBudgetMiB']})\n    target=len(data['versions'])+(1 if operation=='onboard' and version not in data['versions'] else 0)\n    # Match the generator's per-version 16-MiB bookkeeping + 16-MiB\n    # private health-master estimate. Pool OPcache remains charged per lease.\n    previous=base.get('appliedBudgetMiB',base['phpBudgetMiB'])\n    if current['phpBudgetMiB']!=previous:raise RuntimeError('Reviewed PHP budget changed externally; regenerate version budget accounting before lifecycle changes')\n    budget=base['phpBudgetMiB']-max(0,target-base['count'])*32\n    if budget<current['workerRssMiB']+48+current['opcacheMiB']+32:\n        raise RuntimeError('Additional PHP version cannot fit the reviewed physical budget')\n    if budget!=current['phpBudgetMiB']:\n        with lock('admission'):\n            reserved=0\n            for lease in (RUN/'slots').glob('*.service'):\n                reserved+=int(json.loads(lease.read_text())['costMiB'])\n            if reserved>budget:raise RuntimeError('Wait for PHP leases to quiesce before adding version overhead')\n            current['phpBudgetMiB']=budget\n            atomic(BASE/'policy.json',json.dumps(current,indent=2))\n    base['appliedBudgetMiB']=budget\n    atomic(STATE/'installed.json',json.dumps(data,indent=2))\n\n\ndef lifecycle_transaction(version,operation):\n    if not re.fullmatch(r'php\\d{2,3}',version):raise ValueError('Invalid PHP version')\n    # Serialize registration read/modify/write across different PHP versions too.\n    with lock('php-lifecycle'):\n        pending=STATE/'lifecycle-pending.json'\n        if pending.exists():\n            previous=json.loads(pending.read_text())\n            if previous['status']=='pending':\n                restore_lifecycle(previous)\n                atomic(STATE/('lifecycle-recovered-'+str(time.time_ns())+'.json'),json.dumps(previous))\n            pending.unlink()\n        ctl=paths(version)/'bin/fpmctl'\n        if ctl.is_symlink() or (STATE/'original-launchers'/version).is_symlink():raise RuntimeError('Refusing launcher/backup symlink: '+version)\n        # Validate pools on both first onboarding and managed repair, before stopping anything.\n        config=paths(version)/'etc/php-fpm.conf'\n        if not config.is_file():raise RuntimeError('Native PHP config missing: '+version)\n        parse_pools(config.read_text(),version,False)\n        if operation=='retire':\n            if not is_managed(version):return _retire(version)\n            if parse_pools(config.read_text(),version,False) or manifest(version).get('pools'):\n                raise RuntimeError('Cannot retire '+version+': customer pools remain.')\n            assert_launcher(version)\n            if not (STATE/'original-launchers'/version).is_file():raise RuntimeError('Native restoration backup missing')\n        elif not is_managed(version):\n            native=UNITS/('php-fpm'+version[3:]+'.service')\n            if native.exists() or native.is_symlink():raise RuntimeError('Existing custom PHP unit requires manual review: '+version)\n        if not (STATE/'installed.json').is_file():raise RuntimeError('Install the reviewed protection stack before PHP lifecycle operations')\n        journal={'version':version,'operation':operation,'status':'pending','startedAt':time.time(),\n                 'files':{str(p):snapshot_file(p) for p in lifecycle_files(version)},'units':{}}\n        for unit in lifecycle_units(version):\n            journal['units'][unit]={'active':execute(['systemctl','is-active',unit],False).returncode==0,\n                'enabled':execute(['systemctl','is-enabled',unit],False).stdout.strip()}\n        journal_write(pending,journal)\n        try:\n            prepare_version_budget(version,operation)\n            (_onboard if operation=='onboard' else _retire)(version)\n            if operation=='retire':prepare_version_budget(version,'retired')\n            journal['status']='committed';journal['finishedAt']=time.time()\n            journal_write(pending,journal)\n        except BaseException as exc:\n            try:restore_lifecycle(journal)\n            except Exception as recovery:\n                raise RuntimeError('Lifecycle failed; recovery is incomplete. Journal retained at '+str(pending)+': '+str(recovery)) from exc\n            atomic(STATE/('lifecycle-rollback-'+str(time.time_ns())+'.json'),json.dumps(journal))\n            pending.unlink(missing_ok=True)\n            raise\n        atomic(STATE/('lifecycle-'+str(time.time_ns())+'.json'),json.dumps(journal))\n        pending.unlink()\n\n\ndef onboard(version):"
+        },
+        {
+          "mode": "insert",
+          "after": "def onboard(version):",
+          "before": "    if not re.fullmatch(r'php\\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))",
+          "existing": "",
+          "generated": "    return lifecycle_transaction(version,'onboard')\n\n\ndef retire(version):\n    return lifecycle_transaction(version,'retire')\n\n\ndef _onboard(version):",
+          "afterEditContext": "\ndef onboard(version):\n    return lifecycle_transaction(version,'onboard')\n\n\ndef retire(version):\n    return lifecycle_transaction(version,'retire')\n\n\ndef _onboard(version):\n    if not re.fullmatch(r'php\\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))\n    p = paths(version)"
+        },
+        {
+          "mode": "replace",
+          "after": "            shutil.copy2(ctl, archive/version)",
+          "before": "            execute([str(ctl), 'stop'], False, timeout=45)",
+          "existing": "            if not (backups/version).exists():\n                shutil.copy2(ctl, backups/version)",
+          "generated": "            shutil.copy2(ctl, backups/version) # Rebase restoration onto the current vendor launcher; transaction archives the prior baseline.",
+          "afterEditContext": "            archive.mkdir(mode=0o700, exist_ok=True)\n            shutil.copy2(ctl, archive/version)\n            shutil.copy2(ctl, backups/version) # Rebase restoration onto the current vendor launcher; transaction archives the prior baseline.\n            execute([str(ctl), 'stop'], False, timeout=45)\n            deadline = time.monotonic() + 15"
+        },
+        {
+          "mode": "replace",
+          "after": "                if not remaining: break",
+          "before": "                time.sleep(.1)",
+          "existing": "                if time.monotonic() > deadline:\n                    for pid in remaining:\n                        try: os.kill(int(pid), signal.SIGKILL)\n                        except OSError: pass\n                    break",
+          "generated": "                if time.monotonic() > deadline: raise RuntimeError('Native master did not stop gracefully; no forced kill: '+version)",
+          "afterEditContext": "                    except (FileNotFoundError, ProcessLookupError, PermissionError): pass\n                if not remaining: break\n                if time.monotonic() > deadline: raise RuntimeError('Native master did not stop gracefully; no forced kill: '+version)\n                time.sleep(.1)\n            atomic(ctl, wrapper(version), 0o755)"
+        },
+        {
+          "mode": "replace",
+          "after": "    # Parse pools to validate configuration",
+          "before": "    backups = STATE/'original-launchers'",
+          "existing": "    parse_pools((p/'etc/php-fpm.conf').read_text(), version)",
+          "generated": "    parse_pools((p/'etc/php-fpm.conf').read_text(), version,False)",
+          "afterEditContext": "        return\n    # Parse pools to validate configuration\n    parse_pools((p/'etc/php-fpm.conf').read_text(), version,False)\n    backups = STATE/'original-launchers'\n    backups.mkdir(mode=0o700, exist_ok=True)"
+        },
+        {
+          "mode": "insert",
+          "after": "    ctl_text = ctl.read_text()",
+          "before": "    if MARKER not in ctl_text:",
+          "existing": "",
+          "generated": "    if MARKER in ctl_text: raise RuntimeError('Unregistered managed launcher; recover the lifecycle journal before onboarding: '+version)",
+          "afterEditContext": "    if ctl.is_symlink(): raise RuntimeError('Unexpected launcher symlink ' + version)\n    ctl_text = ctl.read_text()\n    if MARKER in ctl_text: raise RuntimeError('Unregistered managed launcher; recover the lifecycle journal before onboarding: '+version)\n    if MARKER not in ctl_text:\n        shutil.copy2(ctl, archive/version)"
+        },
+        {
+          "mode": "replace",
+          "after": "        shutil.copy2(ctl, archive/version)",
+          "before": "        execute([str(ctl), 'stop'], False, timeout=45)",
+          "existing": "        if not (backups/version).exists():\n            shutil.copy2(ctl, backups/version)",
+          "generated": "        shutil.copy2(ctl, backups/version) # Current native baseline; historical snapshot is retained by transaction.",
+          "afterEditContext": "    if MARKER not in ctl_text:\n        shutil.copy2(ctl, archive/version)\n        shutil.copy2(ctl, backups/version) # Current native baseline; historical snapshot is retained by transaction.\n        execute([str(ctl), 'stop'], False, timeout=45)\n        deadline = time.monotonic() + 15"
+        },
+        {
+          "mode": "replace",
+          "after": "        print('Successfully onboarded ' + version + ' with ' + str(count) + ' isolated pools.')",
+          "before": "",
+          "existing": "    except Exception as exc:\n        if version in data['versions']:\n            data['versions'].remove(version)\n            atomic(STATE/'installed.json', json.dumps(data, indent=2))\n        execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], False)\n        execute(['systemctl', 'stop', 'php-fpm' + version[3:] + '.service'], False)\n        execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'], False)\n        raise RuntimeError('Failed to initialize managed services for ' + version + ': ' + str(exc))",
+          "generated": "    except Exception:\n        raise # Durable outer transaction restores registration, files and prior service states.",
+          "afterEditContext": "        count = reconcile(version, True)\n        print('Successfully onboarded ' + version + ' with ' + str(count) + ' isolated pools.')\n    except Exception:\n        raise # Durable outer transaction restores registration, files and prior service states.\n\n"
+        },
+        {
+          "mode": "replace",
+          "after": "",
+          "before": "    if not re.fullmatch(r'php\\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))",
+          "existing": "def retire(version):",
+          "generated": "\ndef _retire(version):",
+          "afterEditContext": "        raise # Durable outer transaction restores registration, files and prior service states.\n\n\ndef _retire(version):\n    if not re.fullmatch(r'php\\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))\n    if not is_managed(version):"
+        },
+        {
+          "mode": "replace",
+          "after": "    if (p/'etc/php-fpm.conf').is_file():",
+          "before": "    unit = 'php-fpm' + version[3:] + '.service'",
+          "existing": "        try:\n            pools = parse_pools((p/'etc/php-fpm.conf').read_text(), version)\n            if pools:\n                active_users = [r['user'] for r in pools]\n                raise RuntimeError('Cannot retire ' + version + ': active customer pools exist: ' + str(active_users) + '. Reassign domains in Webuzo before retiring.')\n        except Exception as e:\n            if 'Cannot retire' in str(e): raise\n    execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], False, timeout=90)",
+          "generated": "        pools = parse_pools((p/'etc/php-fpm.conf').read_text(), version,False)\n        if pools or manifest(version).get('pools'):\n            raise RuntimeError('Cannot retire '+version+': customer pools remain; reassign domains and reconcile first.')\n    else:\n        raise RuntimeError('Cannot validate retirement: native PHP configuration is missing for '+version)\n    ctl = p/'bin/fpmctl'\n    if ctl.is_symlink() or not ctl.is_file() or ctl.read_text()!=wrapper(version):\n        raise RuntimeError('Cannot retire changed native launcher; review vendor regeneration first: '+version)\n    if not (STATE/'original-launchers'/version).is_file():\n        raise RuntimeError('Cannot retire without an approved native launcher backup: '+version)\n    execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], timeout=90)",
+          "afterEditContext": "    p = paths(version)\n    if (p/'etc/php-fpm.conf').is_file():\n        pools = parse_pools((p/'etc/php-fpm.conf').read_text(), version,False)\n        if pools or manifest(version).get('pools'):\n            raise RuntimeError('Cannot retire '+version+': customer pools remain; reassign domains and reconcile first.')\n    else:\n        raise RuntimeError('Cannot validate retirement: native PHP configuration is missing for '+version)\n    ctl = p/'bin/fpmctl'\n    if ctl.is_symlink() or not ctl.is_file() or ctl.read_text()!=wrapper(version):\n        raise RuntimeError('Cannot retire changed native launcher; review vendor regeneration first: '+version)\n    if not (STATE/'original-launchers'/version).is_file():\n        raise RuntimeError('Cannot retire without an approved native launcher backup: '+version)\n    execute(['systemctl', 'disable', '--now', 'wpiso-manager-' + version + '.service'], timeout=90)\n    unit = 'php-fpm' + version[3:] + '.service'\n    path = UNITS/unit"
+        },
+        {
+          "mode": "replace",
+          "after": "    if path.exists() and path.read_text() == bridge(version):",
+          "before": "        wanted = UNITS/'multi-user.target.wants'/unit",
+          "existing": "        execute(['systemctl', 'stop', unit], False, timeout=90)",
+          "generated": "        execute(['systemctl', 'stop', unit], timeout=90)",
+          "afterEditContext": "    path = UNITS/unit\n    if path.exists() and path.read_text() == bridge(version):\n        execute(['systemctl', 'stop', unit], timeout=90)\n        wanted = UNITS/'multi-user.target.wants'/unit\n        if wanted.is_symlink() and wanted.resolve() == path: wanted.unlink()"
+        },
+        {
+          "mode": "replace",
+          "after": "        path.unlink()",
+          "before": "    (UNITS/('wpiso-health-' + version + '.service')).unlink(missing_ok=True)",
+          "existing": "    execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'], False)",
+          "generated": "    execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'])",
+          "afterEditContext": "        if wanted.is_symlink() and wanted.resolve() == path: wanted.unlink()\n        path.unlink()\n    execute(['systemctl', 'stop', 'wpiso-health-' + version + '.service'])\n    (UNITS/('wpiso-health-' + version + '.service')).unlink(missing_ok=True)\n    (UNITS/('wpiso-manager-' + version + '.service')).unlink(missing_ok=True)"
+        },
+        {
+          "mode": "insert",
+          "after": "    execute(['systemctl', 'daemon-reload'])",
+          "before": "    print('Successfully retired ' + version + ' from isolation.')",
+          "existing": "",
+          "generated": "    (BASE/(version+'-health.conf')).unlink(missing_ok=True)\n    for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)",
+          "afterEditContext": "    atomic(STATE/'installed.json', json.dumps(data, indent=2))\n    execute(['systemctl', 'daemon-reload'])\n    (BASE/(version+'-health.conf')).unlink(missing_ok=True)\n    for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)\n    print('Successfully retired ' + version + ' from isolation.')\n"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/agent/ipc_server.py",
+      "installedPath": "/usr/local/uniselv-resman/agent/ipc_server.py",
+      "mode": "Replace the complete installed file with reviewed release content. Do not append duplicate functions.",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "        inst_file = pathlib.Path('/var/lib/webuzo-isolation/installed.json')",
+          "before": "",
+          "existing": "        if inst_file.exists():\n            try:\n                data = json.loads(inst_file.read_text(encoding='utf-8'))\n                versions = data.get('versions', [])\n                if versions and isinstance(versions, list):\n                    return sorted(versions)\n            except Exception:\n                pass\n        return self.get_installed_phps()",
+          "generated": "        if not inst_file.exists():\n            return []\n        data = json.loads(inst_file.read_text(encoding='utf-8'))\n        versions = data.get('versions')\n        if not isinstance(versions, list) or any(not isinstance(v,str) or not re.fullmatch(r'php\\d{2,3}',v) for v in versions):\n            raise ValueError('Invalid managed PHP registry; refusing physical-version fallback')\n        return sorted(set(versions))",
+          "afterEditContext": "    def get_managed_phps(self) -> List[str]:\n        inst_file = pathlib.Path('/var/lib/webuzo-isolation/installed.json')\n        if not inst_file.exists():\n            return []\n        data = json.loads(inst_file.read_text(encoding='utf-8'))\n        versions = data.get('versions')\n        if not isinstance(versions, list) or any(not isinstance(v,str) or not re.fullmatch(r'php\\d{2,3}',v) for v in versions):\n            raise ValueError('Invalid managed PHP registry; refusing physical-version fallback')\n        return sorted(set(versions))\n\n    def is_reseller_actor(self, auth: Dict[str, Any], params: Dict[str, Any]) -> tuple:"
+        },
+        {
+          "mode": "replace",
+          "after": "",
+          "before": "        for ver in self.get_managed_phps():",
+          "existing": "        # Reconcile isolation on managed PHP versions",
+          "generated": "        # Report runtime failures instead of returning a false plan-sync success.\n        runtime_errors = []",
+          "afterEditContext": "        subprocess.run(['systemctl', 'daemon-reload'], check=False)\n\n        # Report runtime failures instead of returning a false plan-sync success.\n        runtime_errors = []\n        for ver in self.get_managed_phps():\n            try:"
+        },
+        {
+          "mode": "replace",
+          "after": "            try:",
+          "before": "",
+          "existing": "                subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, timeout=30)\n            except Exception:\n                pass",
+          "generated": "                result = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, text=True, timeout=90)\n                if result.returncode:\n                    runtime_errors.append({'version':ver,'error':result.stderr or result.stdout or 'Runtime reload failed'})\n            except Exception as exc:\n                runtime_errors.append({'version':ver,'error':str(exc)})",
+          "afterEditContext": "        for ver in self.get_managed_phps():\n            try:\n                result = subprocess.run(['python3', '/usr/local/sbin/webuzo-isolation.py', 'action', ver, 'reload'], capture_output=True, text=True, timeout=90)\n                if result.returncode:\n                    runtime_errors.append({'version':ver,'error':result.stderr or result.stdout or 'Runtime reload failed'})\n            except Exception as exc:\n                runtime_errors.append({'version':ver,'error':str(exc)})\n\n        conn = self.get_db()"
+        },
+        {
+          "mode": "replace",
+          "after": "        return {",
+          "before": "            'synced_count': len(synced_accounts),",
+          "existing": "            'success': (len(failed_accounts) == 0),",
+          "generated": "            'success': (len(failed_accounts) == 0 and not runtime_errors),\n            'runtime_errors': runtime_errors,",
+          "afterEditContext": "\n        return {\n            'success': (len(failed_accounts) == 0 and not runtime_errors),\n            'runtime_errors': runtime_errors,\n            'synced_count': len(synced_accounts),\n            'failed_count': len(failed_accounts),"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/assets/app.js",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/assets/app.js",
+      "mode": "Replace the complete installed file with reviewed release content. Do not append duplicate functions.",
+      "blocks": [
+        {
+          "mode": "insert",
+          "after": "            } else if (resolved === 'health') {",
+          "before": "                this.loadFeatureSettings();",
+          "existing": "",
+          "generated": "                this.loadPhpLifecycle();",
+          "afterEditContext": "                this.loadAdminOverview();\n            } else if (resolved === 'health') {\n                this.loadPhpLifecycle();\n                this.loadFeatureSettings();\n                this.loadStorageSettings();"
+        },
+        {
+          "mode": "insert",
+          "after": "        });",
+          "before": "    },",
+          "existing": "",
+          "generated": "    },\n\n    loadPhpLifecycle: function() {\n        const host = document.getElementById('uniselv-php-lifecycle');\n        if (!this.isAdmin || !host) return;\n        host.textContent = 'Loading PHP runtime status...';\n        this.callApi('php_lifecycle', {}, (err, res) => {\n            const versions = res?.versions || res?.data?.versions;\n            if (err || !versions) { host.textContent = 'PHP runtime status unavailable. Check agent health and retry.'; return; }\n            const table = document.createElement('table'); table.className = 'uniselv-table';\n            const head = table.createTHead().insertRow();\n            ['PHP version','Installed','Registered','Coordinator','Health master','Pools'].forEach(label => {\n                const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; head.append(th);\n            });\n            const body = table.createTBody();\n            Object.entries(versions).forEach(([version, state]) => {\n                const row = body.insertRow();\n                [version,state.installed?'Yes':'Missing',state.managed?'Yes':'No',state.coordinator_active?'Active':'Stopped',state.health_master_active?'Active':'Stopped',String(state.pool_count)].forEach(value => { row.insertCell().textContent = value; });\n            });\n            host.replaceChildren(table);\n            if (!Object.keys(versions).length) host.textContent = 'No PHP runtime registrations found.';\n        }, {timeoutMs:20000});",
+          "afterEditContext": "            }\n        });\n    },\n\n    loadPhpLifecycle: function() {\n        const host = document.getElementById('uniselv-php-lifecycle');\n        if (!this.isAdmin || !host) return;\n        host.textContent = 'Loading PHP runtime status...';\n        this.callApi('php_lifecycle', {}, (err, res) => {\n            const versions = res?.versions || res?.data?.versions;\n            if (err || !versions) { host.textContent = 'PHP runtime status unavailable. Check agent health and retry.'; return; }\n            const table = document.createElement('table'); table.className = 'uniselv-table';\n            const head = table.createTHead().insertRow();\n            ['PHP version','Installed','Registered','Coordinator','Health master','Pools'].forEach(label => {\n                const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; head.append(th);\n            });\n            const body = table.createTBody();\n            Object.entries(versions).forEach(([version, state]) => {\n                const row = body.insertRow();\n                [version,state.installed?'Yes':'Missing',state.managed?'Yes':'No',state.coordinator_active?'Active':'Stopped',state.health_master_active?'Active':'Stopped',String(state.pool_count)].forEach(value => { row.insertCell().textContent = value; });\n            });\n            host.replaceChildren(table);\n            if (!Object.keys(versions).length) host.textContent = 'No PHP runtime registrations found.';\n        }, {timeoutMs:20000});\n    },\n"
+        },
+        {
+          "mode": "replace",
+          "after": "                this.callApi('sync_plans', {}, (err, res) => {",
+          "before": "                    }",
+          "existing": "                    if (err || res.error) {\n                        UniselvNotify.error(`Sync failed: ${err || res.error}`);\n                    } else {\n                        UniselvNotify.success(`Successfully synchronized ${res.synced_plans.length} native resource plans.`);\n                        setTimeout(() => location.reload(), 1200);",
+          "generated": "                    const runtimeErrors = res?.runtime_errors || [];\n                    if (err || !res || res.error || res.success === false || runtimeErrors.length || Number(res.failed_count || 0) > 0) {\n                        const reason = err || res?.error || (runtimeErrors.length ? 'PHP runtime reload failed: ' + runtimeErrors.map(x => x.version).join(', ') : 'Some accounts could not be synchronized.');\n                        UniselvNotify.error(`Sync failed: ${reason}`);\n                        return;",
+          "afterEditContext": "            onConfirm: () => {\n                this.callApi('sync_plans', {}, (err, res) => {\n                    const runtimeErrors = res?.runtime_errors || [];\n                    if (err || !res || res.error || res.success === false || runtimeErrors.length || Number(res.failed_count || 0) > 0) {\n                        const reason = err || res?.error || (runtimeErrors.length ? 'PHP runtime reload failed: ' + runtimeErrors.map(x => x.version).join(', ') : 'Some accounts could not be synchronized.');\n                        UniselvNotify.error(`Sync failed: ${reason}`);\n                        return;\n                    }\n                    const accounts = Number.isFinite(res.synced_count) ? res.synced_count : null;"
+        },
+        {
+          "mode": "insert",
+          "after": "                    }",
+          "before": "                });",
+          "existing": "",
+          "generated": "                    const accounts = Number.isFinite(res.synced_count) ? res.synced_count : null;\n                    const plans = Array.isArray(res.synced_plans) ? res.synced_plans.length : null;\n                    if (accounts === null && plans === null) { UniselvNotify.error('Sync result could not be verified. Check the audit log.'); return; }\n                    UniselvNotify.success(`Successfully synchronized ${accounts ?? plans} ${accounts !== null ? 'accounts' : 'resource plans'}.`);\n                    setTimeout(() => location.reload(), 1200);",
+          "afterEditContext": "                        return;\n                    }\n                    const accounts = Number.isFinite(res.synced_count) ? res.synced_count : null;\n                    const plans = Array.isArray(res.synced_plans) ? res.synced_plans.length : null;\n                    if (accounts === null && plans === null) { UniselvNotify.error('Sync result could not be verified. Check the audit log.'); return; }\n                    UniselvNotify.success(`Successfully synchronized ${accounts ?? plans} ${accounts !== null ? 'accounts' : 'resource plans'}.`);\n                    setTimeout(() => location.reload(), 1200);\n                });\n            }"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/uniselv-resman.php",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/uniselv-resman.php",
+      "mode": "Replace the complete installed file with reviewed release content. Do not append duplicate functions.",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "Plugin Name: UNISELV Resource Manager",
+          "before": "Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.",
+          "existing": "Version: 1.1.22",
+          "generated": "Version: 1.1.23",
+          "afterEditContext": "/*\nPlugin Name: UNISELV Resource Manager\nVersion: 1.1.23\nDescription: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.\nAuthor: Refat Rahman"
+        },
+        {
+          "mode": "replace",
+          "after": "",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.22r4' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.23r2' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.23r2' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "</script>';",
+          "before": "",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.22r4' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.23r2' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.23r2' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        },
+        {
+          "mode": "replace",
+          "after": "                        <span class=\"uniselv-metric-big\" id=\"admin-card-hw-cpu\">' . $cpu_cores . ' vCPUs</span>",
+          "before": "                    </div>",
+          "existing": "                        <span class=\"uniselv-metric-core\">Physical Cores</span>",
+          "generated": "                        <span class=\"uniselv-metric-core\">Virtual CPUs</span>",
+          "afterEditContext": "                    <div class=\"uniselv-gauge-center\">\n                        <span class=\"uniselv-metric-big\" id=\"admin-card-hw-cpu\">' . $cpu_cores . ' vCPUs</span>\n                        <span class=\"uniselv-metric-core\">Virtual CPUs</span>\n                    </div>\n                </div>"
+        },
+        {
+          "mode": "insert",
+          "after": "    echo '<div id=\"tab-health\" class=\"uniselv-tab-content\">",
+          "before": "        <!-- Card 1: Feature Controls & Self-Service Governance -->",
+          "existing": "",
+          "generated": "        <div class=\"uniselv-card mb-4\">\n            <div style=\"display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center\">\n                <h5>PHP Runtime Registration</h5>\n                <button class=\"uniselv-btn btn-outline\" onclick=\"UniselvResMan.loadPhpLifecycle()\">Refresh PHP Status</button>\n            </div>\n            <p>Global PHP settings are inherited. Installed versions must also be registered with the managed runtime. Stopped services need review before assigning a site.</p>\n            <div id=\"uniselv-php-lifecycle\" class=\"uniselv-table-wrap\" role=\"status\" aria-live=\"polite\">Open this section to load PHP status.</div>\n        </div>",
+          "afterEditContext": "    // TAB 5: HEALTH, FEATURE GOVERNANCE & RETENTION SETTINGS\n    echo '<div id=\"tab-health\" class=\"uniselv-tab-content\">\n        <div class=\"uniselv-card mb-4\">\n            <div style=\"display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center\">\n                <h5>PHP Runtime Registration</h5>\n                <button class=\"uniselv-btn btn-outline\" onclick=\"UniselvResMan.loadPhpLifecycle()\">Refresh PHP Status</button>\n            </div>\n            <p>Global PHP settings are inherited. Installed versions must also be registered with the managed runtime. Stopped services need review before assigning a site.</p>\n            <div id=\"uniselv-php-lifecycle\" class=\"uniselv-table-wrap\" role=\"status\" aria-live=\"polite\">Open this section to load PHP status.</div>\n        </div>\n        <!-- Card 1: Feature Controls & Self-Service Governance -->\n        <div class=\"uniselv-card mb-4\">"
+        },
+        {
+          "mode": "replace",
+          "after": "",
+          "before": "    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';",
+          "existing": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.22r4' . '\">';",
+          "generated": "    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.23r2' . '\">';",
+          "afterEditContext": "    $i18n_dict = uniselv_get_i18n_dict();\n\n    echo '<link rel=\"stylesheet\" href=\"' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.23r2' . '\">';\n    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';\n    echo '<script>"
+        },
+        {
+          "mode": "replace",
+          "after": "</script>';",
+          "before": "",
+          "existing": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.22r4' . '\"></script>';",
+          "generated": "    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.23r2' . '\"></script>';",
+          "afterEditContext": "window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';\n</script>';\n    echo '<script src=\"' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.23r2' . '\"></script>';\n\n    echo '<div class=\"uniselv-container\">';"
+        }
+      ]
+    },
+    {
+      "packagedPath": "uniselv-resman/info.json",
+      "installedPath": "/usr/local/webuzo/plugins/uniselv-resman/info.json",
+      "mode": "Replace the complete installed file with reviewed release content. Do not append duplicate functions.",
+      "blocks": [
+        {
+          "mode": "replace",
+          "after": "  \"slug\": \"uniselv-resman\",",
+          "before": "  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",",
+          "existing": "  \"version\": \"1.1.22\",",
+          "generated": "  \"version\": \"1.1.23\",",
+          "afterEditContext": "  \"name\": \"UNISELV Resource Manager\",\n  \"slug\": \"uniselv-resman\",\n  \"version\": \"1.1.23\",\n  \"author\": \"<a href=\\\"https://refat.ovh\\\" target=\\\"_blank\\\">Refat Rahman</a>\",\n  \"developer\": {"
+        },
+        {
+          "mode": "replace",
+          "after": "  \"download_link\": \"https://refat.ovh/plugins/uniselv-resman/uniselv-resman.zip\",",
+          "before": "  \"homepage\": \"https://refat.ovh\"",
+          "existing": "  \"last_updated\": \"2026-10-22\",",
+          "generated": "  \"last_updated\": \"2026-10-24\",",
+          "afterEditContext": "  \"download_url\": \"https://refat.ovh/plugins/uniselv-resman/\",\n  \"download_link\": \"https://refat.ovh/plugins/uniselv-resman/uniselv-resman.zip\",\n  \"last_updated\": \"2026-10-24\",\n  \"homepage\": \"https://refat.ovh\"\n}"
+        }
+      ]
+    }
+  ]
+}

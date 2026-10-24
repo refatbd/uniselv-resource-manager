@@ -134,6 +134,20 @@ def redact_command_line(cmdline: str) -> str:
         redacted = re.sub(pat, rep, redacted, flags=re.IGNORECASE)
     return redacted
 
+def read_pids_events_tree(root):
+    """Sum local fork-failure counters without adding modern hierarchy totals twice.
+
+    Older kernels expose local pids.events only; newer kernels provide an
+    explicit pids.events.local file alongside the hierarchical counter.
+    """
+    filename = 'pids.events.local' if os.path.exists(os.path.join(root, 'pids.events.local')) else 'pids.events'
+    total = 0
+    for directory, _, files in os.walk(root, followlinks=False):
+        if filename in files:
+            total += int(parse_key_value_file(os.path.join(directory, filename)).get('max', 0))
+    return total
+
+
 class MetricsCollector:
     def __init__(self, db_path: str = '/var/lib/uniselv-resource-manager/resman.sqlite'):
         self.db_path = db_path
@@ -322,68 +336,40 @@ class MetricsCollector:
         return limits
 
     def read_user_cgroup(self, uid: int) -> Tuple[str, Dict[str, Any]]:
-        """Locate active cgroup slice for UID and parse stats."""
-        # Check native slice and golden shield slice
-        candidates = [
-            f'/sys/fs/cgroup/golden.slice/golden-{uid}.slice',
-            f'/sys/fs/cgroup/{uid}.slice'
-        ]
-        chosen = None
-        for cand in candidates:
-            if os.path.exists(cand):
-                chosen = cand
-                # Prefer one that has current processes or memory > 0
-                mem_cur = parse_int_file(os.path.join(cand, 'memory.current'))
-                if mem_cur > 0:
-                    break
+        """Sum disjoint native/managed UID roots; never choose by resident memory.
 
-        if not chosen:
-            chosen = f'/sys/fs/cgroup/{uid}.slice'
-
-        stats = {
-            'slice_path': chosen,
-            'cpu_usage_usec': 0,
-            'nr_throttled': 0,
-            'throttled_usec': 0,
-            'mem_current': 0,
-            'mem_anon': 0,
-            'mem_file': 0,
-            'mem_swap': 0,
-            'oom_kill': 0,
-            'mem_high_events': 0,
-            'mem_max_events': 0,
-            'tasks_current': 0,
-            'task_limit_events': 0,
-            'io': {'rbytes': 0, 'wbytes': 0, 'rios': 0, 'wios': 0}
-        }
-
-        if os.path.exists(chosen):
-            # CPU
-            cpu_stat = parse_key_value_file(os.path.join(chosen, 'cpu.stat'))
-            stats['cpu_usage_usec'] = int(cpu_stat.get('usage_usec', 0))
-            stats['nr_throttled'] = int(cpu_stat.get('nr_throttled', 0))
-            stats['throttled_usec'] = int(cpu_stat.get('throttled_usec', 0))
-
-            # Memory
-            stats['mem_current'] = parse_int_file(os.path.join(chosen, 'memory.current'))
-            stats['mem_swap'] = parse_int_file(os.path.join(chosen, 'memory.swap.current'))
-            mem_stat = parse_key_value_file(os.path.join(chosen, 'memory.stat'))
-            stats['mem_anon'] = int(mem_stat.get('anon', 0))
-            stats['mem_file'] = int(mem_stat.get('file', 0))
-
-            mem_events = parse_key_value_file(os.path.join(chosen, 'memory.events'))
-            stats['oom_kill'] = int(mem_events.get('oom_kill', 0))
-            stats['mem_high_events'] = int(mem_events.get('high', 0))
-            stats['mem_max_events'] = int(mem_events.get('max', 0))
-
-            # Tasks
-            stats['tasks_current'] = parse_int_file(os.path.join(chosen, 'pids.current'))
-            pid_events = parse_key_value_file(os.path.join(chosen, 'pids.events'))
-            stats['task_limit_events'] = int(pid_events.get('max', 0))
-
-            # IO
-            stats['io'] = parse_io_stat(os.path.join(chosen, 'io.stat'))
-
+        Historical charges can remain in an empty native root after migration.
+        Count those honestly, but use cgroup.events/populated for live drift.
+        Each root includes descendants already; do not add child counters again.
+        """
+        candidates = [f'/sys/fs/cgroup/golden.slice/golden-{uid}.slice', f'/sys/fs/cgroup/{uid}.slice']
+        golden_active = os.path.exists('/var/lib/golden-shield/installed.json') and not os.path.exists('/var/lib/golden-shield/disabling.json')
+        if not golden_active: candidates.reverse()
+        sources = [p for p in candidates if os.path.exists(p)]
+        chosen = sources[0] if sources else f'/sys/fs/cgroup/{uid}.slice'
+        stats = {'slice_path': chosen, 'slice_paths': sources,
+                 'isolation_drift': False, 'cpu_usage_usec': 0, 'nr_throttled': 0,
+                 'throttled_usec': 0, 'mem_current': 0, 'mem_anon': 0, 'mem_file': 0,
+                 'mem_swap': 0, 'oom_kill': 0, 'mem_high_events': 0, 'mem_max_events': 0,
+                 'tasks_current': 0, 'task_limit_events': 0,
+                 'io': {'rbytes': 0, 'wbytes': 0, 'rios': 0, 'wios': 0}}
+        for source in sources:
+            cpu = parse_key_value_file(os.path.join(source, 'cpu.stat'))
+            for dst, key in [('cpu_usage_usec','usage_usec'),('nr_throttled','nr_throttled'),('throttled_usec','throttled_usec')]:
+                stats[dst] += int(cpu.get(key, 0))
+            for dst, filename in [('mem_current','memory.current'),('mem_swap','memory.swap.current'),('tasks_current','pids.current')]:
+                stats[dst] += parse_int_file(os.path.join(source, filename))
+            memory = parse_key_value_file(os.path.join(source, 'memory.stat'))
+            stats['mem_anon'] += int(memory.get('anon', 0)); stats['mem_file'] += int(memory.get('file', 0))
+            events = parse_key_value_file(os.path.join(source, 'memory.events'))
+            for dst,key in [('oom_kill','oom_kill'),('mem_high_events','high'),('mem_max_events','max')]:
+                stats[dst] += int(events.get(key, 0))
+            stats['task_limit_events'] += read_pids_events_tree(source)
+            io = parse_io_stat(os.path.join(source, 'io.stat'))
+            for key in stats['io']: stats['io'][key] += io.get(key, 0)
+            if source != chosen:
+                populated = parse_key_value_file(os.path.join(source, 'cgroup.events')).get('populated', 0)
+                stats['isolation_drift'] |= int(populated) > 0
         return chosen, stats
 
     def read_system_cpu(self) -> Tuple[int, int]:
@@ -401,26 +387,14 @@ class MetricsCollector:
     def get_process_list_for_user(self, uid: int, slice_path: str) -> List[Dict[str, Any]]:
         """Get list of active processes belonging to user with sanitized cmdline."""
         procs = []
-        pids_file = os.path.join(slice_path, 'cgroup.procs')
+        # Enumerate by actual UID: service children and migration drift must not
+        # disappear merely because the account root has only proxy processes.
         pids = []
-        if os.path.exists(pids_file):
-            try:
-                with open(pids_file, 'r') as f:
-                    pids = [int(p.strip()) for p in f if p.strip().isdigit()]
-            except Exception:
-                pass
-
-        # If cgroup.procs is empty, also check by UID in /proc as fallback
-        if not pids:
-            for entry in os.listdir('/proc'):
-                if entry.isdigit():
-                    pid = int(entry)
-                    try:
-                        stat_path = f'/proc/{pid}'
-                        if os.stat(stat_path).st_uid == uid:
-                            pids.append(pid)
-                    except Exception:
-                        pass
+        for entry in os.listdir('/proc'):
+            if entry.isdigit():
+                try:
+                    if os.stat('/proc/' + entry).st_uid == uid: pids.append(int(entry))
+                except (FileNotFoundError, ProcessLookupError, PermissionError): pass
 
         uptime = 0.0
         try:
@@ -434,6 +408,7 @@ class MetricsCollector:
 
         for pid in pids:
             try:
+                if os.stat(f'/proc/{pid}').st_uid != uid: continue
                 proc_stat_path = f'/proc/{pid}/stat'
                 cmdline_path = f'/proc/{pid}/cmdline'
 

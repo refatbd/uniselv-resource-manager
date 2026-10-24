@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """Checked installation/removal of plugin-owned protection dependencies."""
-import json, os, pathlib, subprocess, sys, hashlib, time, re, math
+import json, os, pathlib, subprocess, sys, hashlib, time, re, math, importlib.util
 sys.path.insert(0, '/usr/local/uniselv-resman/agent')
 ROOT = pathlib.Path('/var/lib/uniselv-resource-manager')
 JOURNAL = ROOT / 'protection-lifecycle.json'
@@ -75,7 +75,8 @@ def native_admission_policy(php_budget, reserve):
     if minimum>php_budget:raise RuntimeError('Shared physical PHP admission budget cannot fit one worker')
     return {'accountRuntimeCaps':True,'maxActivePools':min(64,php_budget//minimum),'hostReserveMiB':reserve,
         'poolBudgetMiB':pool_cost,'phpBudgetMiB':php_budget,'workerRssMiB':max(rss_values),
-        'opcacheMiB':max(cache_values),'idleSeconds':20,'requestTimeoutSeconds':max(timeouts or [120])}
+        'opcacheMiB':max(cache_values),'idleSeconds':20,'requestTimeoutSeconds':max(timeouts or [120]),
+        'warmIdleSeconds':max(60,min(900,(php_budget//(48+max(cache_values)))*60))}
 
 
 def reviewed_admission_policy(hw):
@@ -89,7 +90,9 @@ def reviewed_admission_policy(hw):
     stat=path.stat()
     if path.is_symlink() or stat.st_uid!=0 or stat.st_mode & 0o022:
         raise RuntimeError('Generator profile must be a root-owned, non-writable regular file')
-    data=json.loads(path.read_text());config=data['configuration'];hardware=config['globalInputs']['hardware']
+    spec=importlib.util.spec_from_file_location('resman_install_profile',pathlib.Path(__file__).with_name('configuration-audit.py'))
+    normalizer=importlib.util.module_from_spec(spec);spec.loader.exec_module(normalizer)
+    config=normalizer.normalize_profile(json.loads(path.read_text()))['configuration'];hardware=config['globalInputs']['hardware']
     if config.get('validationErrors'):
         raise RuntimeError('Generator export contains validation errors')
     if hardware.get('measuredRamMiB')!=hw['ram_total_mib'] or hardware.get('cpu')!=hw['cpu_count']:

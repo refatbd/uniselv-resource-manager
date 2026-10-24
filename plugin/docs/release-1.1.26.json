@@ -1,0 +1,137 @@
+{
+  "version": "1.1.26",
+  "validation": {
+    "schemaVersion": 1,
+    "version": "1.1.26",
+    "date": "2026-10-24",
+    "status": "bounded-tests-passed",
+    "productionCertified": false,
+    "coreSha256": "a4c381539432a1b5e5d0b42c2e87b2dc206f428222dde18bff11536237be8170",
+    "regressionCases": 92,
+    "generatorHardwareOversellingCases": 8,
+    "configurationChecks": 331,
+    "configurationMismatches": 0,
+    "accountIntegrity": {
+      "status": "PASS",
+      "accounts_checked": 25,
+      "drift_accounts": [],
+      "native_guard": "active"
+    },
+    "planAuditMismatches": 0,
+    "outsideCustomerProcesses": 0,
+    "nativeMoverVendorSourcePreserved": true,
+    "warmIdleSeconds": 600,
+    "liveBoundedTests": {
+      "phpInsideAtFirstAndAfterSevenSeconds": true,
+      "opcacheSurvivesOldIdleCutoff": true,
+      "legacyNativeCliAdoptedIntoChildScope": true,
+      "accountCpuQuota": {
+        "requests": 8,
+        "configuredPercent": 280,
+        "observedPercent": 276.56,
+        "throttledPeriods": 54
+      },
+      "hostingAggregateQuota": {
+        "actors": 4,
+        "accounts": 2,
+        "configuredPercent": 340,
+        "observedPercent": 325.63,
+        "throttledPeriods": 37
+      },
+      "peerPhpRequestSucceeded": true,
+      "privateFixturesRemoved": true
+    },
+    "websiteSmoke": [
+      {
+        "path": "/free-fire-diamond-bd/",
+        "cacheMode": "normal",
+        "status": 200,
+        "seconds": 0.067691,
+        "cf": "HIT",
+        "applicationCache": "STORE",
+        "html": true,
+        "capacityBusy": false,
+        "criticalError": false
+      },
+      {
+        "path": "/free-fire-diamond-bd/",
+        "cacheMode": "uncached",
+        "status": 200,
+        "seconds": 3.705634,
+        "cf": "DYNAMIC",
+        "applicationCache": "BYPASS",
+        "html": true,
+        "capacityBusy": false,
+        "criticalError": false
+      },
+      {
+        "path": "/product-category/gift-card/",
+        "cacheMode": "uncached",
+        "status": 200,
+        "seconds": 1.696493,
+        "cf": "DYNAMIC",
+        "applicationCache": "BYPASS",
+        "html": true,
+        "capacityBusy": false,
+        "criticalError": false
+      }
+    ],
+    "postMaintenanceIdleHttp": [
+      {
+        "label": "first-after-maintenance",
+        "status": 200,
+        "seconds": 3.916162,
+        "cf": "DYNAMIC",
+        "applicationCache": "BYPASS",
+        "genuineHtml": true,
+        "capacityBusy": false
+      },
+      {
+        "label": "after-30s-idle",
+        "status": 200,
+        "seconds": 3.477466,
+        "cf": "DYNAMIC",
+        "applicationCache": "BYPASS",
+        "genuineHtml": true,
+        "capacityBusy": false
+      }
+    ],
+    "readinessLimits": [
+      "Selective current-host bounded tests, not every OS/vendor combination.",
+      "No new full clean-OS install, full protection uninstall/reinstall or reboot certificate for this release.",
+      "The latest Grafana visitor-capacity run predates these fixes; no new 40/50-user capacity claim.",
+      "WordPress/theme/plugin rendering and background Meta queue issues remain outside these server changes.",
+      "Configuration audit has per-section coverage; untested sections remain explicitly unverified."
+    ]
+  },
+  "placement": {
+    "generatedFiles": [
+      {
+        "path": "/etc/systemd/system/cgroup.service.d/90-uniselv-resman.conf",
+        "mode": "New complete owned file, created by the reviewed core; vendor cgroup.sh remains untouched.",
+        "after": "<START OF NEW FILE>",
+        "before": "<END OF NEW FILE>",
+        "generatedCode": "# UNISELV-RESMAN native cgroup coexistence; vendor source preserved\n[Service]\nExecStart=\nExecStart=/usr/bin/python3 /usr/local/sbin/webuzo-isolation.py native-cgroup-guard\nRestart=on-failure\nRestartSec=2\n",
+        "afterEditExample": "# UNISELV-RESMAN native cgroup coexistence; vendor source preserved\n[Service]\nExecStart=\nExecStart=/usr/bin/python3 /usr/local/sbin/webuzo-isolation.py native-cgroup-guard\nRestart=on-failure\nRestartSec=2\n",
+        "duplicateHandling": "One owned drop-in only. ExecStart= clears the inherited command before the replacement ExecStart. Do not append another copy. Unknown edits cause refusal."
+      },
+      {
+        "path": "/etc/webuzo-isolation/policy.json",
+        "mode": "Whole JSON object replacement by the reviewed deployment workflow, not a second appended object.",
+        "after": "<START OF FILE>",
+        "before": "<END OF FILE>",
+        "generatedCode": "{\n  \"accountRuntimeCaps\": true,\n  \"maxActivePools\": 4,\n  \"hostReserveMiB\": 1280,\n  \"poolBudgetMiB\": 2649,\n  \"phpBudgetMiB\": 3127,\n  \"workerRssMiB\": 288,\n  \"opcacheMiB\": 256,\n  \"idleSeconds\": 20,\n  \"requestTimeoutSeconds\": 120,\n  \"warmIdleSeconds\": 600\n}",
+        "afterEditExample": "{\n  \"accountRuntimeCaps\": true,\n  \"maxActivePools\": 4,\n  \"hostReserveMiB\": 1280,\n  \"poolBudgetMiB\": 2649,\n  \"phpBudgetMiB\": 3127,\n  \"workerRssMiB\": 288,\n  \"opcacheMiB\": 256,\n  \"idleSeconds\": 20,\n  \"requestTimeoutSeconds\": 120,\n  \"warmIdleSeconds\": 600\n}",
+        "duplicateHandling": "Exactly one JSON object; no duplicate keys. Use the current Global Inputs export on different hardware."
+      }
+    ],
+    "verification": [
+      "systemctl show cgroup.service -p ActiveState -p ExecStart",
+      "sudo python3 /usr/local/sbin/webuzo-isolation.py verify",
+      "sudo python3 /usr/local/sbin/golden-shield.py check",
+      "Open UNISELV Resources > System & Agent Health and review Account cgroup placement."
+    ],
+    "manualPasteRequired": false,
+    "exactSourceAppendix": "source-changes-1.1.26.json"
+  }
+}

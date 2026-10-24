@@ -1,0 +1,177 @@
+{
+  "version": "1.1.27",
+  "date": "2026-10-24",
+  "status": "current-host-bounded-lifecycle-passed",
+  "productionCertified": false,
+  "websiteAudit": "deferred-by-user",
+  "userScope": "Current-host tests only; no disposable VPS available. CSF owner-managed.",
+  "summary": {
+    "isolatedTests": 119,
+    "adversarialSuites": 4,
+    "generatorCases": 8,
+    "configurationChecks": 331,
+    "configurationMismatches": 0,
+    "finalAccounts": 25,
+    "secondRebootConfirmed": true,
+    "finalRebootFilesPreserved": true,
+    "boostPending": 0,
+    "boostFailed": 0
+  },
+  "cases": [
+    {
+      "case": "Generated/live configuration parity",
+      "status": "PASS-live",
+      "scope": "331 allowlisted checks, zero mismatches; all-section coverage distinguishes sections without checks.",
+      "evidence": "configuration-final.json"
+    },
+    {
+      "case": "Native provisioning and plan transition",
+      "status": "PASS-live-bounded",
+      "scope": "Create/delete; PHP 7.4/8.1/8.2/8.4 assignment/global inheritance; Go/Pro kernel limits. No manual per-user FPM setting.",
+      "evidence": "native-provisioning.json"
+    },
+    {
+      "case": "Temporary boost transaction lifecycle",
+      "status": "PASS-live-and-isolated",
+      "scope": "Apply, overlap refusal, cancellation, expiry and interrupted-application recovery; UID/plan/billing/rollback failure paths isolated.",
+      "evidence": "extended-native.json; expanded-regressions.json"
+    },
+    {
+      "case": "Native PHP 8.3 lifecycle",
+      "status": "PASS-live",
+      "scope": "Vendor native install; global profile inherited; automatic onboarding; real contained HTTP; in-use retirement refusal; switch away; retirement/remove. Restored original global FPM defaults.",
+      "evidence": "native-php83-final.json; native-php83-onboard.json; native-php83-removal.json"
+    },
+    {
+      "case": "Native vhost regeneration and suspension",
+      "status": "PASS-live",
+      "scope": "Non-destructive --rebuild_vhost preserved probe content; suspension stopped probe execution and unsuspension restored routing. --rebuild-user separately observed resetting disposable content.",
+      "evidence": "maintenance-user.json; extended-native.json"
+    },
+    {
+      "case": "RAM hard limit",
+      "status": "PASS-live-bounded",
+      "scope": "Actual disposable account MemoryMax hard OOM verified; temporary MemoryHigh adjustment restored. First high-backpressure observation is retained separately.",
+      "evidence": "kernel-boundaries.json"
+    },
+    {
+      "case": "Task boundary and event reporting",
+      "status": "PASS-live-and-isolated",
+      "scope": "Actual TasksMax 64 refused the next fork; descendant-local kernel events read correctly, plus three aggregation regressions.",
+      "evidence": "kernel-boundaries.json; expanded-regressions.json"
+    },
+    {
+      "case": "Disk and inode quota boundaries",
+      "status": "PASS-live-bounded",
+      "scope": "Disposable native quota rejected byte writes and inode creation with EDQUOT; data removed.",
+      "evidence": "quota-boundaries.json"
+    },
+    {
+      "case": "I/O",
+      "status": "PASS-live-smoke",
+      "scope": "64-MiB direct I/O under native device rule; this run does not recertify all plan throughput/IOPS ceilings. Older multi-plan measurements remain dated evidence.",
+      "evidence": "kernel-boundaries.json"
+    },
+    {
+      "case": "Native cron and PAM session startup",
+      "status": "PASS-live-bounded",
+      "scope": "Real disposable native cron and runuser initial instruction in correct account cgroup. Earlier real SSH entry remains historical.",
+      "evidence": "native-sessions.json"
+    },
+    {
+      "case": "IPC, file, process and reseller authorization",
+      "status": "PASS-live-and-isolated",
+      "scope": "Private root controls denied to tenant; token spoof/foreign PID/stale PID rejected; own process controlled; reseller aliases/runtime totals scoped in regression.",
+      "evidence": "security.json; real-ipc-security.json; expanded-regressions.json"
+    },
+    {
+      "case": "Database and agent shared-service recovery",
+      "status": "PASS-live-bounded",
+      "scope": "Dedicated SQL probe read/mixed transaction/invariant and cache, controlled MariaDB restart, agent SIGKILL automatic recovery. Post-reboot SQL/cache also passed. No WordPress DB changes.",
+      "evidence": "shared-services.json; final-cleanup.json"
+    },
+    {
+      "case": "Apache boot ownership",
+      "status": "PASS-live-after-fix",
+      "scope": "First reboot failed initial forking/PID-file startup. Foreground tracked master fixed; native status/reload/restart passed. Second boot started Apache immediately without timeout/restart retry.",
+      "evidence": "boot-startup-review.json; apache-foreground-recovery.json; second-boot-review.json"
+    },
+    {
+      "case": "Second boot and retained state",
+      "status": "PASS-live-bounded",
+      "scope": "New boot ID; protected files/accounts preserved; all core units active; native boot PHP reconciliation briefly pending then completed; no pending journal; private HTTP contained.",
+      "evidence": "post-reboot-early.json; post-reboot-final.json"
+    },
+    {
+      "case": "Uninstall preflight, vendor replacement and recovery failure",
+      "status": "PASS-isolated-and-targeted-live",
+      "scope": "117 then 119 isolated tests; actual existing-stack installer rerun; full isolation removal refused while Golden depends on it; actual pending PHP84 recovery tested. Full protection removal not attempted on live accounts.",
+      "evidence": "expanded-regressions.json; systemd-failure-recovery.json; governance-real-services.json"
+    },
+    {
+      "case": "Governance journal delay",
+      "status": "PASS-live-after-fix",
+      "scope": "Unit-glob journal read timed out and prevented snapshot refresh. Bounded shared tail now finishes; unavailable journal reads produce explicit partial-coverage evidence while current runtime/config snapshot is retained. Two new regressions.",
+      "evidence": "governance-final.json; expanded-regressions.json"
+    },
+    {
+      "case": "Adversarial handlers",
+      "status": "PASS-isolated",
+      "scope": "Four suites passed; R6 38 assertions, R7 31 assertions. Synthetic policy fixtures are not a live overload certificate.",
+      "evidence": "adversarial-regressions.json"
+    },
+    {
+      "case": "Hardware and overselling derivation",
+      "status": "PASS-generated",
+      "scope": "Eight cases: 2/4/8/16 vCPU, 4/8/16/32 GiB, 100/300 percent overselling. Physical safety budgets unchanged by sales overselling; embedded source hashes verified.",
+      "evidence": "../release-1.1.27/generator-tests.json"
+    },
+    {
+      "case": "Cleanup",
+      "status": "PASS-live",
+      "scope": "Original 25 accounts; disposable account/home/pool/probe gone; PHP83 removed; temporary cron/scripts/IO/quota fixture data removed. All 25 account placement and boost recovery PASS.",
+      "evidence": "final-cleanup.json"
+    }
+  ],
+  "externalOrExcluded": [
+    {
+      "case": "Clean-OS install / complete protection uninstall-reinstall / disaster restore",
+      "status": "NOT-RUN-external-environment",
+      "reason": "No disposable VPS available; owner explicitly requested current-host tests only."
+    },
+    {
+      "case": "Native PHP patch update",
+      "status": "NOT-AVAILABLE-vendor",
+      "reason": "No PHP patch update in the current native catalogue. Actual PHP83 install/remove and isolated vendor replacement are separate."
+    },
+    {
+      "case": "Physical hardware resize / future vendor and OS versions",
+      "status": "NOT-RUN-external-environment",
+      "reason": "Generated matrix and current supported installation do not certify an actual resize or future release."
+    },
+    {
+      "case": "RAM plus active host swap",
+      "status": "NOT-RUN-host-swap-off",
+      "reason": "Host swap intentionally remains disabled; do not infer active swap enforcement from memory.max."
+    },
+    {
+      "case": "WordPress audit / shopper capacity",
+      "status": "DEFERRED-owner",
+      "reason": "Website work explicitly last. No new maximum-shopper claim from these server fixtures."
+    },
+    {
+      "case": "CSF / lfd",
+      "status": "EXCLUDED-owner-managed",
+      "reason": "lfd.service observed failed after reboot; owner requested no CSF changes."
+    },
+    {
+      "case": "Optional unrelated services and full commercial features",
+      "status": "SEPARATE-PENDING",
+      "reason": "Mail delivery, TLS renewal, Redis tenancy, Backuply restore, malware/alerts, filesystem jail and per-account SQL CPU/RAM isolation are not certified by this core lifecycle run."
+    }
+  ],
+  "sourceGuide": "source-changes-1.1.27.md",
+  "canonicalGenerator": "uniselv.win/webuzo-planner/",
+  "evidenceStorage": "Detailed private/local evidence: server-audit-20261024/lifecycle-1.1.27/. This public ledger contains no credentials or authenticated session URLs.",
+  "postRebootRefinements": "Apache/isolation core in the second reboot matches the released core. The subsequent journal diagnostic fallback was verified through an agent restart, live fresh scan and two regressions; the storage warning UI was verified through browser refresh. No third whole-host reboot was performed for those diagnostic/UI refinements."
+}

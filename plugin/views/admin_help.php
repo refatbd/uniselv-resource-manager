@@ -3,6 +3,11 @@
  * UNISELV Resource Manager - Modern Admin Help & About View
  * Role-specific, searchable, responsive enterprise documentation for Webuzo Administrators.
  */
+$uniselvHelpInfo = json_decode(file_get_contents(__DIR__ . '/../info.json'), true) ?: [];
+$uniselvHelpOs = @parse_ini_file('/etc/os-release', false, INI_SCANNER_RAW) ?: [];
+$uniselvHelpEscape = static function($value) { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); };
+$uniselvHelpVersion = $uniselvHelpInfo['version'] ?? 'Unavailable';
+$uniselvHelpPanel = isset($globals['version']) && is_scalar($globals['version']) ? $globals['version'] : 'Read the current Webuzo panel header';
 ?>
 <div id="tab-help" class="uniselv-tab-content">
     <!-- Help Header & Real-time Search -->
@@ -36,6 +41,30 @@
 
     <!-- Documentation Articles Grid -->
     <div class="uniselv-help-grid">
+        <div class="uniselv-help-card" data-cat="features" id="help-topic-runtime">
+            <span class="uniselv-help-badge badge-cat-features">Runtime Governance</span>
+            <h4 class="uniselv-help-card-title">PHP Lifecycle, Configuration Drift &amp; Recovery</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Menu:</strong> System &amp; Agent Health &gt; Runtime Governance &amp; Configuration Evidence.
+                <ol>
+                    <li><strong>Install or update PHP:</strong> Apply the generator values globally for that version. Automatic onboarding/repair waits for stable observations, matching reviewed settings and successful preflight. Maintenance Mode pauses background governance.</li>
+                    <li><strong>Review differences:</strong> Choose <strong>Refresh Evidence</strong>. Expected/actual settings, account INI exceptions and per-section coverage are displayed. Incomplete scans and sections not checked are labelled; no differences is not full deployment certification.</li>
+                    <li><strong>Retry after fixing a cause:</strong> Choose <strong>Reconcile PHP Changes</strong>. This resets retry history without bypassing safety checks.</li>
+                    <li><strong>Uninstall PHP:</strong> Move its sites first, then choose <strong>Retire Runtime</strong> and confirm successful retirement before removing software in Webuzo. <strong>Enable Runtime</strong> permits registration again. Missing files or remaining pools block unsafe retirement.</li>
+                    <li><strong>Investigate busy responses:</strong> Read <strong>Capacity Events</strong> and <strong>Recent Capacity Event Timeline</strong>. These are bounded journal events, not unique visitors; account limits, shared budget and queues can have different causes.</li>
+                    <li><strong>Recover or export:</strong> Use <strong>Recover Pending Operation</strong> for an interrupted lifecycle transaction, or <strong>Prepare &amp; Download Comparison</strong> for private diagnostics. Failed recovery retains its journal. Exports contain account paths; share privately.</li>
+                </ol>
+                Native PHP-FPM defaults remain global; automatic account runtime caps borrow available shared capacity rather than reserving workers for idle accounts. Tuning values come from the reviewed generator profile, not this help page. Configured vs Effective Audit separates the private FPM ceiling from the current concurrent relay grant. A partial grant advertises queued demand and can grow in place without a PHP/OPcache restart. Fair-share reductions hold new work in the bounded queue and wait for forwarded work and verified backend idleness before re-admission. Root-only backend sockets and a PID/start-token proxy handshake prevent bypass and preserve compatibility with older running proxies. Warm masters retain OPcache while headroom permits, with a hardware-derived maximum idle duration; eligible peer demand or low host reserve can reclaim a quiescent lease early. Ondemand workers still retire using inherited global defaults. The native cgroup service uses a plugin-owned coexistence drop-in, preserving the vendor script and managed service descendants.
+            </div>
+        </div>
+        <div class="uniselv-help-card" data-cat="trouble" id="help-topic-runtime-advanced">
+            <span class="uniselv-help-badge">Advanced Runbook</span>
+            <h4 class="uniselv-help-card-title">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>
+            <div class="uniselv-help-card-desc">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>
+            <details><summary>Operations, expected profile and verification scope</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.30.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
+            <details><summary>Exact source replacement and insertion guide</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.30.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
+        </div>
+
 
         <!-- 1. QUICK START -->
         <div class="uniselv-help-card" data-cat="quickstart" id="help-topic-quickstart">
@@ -45,9 +74,9 @@
                 UNISELV Resource Manager automates server-wide resource governance, real-time telemetry collection, and cgroups v2 kernel isolation for Webuzo.
             </div>
             <ol style="margin: 0 0 14px 20px; padding: 0; color: #475569; font-size: 0.9rem; line-height: 1.6;">
-                <li><strong>Automatic Governance:</strong> The background agent (<code>uniselv-resman-agent.service</code>) starts automatically, collects 10-second telemetry samples, manages database retention, and validates cgroup sync.</li>
+                <li><strong>Automatic Governance:</strong> The background agent (<code>uniselv-resman-agent.service</code>) starts automatically, collects telemetry at the frequency selected under System &amp; Agent Health (5 seconds is the default), manages database retention, and validates cgroup sync.</li>
                 <li><strong>Native Plan Synchronization:</strong> Click <strong>Bulk Sync All Plans</strong> at the top right to verify that all Webuzo plans are propagated into individual account slices (<code>golden-&lt;uid&gt;.slice</code>).</li>
-                <li><strong>Golden Shield Safety Cap:</strong> Check the <strong>Golden Shield & Capacity</strong> tab to confirm that parent aggregate limits (<code>golden.slice</code>) are active with shared aggregate CPU headroom (e.g. 340% hosting + 60% system headroom on 4 vCPUs).</li>
+                <li><strong>Golden Shield Safety Cap:</strong> Check the <strong>Golden Shield Governance</strong> tab to confirm that parent aggregate limits (<code>golden.slice</code>) are active with shared aggregate CPU headroom (e.g. 340% hosting + 60% system headroom on 4 vCPUs).</li>
             </ol>
             <div class="uniselv-code-block">
                 <code>systemctl status uniselv-resman-agent --no-pager</code>
@@ -60,16 +89,16 @@
             <span class="uniselv-help-badge badge-cat-features">Features</span>
             <h4 class="uniselv-help-card-title">Server Overview & Top Consumers Dashboard</h4>
             <div class="uniselv-help-card-desc">
-                <strong>What it does:</strong> Provides instant visual telemetry of physical hardware, aggregate shared headroom, active RAM safety budget, 1m/5m/15m system loads, and live ranking of the top consuming hosting accounts.<br>
+                <strong>What it does:</strong> Provides telemetry of visible server hardware, aggregate shared headroom, active RAM safety budget, 1m/5m/15m system loads, and live ranking of the top consuming hosting accounts.<br>
                 <strong>Menu:</strong> <em>Server Overview</em> tab.<br>
                 <strong>Prerequisites:</strong> Active background agent daemon.<br>
                 <strong>Usage Steps:</strong>
                 <ol style="margin: 6px 0 10px 20px; padding: 0;">
-                    <li>Review the hardware detection card for accurate physical core and RAM readings.</li>
+                    <li>Review the hardware detection card for accurate vCPU and RAM readings.</li>
                     <li>Inspect the <strong>Top Resource Consumers</strong> table to spot accounts approaching 100% of their CPU allowance or suffering throttling.</li>
                     <li>Click <strong>Grant Boost</strong> to provide temporary emergency headroom to any account experiencing a traffic spike.</li>
                 </ol>
-                <strong>Expected Result:</strong> Real-time animated telemetry updates with zero browser lag.
+                <strong>Expected Result:</strong> Telemetry refreshes while the dashboard is active. Check sample age; responsiveness depends on browser and server load.
             </div>
         </div>
 
@@ -80,7 +109,7 @@
             <div class="uniselv-help-card-desc">
                 <strong>What it does:</strong> Comprehensive inventory of all Webuzo accounts showing assigned plan, core-equivalent CPU %, allowance utilization %, memory footprint, task counts, and throttling incidents. Allows granting temporary plan upgrades that expire cleanly.<br>
                 <strong>Menu:</strong> <em>All Accounts</em> tab.<br>
-                <strong>Realistic Example:</strong> An e-commerce customer runs a flash sale and their site begins throwing 503 errors due to task exhaustion. An administrator grants a <strong>Turbo</strong> boost (200% CPU, 3072M RAM) for 120 minutes. The agent dynamically reconfigures the slice without touching permanent billing plans, and cleanly restores the original plan upon expiration.<br>
+                <strong>Realistic Example:</strong> An e-commerce site experiences a flash-sale slowdown. First identify the limiting account, shared budget or queue. If the account is constrained and aggregate headroom exists, select a suitable higher plan using its displayed current limits and a bounded duration. A temporary boost does not create more physical RAM or CPU and cannot guarantee removal of 503 errors. Verify restoration or any reported failure after expiry.<br>
                 <strong>Reversal Steps:</strong> To cancel early, open the modal and select cancel, or wait for the timer to expire automatically.
             </div>
         </div>
@@ -90,13 +119,15 @@
             <span class="uniselv-help-badge badge-cat-features">Features</span>
             <h4 class="uniselv-help-card-title">Configured vs Effective Kernel Limit Audit</h4>
             <div class="uniselv-help-card-desc">
-                <strong>What it does:</strong> Rigorously audits every configured Webuzo plan limit against actual kernel cgroup v2 parameters. A customer slice is only labeled <strong>SYNCHRONIZED</strong> if all six criteria match:<br>
+                <strong>What it does:</strong> Rigorously audits every configured Webuzo plan limit against actual kernel cgroup v2 parameters. A customer slice is only labeled <strong>SYNCHRONIZED</strong> when its implemented checks match, including:<br>
                 1. <code>cpu.max</code> numerical quota matches plan CPUQuota.<br>
                 2. <code>memory.max</code> matches plan configured memory ceiling.<br>
                 3. <code>memory.high</code> matches plan memory warning threshold.<br>
                 4. <code>memory.swap.max</code> is strictly enforced to 0 bytes.<br>
                 5. <code>pids.max</code> matches plan maxtask.<br>
-                6. <strong>Ancestor Slice:</strong> The slice is strictly located inside <code>/sys/fs/cgroup/golden.slice/</code>.<br>
+                6. <code>io.max</code> read/write throughput and IOPS rules match the configured plan where limits apply.<br>
+                7. <strong>Ancestor Slice:</strong> The slice is strictly located inside <code>/sys/fs/cgroup/golden.slice/</code>.<br>
+                8. <strong>Process Placement:</strong> Observed customer processes remain inside the account boundary; shared Apache workers are audited at the hosting aggregate, not attributed as private account workers.<br>
                 <strong>Menu:</strong> <em>Configured vs Effective Audit</em> tab.<br>
                 <strong>Action:</strong> If any slice shows <em>MISCONFIGURED</em>, click <strong>Bulk Sync All Plans</strong> to reconcile immediately.
             </div>
@@ -107,20 +138,22 @@
             <span class="uniselv-help-badge badge-cat-metrics">Resource Metrics</span>
             <h4 class="uniselv-help-card-title">Resource Metrics & Allowance Mathematics</h4>
             <div class="uniselv-help-card-desc">
-                <strong>1. CPU % (Core Equivalent):</strong> 100% CPU equals exactly one full physical CPU core. On a 4 vCPU server, 400% represents total machine capacity.<br>
+                <strong>Gauge fill:</strong> 0% is empty, 50% half and 100% full. Missing data is neutral. Hardware Detection is inventory; its ring does not represent usage. Admin Shared CPU Headroom shows configured hosting share (340% / 400% = 85% on four vCPUs). RAM is aggregate memory usage / enforced cap; System Load is load1 / vCPU count, not CPU utilization.<br>
+                <strong>1. CPU % (Core Equivalent):</strong> 100% CPU represents one logical CPU/vCPU worth of scheduled execution time; it does not guarantee a dedicated physical core. On a 4 vCPU server, 400% represents total machine capacity.<br>
                 <strong>Allowance Percentage Example:</strong> If an account is assigned a 200% CPU quota (2 cores) and consumes 150% CPU, its allowance usage is:
                 <div style="background:#f1f5f9; padding:8px 12px; border-radius:6px; margin:6px 0; font-family:monospace; font-size:0.85rem;">
                     Allowance Used = (150% Actual / 200% Quota) * 100 = 75.0%
                 </div>
                 <strong>2. Memory Breakdown (Anon vs Cache vs Swap):</strong>
                 <ul style="margin:6px 0 6px 20px; padding:0;">
-                    <li><strong>Anonymous (RSS):</strong> Real application code, PHP-FPM variables, opcache, and MySQL query buffers. Cannot be freed without terminating workers.</li>
-                    <li><strong>File Page Cache:</strong> Cached disk files managed by Linux. Automatically reclaimed under pressure; does not trigger OOM.</li>
+                    <li><strong>Anonymous memory:</strong> Heap and stack allocations, including PHP request data. Processes can release memory; anonymous memory is not synonymous with total RSS or shared MySQL memory.</li>
+                    <li><strong>File Page Cache:</strong> Cached file data can count toward cgroup memory usage. Reclaimability varies; cache does not make an account immune to OOM.</li>
                     <li><strong>Swap Max = 0:</strong> Strict zero swap enforcement prevents VPS disk thrashing and protects NVMe performance.</li>
                 </ul>
+                <a href="https://docs.kernel.org/admin-guide/cgroup-v2.html" target="_blank" rel="noopener noreferrer">Linux kernel cgroup v2 reference</a><br>
                 <strong>3. Tasks / PIDs (<code>pids.max</code>):</strong> Maximum concurrent threads, PHP-FPM workers, and background subprocesses permitted in the slice. Prevents fork bombs.<br>
-                <strong>4. Throttling Events (<code>nr_throttled</code>):</strong> Number of 100ms quota periods where the CFS scheduler paused execution because the account exceeded its quota.<br>
-                <strong>5. OOM Kills (<code>oom_kill</code>):</strong> Number of processes terminated by kernel because total slice memory breached <code>memory.max</code>.
+                <strong>4. Throttling Events (<code>nr_throttled</code>):</strong> Number of configured CPU bandwidth periods in which execution was throttled. Read the actual period from <code>cpu.max</code>; do not assume every server uses 100 ms.<br>
+                <strong>5. OOM Kills (<code>oom_kill</code>):</strong> Number of processes killed by an OOM killer in this cgroup. Check memory events and ancestor limits to identify the boundary involved.
             </div>
         </div>
 
@@ -195,17 +228,18 @@
                 <ol style="margin:6px 0 10px 20px; padding:0;">
                     <li>Open <em>All Accounts</em> tab and check customer’s active tasks vs maximum task limit.</li>
                     <li>If tasks are exhausted, navigate to Enduser view or use SSH to identify hanging PHP-FPM workers.</li>
-                    <li>Grant a temporary <strong>Turbo</strong> boost to relieve immediate congestion while debugging slow database queries.</li>
+                    <li>Review <em>System &amp; Agent Health &gt; Runtime Governance &amp; Configuration Evidence</em> for admission/queue reasons. Grant a suitable temporary boost only when account limits and aggregate headroom justify it; investigate slow application/database work separately.</li>
                 </ol>
+                <p><strong>Temporary boost recovery:</strong> Application, cancellation and expiry use verified plan transactions. An unresolved boost blocks overlapping boosts. A failed restore remains retryable and appears under <em>System &amp; Agent Health &gt; Temporary boost recovery</em> and <em>Audit Log</em>. UID reuse or a separately changed account plan requires administrator review; the previous boost does not overwrite that new identity or plan.</p>
                 <strong>Scenario 2: Investigating Rogue Process Outside Boundary:</strong>
                 <ol style="margin:6px 0 10px 20px; padding:0;">
-                    <li>Open <em>Golden Shield & Capacity</em> tab and check <strong>Enforcement Coverage</strong>.</li>
+                    <li>Open <em>Golden Shield Governance</em> tab and check <strong>Enforcement Coverage</strong>.</li>
                     <li>If any process is detected outside <code>golden.slice</code>, note the PID and executable.</li>
                     <li>Verify whether the customer process was launched via CLI or cron outside systemd user slices.</li>
                 </ol>
                 <strong>Scenario 3: Rolling Back Bad Policy Settings:</strong>
                 <ol style="margin:6px 0 10px 20px; padding:0;">
-                    <li>Click <strong>Restore Backup</strong> in the Golden Shield Governor tab.</li>
+                    <li>Click <strong>Restore Backup</strong> in the Golden Shield Governance tab.</li>
                     <li>Select the desired configuration checkpoint from the list.</li>
                     <li>Click <strong>Restore Selected Backup</strong>. The system verifies kernel status and confirms success.</li>
                 </ol>
@@ -246,8 +280,8 @@
 
             <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">5. Execute IPC Socket Health Query Directly:</p>
             <div class="uniselv-code-block">
-                <code>python3 -c "import socket; s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.connect('/run/uniselv-resman/agent.sock'); s.send(b'{\"action\":\"get_agent_health\"}\\n'); print(s.recv(4096).decode())"</code>
-                <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard('python3 -c &quot;import socket; s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM); s.connect(\'/run/uniselv-resman/agent.sock\'); s.send(b\'{\\\&quot;action\\\&quot;:\\\&quot;get_agent_health\\\&quot;}\\n\'); print(s.recv(4096).decode())&quot;', this)">Copy</button>
+                <code>sudo python3 -c "import json,socket; s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); s.settimeout(10); s.connect('/run/uniselv-resman/agent.sock'); s.sendall((json.dumps({'action':'get_agent_health','auth':{'user':'root','is_admin':True}})+'\n').encode()); print(s.makefile().readline()); s.close()"</code>
+                <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
             </div>
         </div>
 
@@ -257,12 +291,12 @@
             <h4 class="uniselv-help-card-title">About UNISELV Resource Manager & System Compatibility</h4>
             <div class="uniselv-help-card-desc">
                 <table style="width:100%; border-collapse:collapse; font-size:0.88rem; color:#334155;">
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td>1.1.13 — see bundled docs/FRONTEND-OPTIMIZATION-1.1.13.md and docs/LIFECYCLE-REVIEW-1.1.12.md for tested scope and docs/apache-fcgi-integration.md for automatic Apache integration and rollback.</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td>Ubuntu 24.04.5 LTS (Noble Numbat)</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td>6.8.0-147-generic (x86_64)</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo 4.8.4 Enterprise</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?> — see PHP Lifecycle, Configuration Drift &amp; Recovery and the Advanced Runbook.</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td><?php echo $uniselvHelpEscape($uniselvHelpOs['PRETTY_NAME'] ?? 'Unavailable'); ?></td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td><?php echo $uniselvHelpEscape(php_uname('r') . ' (' . php_uname('m') . ')'); ?></td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo <?php echo $uniselvHelpEscape($uniselvHelpPanel); ?></td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Cgroups Implementation:</td><td>Cgroups v2 Unified Hierarchy (<code>/sys/fs/cgroup</code>)</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Zero-race <code>os.pidfd_open</code> signal delivery</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Process identity checks with <code>pidfd</code> where supported; inspect the result of each process action.</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Ownership Manifest:</td><td><code>/var/lib/uniselv-resource-manager/ownership_manifest.json</code></td></tr>
                     <tr><td style="padding:6px 0; font-weight:600;">Developer:</td><td><strong>Refat Rahman</strong> (<a href="https://refat.ovh" target="_blank" style="color:var(--uniselv-primary); text-decoration:none; font-weight:600;">refat.ovh</a>)</td></tr>
                 </table>

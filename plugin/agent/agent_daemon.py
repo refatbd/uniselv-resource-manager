@@ -50,65 +50,29 @@ class AgentDaemon:
             os.chmod(str(token_file), 0o600)
 
     def check_expired_overrides(self):
-        """Revert temporary plan overrides whose expiration time has passed with verified API calls."""
-        now = int(time.time())
-        conn = self.handler.get_db()
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT * FROM temporary_overrides WHERE status = 'active' AND expires_at <= ?", (now,))
-            expired = cur.fetchall()
+        """Serialize boost recovery and only finish after effective restoration."""
+        with self.handler._override_lock:
+            conn = self.handler.get_db()
+            try:
+                expired = conn.execute("SELECT * FROM temporary_overrides WHERE (status IN ('applying','active','failed_restoration') AND expires_at <= ?) OR status = 'applying'", (int(time.time()),)).fetchall()
+            finally:
+                conn.close()
             for row in expired:
-                target_user = row['username']
-                original_plan = row['original_plan']
-                row_id = row['id']
-
-                user_info_path = f"/var/webuzo/users/{target_user}/info"
-                success = False
-                err_msg = ""
-                if os.path.exists(user_info_path):
-                    try:
-                        with open(user_info_path, 'r', encoding='utf-8') as f:
-                            u_info = json.load(f)
-                        u_info['resource_limit'] = original_plan
-                        tmp_path = f"{user_info_path}.tmp.{os.getpid()}"
-                        with open(tmp_path, 'w', encoding='utf-8') as f:
-                            json.dump(u_info, f, indent=4)
-                        os.replace(tmp_path, user_info_path)
-                        success = True
-                    except Exception as e:
-                        err_msg = str(e)
-                else:
-                    err_msg = f"User info file {user_info_path} does not exist"
-
-                if success:
-                    cur.execute("UPDATE temporary_overrides SET status = 'expired' WHERE id = ?", (row_id,))
-                    cur.execute("""
-                        INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
-                        VALUES (?, 'system', 'override_expired', ?, ?)
-                    """, (now, target_user, json.dumps({'restored_plan': original_plan, 'status': 'success'})))
+                try:
+                    result = self.handler.restore_temporary_override(row, 'system')
+                except Exception as error:
+                    result = {'error': str(error)}
+                success = result.get('success') is True
+                status = 'expired' if success else 'failed_restoration'
+                conn = self.handler.get_db()
+                try:
+                    changed = conn.execute("UPDATE temporary_overrides SET status = ? WHERE id = ? AND status IN ('applying','active','failed_restoration')", (status, row['id'])).rowcount
+                    if changed and (success or row['status'] != status):
+                        conn.execute("INSERT INTO audit_log (timestamp, actor, action, target_account, details_json) VALUES (?, 'system', ?, ?, ?)",
+                            (int(time.time()), 'override_expired' if success else 'override_restoration_failed', row['username'], json.dumps({'override_id': row['id'], 'restored_plan': row['original_plan'], 'result': result})))
                     conn.commit()
-                    
-                    # Ensure native slice and golden mirror slice reflect restored plan
-                    users = self.collector.get_webuzo_users()
-                    if target_user in users:
-                        uid = users[target_user]['uid']
-                        try:
-                            self.handler._write_native_slice(uid, original_plan)
-                            subprocess.run(['python3', '/usr/local/sbin/golden-shield.py', 'prepare-account', str(uid)], capture_output=True, timeout=20)
-                        except Exception as prep_err:
-                            print(f"[Agent Override Prepare-Account Error] {prep_err}", file=sys.stderr)
-                else:
-                    # Mark restoration failed so it remains visible and retryable
-                    cur.execute("UPDATE temporary_overrides SET status = 'failed_restoration' WHERE id = ?", (row_id,))
-                    cur.execute("""
-                        INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
-                        VALUES (?, 'system', 'override_restoration_failed', ?, ?)
-                    """, (now, target_user, json.dumps({'attempted_plan': original_plan, 'error': err_msg})))
-                    conn.commit()
-        except Exception as e:
-            print(f"[Agent Override Error] {e}", file=sys.stderr)
-        finally:
-            conn.close()
+                finally:
+                    conn.close()
 
     def ensure_startup_enforcement_boundaries(self):
         """Verify that every registered Webuzo account has its cgroup limits active before workloads run."""
@@ -208,6 +172,17 @@ class AgentDaemon:
             # Configurable dynamic sampling interval
             interval = int(self.collector.settings.get('telemetry_interval', 5))
             time.sleep(max(3, min(60, interval)))
+
+    def governance_loop(self):
+        while self.running:
+            try:
+                if not self.handler.maintenance_mode:
+                    self.handler.governance_tick()
+            except Exception as error:
+                print('[Runtime Governance Error] ' + str(error), file=sys.stderr)
+            for _ in range(60):
+                if not self.running: return
+                time.sleep(1)
 
     def run_ipc_server(self):
         """UNIX domain socket server loop with strict permissions and peer credentials."""
@@ -349,6 +324,7 @@ class AgentDaemon:
         collector_thread = threading.Thread(target=self.collector_loop, daemon=True)
         collector_thread.start()
 
+        threading.Thread(target=self.governance_loop, daemon=True).start()
         self.run_ipc_server()
 
 if __name__ == '__main__':

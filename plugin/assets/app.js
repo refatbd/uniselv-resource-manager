@@ -50,8 +50,8 @@ const UniselvNotify = {
         toast.innerHTML = `
             <div class="uniselv-toast-icon">${icons[type] || icons.info}</div>
             <div class="uniselv-toast-body">
-                <div class="uniselv-toast-title">${title}</div>
-                <div class="uniselv-toast-msg">${message}</div>
+                <div class="uniselv-toast-title">${safe(title)}</div>
+                <div class="uniselv-toast-msg">${safe(message)}</div>
             </div>
             <button class="uniselv-toast-close" title="Dismiss">&times;</button>
             <div class="uniselv-toast-progress">
@@ -514,6 +514,8 @@ const UniselvResMan = {
             if (resolved === 'overview') {
                 this.loadAdminOverview();
             } else if (resolved === 'health') {
+                this.loadPhpLifecycle();
+                this.loadRuntimeGovernance();
                 this.loadFeatureSettings();
                 this.loadStorageSettings();
             } else if (resolved === 'goldenshield') {
@@ -729,21 +731,49 @@ const UniselvResMan = {
         }
     },
 
-        updateGaugeCard: function(cardType, percent) {
-        const validPct = Math.max(0, Math.min(100, parseFloat(percent) || 0));
+    metricNumber: function(value) {
+        if (!['number','string'].includes(typeof value) || (typeof value==='string' && value.trim()==='')) return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+    },
+
+    adminGaugePercentages: function(host, shield) {
+        const calc = shield.configured_policy || {};
+        const cores = this.metricNumber(host.cpu_cores ?? host.cpu_count);
+        const quota = this.metricNumber(shield.customer_cpu_percent ?? calc.customerCpuPercent);
+        const load = this.metricNumber(host.load1);
+        const used = this.metricNumber(shield.golden_mem_current_bytes);
+        const maxBytes = this.metricNumber(shield.golden_mem_max_bytes);
+        const percent = this.metricNumber(shield.golden_mem_percent);
+        return {hardware:null, cpu:cores>0 && quota!==null ? quota/(cores*100)*100 : null,
+            ram:used!==null && maxBytes>0 ? used/maxBytes*100 : percent,
+            load:cores>0 && load!==null ? load/cores*100 : null};
+    },
+
+    updateGaugeCard: function(cardType, percent) {
+        const number = this.metricNumber(percent);
+        const known = number !== null;
+        const validPct = known ? Math.max(0, Math.min(100, number)) : 0;
         const arc = document.getElementById('uniselv-arc-' + cardType);
         if (arc) {
-            arc.style.strokeDashoffset = 477.5 * (1 - validPct / 100);
+            // SVG pathLength normalizes circle circumference to 100 units.
+            arc.setAttribute('pathLength','100');
+            arc.setAttribute('stroke-dasharray','100');
+            arc.style.strokeDashoffset = String(100-validPct);
+            arc.style.opacity = known && validPct>0 ? '1' : '0';
+            arc.dataset.percent = known ? String(validPct) : '';
         }
         const thumb = document.getElementById('uniselv-thumb-rot-' + cardType);
         if (thumb) {
-            thumb.style.transform = `rotate(${validPct * 3.6}deg)`;
+            thumb.style.transform = `rotate(${validPct*3.6}deg)`;
+            thumb.style.opacity = known && validPct>0 ? '1':'0';
         }
         const wave = document.getElementById('uniselv-wave-' + cardType);
-        if (wave) {
-            // Full 0% to 100% dynamic height - at 100% fills completely to the top
-            const waveHeight = validPct <= 0 ? 0 : Math.max(6, Math.min(100, validPct));
-            wave.style.height = `${waveHeight}%`;
+        if (wave) wave.style.height = `${validPct}%`;
+        const wrap = arc?.closest('.uniselv-gauge-wrap');
+        if (wrap) {
+            wrap.dataset.metricState = known ? 'measured':'unavailable';
+            wrap.title = known ? `${number.toFixed(1)}% of this metric boundary${number>100 ? ' (visual fill capped at 100%)':''}` : 'No usage percentage is represented.';
         }
     },
 
@@ -763,22 +793,18 @@ const UniselvResMan = {
         });
     },
 
-    updateAdminSparkline: function(wrapId, val) {
-        const wrap = document.getElementById(wrapId);
-        if (!wrap) return;
-        if (!this.adminSparkSamples) this.adminSparkSamples = {};
-        if (!this.adminSparkSamples[wrapId]) {
-            const initVal = parseFloat(val) || 20;
-            this.adminSparkSamples[wrapId] = [
-                { t: Date.now() - 30000, v: Math.max(5, initVal * 0.9) },
-                { t: Date.now() - 20000, v: Math.max(5, initVal * 1.05) },
-                { t: Date.now() - 10000, v: Math.max(5, initVal * 0.95) }
-            ];
-        }
-        const arr = this.adminSparkSamples[wrapId];
-        arr.push({ t: Date.now(), v: parseFloat(val) || 0 });
-        if (arr.length > 20) arr.shift();
-        if (arr.length < 2) return;
+    updateAdminSparkline: function(wrapId, val, epoch) {
+        const wrap=document.getElementById(wrapId);
+        if(!wrap)return;
+        const value=this.metricNumber(val), timestamp=this.metricNumber(epoch);
+        if(value===null || timestamp===null || timestamp<=0){delete wrap.dataset.measured;return;}
+        if(!this.adminSparkSamples)this.adminSparkSamples={};
+        const arr=this.adminSparkSamples[wrapId] ||= [];
+        if(!arr.length || arr[arr.length-1].t<timestamp)arr.push({t:timestamp,v:value});
+        if(arr.length>20)arr.shift();
+        if(arr.length<2){delete wrap.dataset.measured;return;}
+        wrap.dataset.measured='true';
+        wrap.title='Measured samples since this page opened; independently scaled trend, not an absolute percentage gauge.';
         const minVal = Math.min(...arr.map(p => p.v));
         const maxVal = Math.max(1, ...arr.map(p => p.v));
         const range = (maxVal - minVal) || 1;
@@ -1074,8 +1100,19 @@ const UniselvResMan = {
 
             if (document.getElementById('storage-total-display')) document.getElementById('storage-total-display').innerText = st.total_formatted ?? 'Unavailable';
             if (document.getElementById('storage-limit-display')) document.getElementById('storage-limit-display').innerText = (s.max_storage_mib || 100) + ' MiB';
-            if (document.getElementById('storage-bar-fill')) document.getElementById('storage-bar-fill').style.width = Math.min(100, st.used_percent || 0) + '%';
-            if (document.getElementById('storage-used-pct')) document.getElementById('storage-used-pct').innerText = (st.used_percent || 0) + '%';
+            const storagePct = Number(st.used_percent);
+            const storageKnown = st.used_percent != null && Number.isFinite(storagePct) && storagePct >= 0;
+            const storageWarning = storageKnown && storagePct >= 100;
+            const storageFill = document.getElementById('storage-bar-fill');
+            if (storageFill) {
+                storageFill.style.width = (storageKnown ? Math.min(100, storagePct) : 0) + '%';
+                storageFill.style.background = storageWarning ? '#f59e0b' : '';
+            }
+            const storageBadge = document.getElementById('storage-used-pct');
+            if (storageBadge) {
+                storageBadge.textContent = storageKnown ? storagePct + '%' : 'Unavailable';
+                storageBadge.className = 'uniselv-badge ' + (storageWarning ? 'badge-warning' : 'badge-normal');
+            }
             if (document.getElementById('storage-samples-count')) document.getElementById('storage-samples-count').innerText = st.samples_count || 0;
             if (document.getElementById('storage-snapshots-count')) document.getElementById('storage-snapshots-count').innerText = st.snapshots_count || 0;
             if (document.getElementById('storage-events-count')) document.getElementById('storage-events-count').innerText = st.events_count || 0;
@@ -1166,6 +1203,110 @@ const UniselvResMan = {
                 });
             }
         });
+    },
+
+    loadRuntimeGovernance: function() {
+        const host = document.getElementById('uniselv-runtime-governance');
+        if (!this.isAdmin || !host) return;
+        const bind = (id, fn) => {const b=document.getElementById(id);if(b)b.onclick=fn;};
+        bind('governance-refresh',()=>this.loadRuntimeGovernance());
+        bind('governance-scan',()=>this.runGovernance('scan'));
+        bind('governance-recover',()=>this.confirmGovernance('recover'));
+        bind('governance-export',()=>this.runGovernance('export'));
+        this.callApi('runtime_governance',{},(err,response)=>{
+            const data=response?.data || response;
+            if(err || !data?.success){host.textContent='Evidence unavailable. Check agent health and retry.';return;}
+            const job=document.getElementById('governance-job');
+            if(job && !this.governancePolling)job.textContent=data.job ? `Last operation: ${data.job.operation} — ${data.job.state}${data.job.error ? ': '+data.job.error : ''}` : '';
+            const value=data.snapshot;host.replaceChildren();
+            if(!value){host.textContent='No scan has completed yet. Choose Reconcile PHP Changes.';return;}
+            const note=(text)=>{const p=document.createElement('p');p.textContent=text;host.append(p);};
+            note(`Observed: ${new Date(value.at*1000).toLocaleString()}${data.stale ? ' — STALE' : ''}. Global setting differences: ${(value.drift || []).length}. ${value.readiness?.scope || ''}`);
+            const table=(title,labels,rows)=>{
+                const details=document.createElement('details');details.className='uniselv-governance-detail';
+                const summary=document.createElement('summary');summary.textContent=title;details.append(summary);
+                const wrap=document.createElement('div');wrap.className='uniselv-table-wrap';
+                const element=document.createElement('table');element.className='uniselv-table';
+                const head=element.createTHead().insertRow();labels.forEach(label=>{const th=document.createElement('th');th.scope='col';th.textContent=label;head.append(th);});
+                const body=element.createTBody();rows.forEach(cells=>{const row=body.insertRow();cells.forEach(value=>{const cell=row.insertCell();if(value instanceof Node)cell.append(value);else cell.textContent=String(value ?? 'Unavailable');});});
+                if(!rows.length){const cell=body.insertRow().insertCell();cell.colSpan=labels.length;cell.textContent='No entries in this observation.';}
+                wrap.append(element);details.append(wrap);host.append(details);return details;
+            };
+            table('PHP Lifecycle Automation',['Version','State','Last action','Explanation','Maintenance'],Object.entries(value.versions || {}).map(([version,state])=>{
+                const b=document.createElement('button');b.className='uniselv-btn btn-outline';b.textContent=state.state==='retired'?'Enable Runtime':'Retire Runtime';b.disabled=!state.managed && state.state!=='retired';b.onclick=()=>state.state==='retired'?this.runGovernance('activate',version):this.confirmGovernance('retire',version);
+                return [version,state.state,state.action,state.reason,b];
+            })).open=true;
+            table('Global Settings Drift — Expected vs Actual',['PHP','Section','Directive','Expected','Actual'],(value.drift || []).map(r=>[r.version,r.section,r.key,r.expected,r.actual]));
+            table('Server Configuration Drift — All Reviewed Sections',['Section','Directive','Expected','Actual'],(value.configurationComparison?.mismatches || []).map(r=>[r.section,r.key,r.expected,r.actual]));
+            note(value.configurationComparison?.error || `Server comparison: ${value.configurationComparison?.checks ?? 0} configured-value checks; observed ${value.configurationComparison?.at ? new Date(value.configurationComparison.at*1000).toLocaleString() : 'unavailable'}. Workload tests are separate.`);
+            table('Configuration Audit Coverage — All Generator Sections',['Section','Checks','Evidence'],(value.configurationComparison?.sectionCoverage || []).map(r=>[r.section,r.checks,r.status]));
+            table('Account Inheritance Exceptions',['File','Directive','Override'],(value.inheritance?.rows || []).map(r=>[r.path,r.key,r.value]));
+            note(`Override coverage: ${value.inheritance?.scope || 'Unavailable'} Complete within scope: ${value.inheritance?.completeWithinScope ? 'Yes':'No'}. ${value.inheritance?.boundedStopReason || ''}`);
+            table('Capacity Events — Last Hour, Bounded Journal Sample',['Reason','Observed events'],Object.entries(value.diagnostics?.counts || {}));
+            note(value.diagnostics?.scope || 'Journal diagnostics unavailable.');
+            table('Recent Capacity Event Timeline',['Time','Unit','Reason'],(value.diagnostics?.recent || []).map(r=>[r.at ? new Date(r.at*1000).toLocaleString():'Before timestamp instrumentation',r.unit,r.reason]));
+            table('Lifecycle Recovery History',['PHP','Operation','Status','Started'],(value.lifecycle?.history || []).map(r=>[r.version,r.operation,r.status,r.startedAt ? new Date(r.startedAt*1000).toLocaleString():'Unavailable']));
+            note(value.lifecycle?.pending ? `PENDING: ${value.lifecycle.pending.operation} ${value.lifecycle.pending.version}. ${value.lifecycle.guidance}` : 'No pending lifecycle journal.');
+            (value.errors || []).forEach(note);
+        },{timeoutMs:15000});
+    },
+
+    confirmGovernance: function(operation,version='') {
+        UniselvModal.confirm({title:operation==='retire'?'Retire PHP Runtime':'Recover Pending Operation',
+            message:operation==='retire'?`Retire ${version} before vendor uninstall. Move all sites first. Native launcher restoration requires valid installation files.`:'Restore the recorded pre-operation state. Conflicting files stop recovery for administrator review.',
+            onConfirm:()=>this.runGovernance(operation,version)});
+    },
+
+    runGovernance: function(operation,version='') {
+        if(this.governancePolling){UniselvNotify.error('Wait for the current operation to finish.');return;}
+        this.callApi('run_governance',{operation,version},(err,response)=>{
+            const result=response?.data || response;
+            if(err || !result?.success || !result.jobId){UniselvNotify.error(result?.error || 'Could not queue operation.');return;}
+            this.governancePolling=true;let remaining=100;
+            const poll=()=>this.callApi('runtime_governance',{},(error,reply)=>{
+                const data=reply?.data || reply;const job=data?.job;const status=document.getElementById('governance-job');
+                if(status)status.textContent=`${operation}: ${job?.id===result.jobId ? job.state:'waiting for status'}...`;
+                if(!error && job?.id===result.jobId && job.state!=='running'){
+                    this.governancePolling=false;
+                    if(job.state!=='completed')UniselvNotify.error(job.error || 'Operation failed.');
+                    else if(operation==='export')this.downloadGovernanceExport();
+                    this.loadRuntimeGovernance();this.loadPhpLifecycle();return;
+                }
+                if(--remaining>0){setTimeout(poll,3000);return;}
+                this.governancePolling=false;if(status)status.textContent='Still running or unavailable. Refresh Evidence later; the server operation continues.';
+            },{timeoutMs:10000});poll();
+        });
+    },
+
+    downloadGovernanceExport: function() {
+        this.callApi('export_governance',{},(err,response)=>{
+            const data=response?.data || response;
+            if(err || !data?.export){UniselvNotify.error('Comparison export unavailable.');return;}
+            const url=URL.createObjectURL(new Blob([JSON.stringify(data.export,null,2)],{type:'application/json'}));
+            const link=document.createElement('a');link.href=url;link.download='runtime-configuration-comparison.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+        });
+    },
+
+    loadPhpLifecycle: function() {
+        const host = document.getElementById('uniselv-php-lifecycle');
+        if (!this.isAdmin || !host) return;
+        host.textContent = 'Loading PHP runtime status...';
+        this.callApi('php_lifecycle', {}, (err, res) => {
+            const versions = res?.versions || res?.data?.versions;
+            if (err || !versions) { host.textContent = 'PHP runtime status unavailable. Check agent health and retry.'; return; }
+            const table = document.createElement('table'); table.className = 'uniselv-table';
+            const head = table.createTHead().insertRow();
+            ['PHP version','Installed','Registered','Coordinator','Health master','Pools'].forEach(label => {
+                const th = document.createElement('th'); th.scope = 'col'; th.textContent = label; head.append(th);
+            });
+            const body = table.createTBody();
+            Object.entries(versions).forEach(([version, state]) => {
+                const row = body.insertRow();
+                [version,state.installed?'Yes':'Missing',state.managed?'Yes':'No',state.coordinator_active?'Active':'Stopped',state.health_master_active?'Active':'Stopped',String(state.pool_count)].forEach(value => { row.insertCell().textContent = value; });
+            });
+            host.replaceChildren(table);
+            if (!Object.keys(versions).length) host.textContent = 'No PHP runtime registrations found.';
+        }, {timeoutMs:20000});
     },
 
     callApi: function(subact, params, callback, options = {}) {
@@ -2632,12 +2773,17 @@ const UniselvResMan = {
             isDanger: false,
             onConfirm: () => {
                 this.callApi('sync_plans', {}, (err, res) => {
-                    if (err || res.error) {
-                        UniselvNotify.error(`Sync failed: ${err || res.error}`);
-                    } else {
-                        UniselvNotify.success(`Successfully synchronized ${res.synced_plans.length} native resource plans.`);
-                        setTimeout(() => location.reload(), 1200);
+                    const runtimeErrors = res?.runtime_errors || [];
+                    if (err || !res || res.error || res.success === false || runtimeErrors.length || Number(res.failed_count || 0) > 0) {
+                        const reason = err || res?.error || (runtimeErrors.length ? 'PHP runtime reload failed: ' + runtimeErrors.map(x => x.version).join(', ') : 'Some accounts could not be synchronized.');
+                        UniselvNotify.error(`Sync failed: ${reason}`);
+                        return;
                     }
+                    const accounts = Number.isFinite(res.synced_count) ? res.synced_count : null;
+                    const plans = Array.isArray(res.synced_plans) ? res.synced_plans.length : null;
+                    if (accounts === null && plans === null) { UniselvNotify.error('Sync result could not be verified. Check the audit log.'); return; }
+                    UniselvNotify.success(`Successfully synchronized ${accounts ?? plans} ${accounts !== null ? 'accounts' : 'resource plans'}.`);
+                    setTimeout(() => location.reload(), 1200);
                 });
             }
         });
@@ -3011,21 +3157,20 @@ const UniselvResMan = {
             }
             // Update Admin Gauges & Dynamic Live Footers
             if (typeof this.updateGaugeCard === 'function') {
-                const cores = host.cpu_cores || host.cpu_count || 4;
-                const load1 = (host.load1 !== undefined && host.load1 !== null) ? parseFloat(host.load1) : 1.0;
-                const loadPct = Math.min(100, Math.max(5, (load1 / cores) * 100));
-                const cCpuPct = shield.customer_cpu_percent ?? calc.customerCpuPercent ?? 85;
-                const ramPct = shield.golden_mem_percent || 45;
-
-                this.updateGaugeCard('admin-hw', 60);
-                this.updateGaugeCard('admin-cpu', cCpuPct);
-                this.updateGaugeCard('admin-ram', ramPct);
-                this.updateGaugeCard('admin-load', loadPct);
-
+                const metrics = this.adminGaugePercentages(host,shield);
+                const loadPct=metrics.load, cCpuPct=metrics.cpu, ramPct=metrics.ram;
+                this.updateGaugeCard('admin-hw',null);
+                this.updateGaugeCard('admin-cpu',cCpuPct);
+                this.updateGaugeCard('admin-ram',ramPct);
+                this.updateGaugeCard('admin-load',loadPct);
+                const cpuGauge=document.getElementById('uniselv-arc-admin-cpu')?.closest('.uniselv-gauge-wrap');
+                if(cpuGauge && cCpuPct!==null)cpuGauge.title=`Configured hosting allocation: ${cCpuPct.toFixed(1)}% of total visible CPU capacity. This is a policy share, not live CPU usage.`;
+                const loadGauge=document.getElementById('uniselv-arc-admin-load')?.closest('.uniselv-gauge-wrap');
+                if(loadGauge && loadPct!==null)loadGauge.title=`One-minute load divided by vCPU count: ${loadPct.toFixed(1)}%. Load is not CPU utilization; visual fill is capped at 100%.`;
                 // Update Dynamic Footers (Sparklines & Equalizers)
                 if (typeof this.updateAdminSparkline === 'function') {
-                    this.updateAdminSparkline('admin-sparkline-hw', loadPct);
-                    this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct);
+                    this.updateAdminSparkline('admin-sparkline-hw', loadPct,host.last_sample_epoch);
+                    this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct,host.last_sample_epoch);
                 }
                 if (typeof this.updateEqualizer === 'function') {
                     this.updateEqualizer('admin-eq-ram', ramPct, true);
