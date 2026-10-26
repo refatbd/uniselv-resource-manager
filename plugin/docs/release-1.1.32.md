@@ -1,0 +1,15 @@
+# Release 1.1.32 — stable demand sharing under contention
+
+Repeated multi-account load exposed a real 1.1.31 grow/shrink cycle: a granted peer cleared its waiting ticket, so another proxy treated that busy peer as idle, grew, then reduced its grant again. The failed original run and exact bounded comparison are retained in server-policy-validation.json and server-policy-report-1.1.32.md.
+
+Active relays now publish short-lived root-owned demand records separately from admission tickets. A deterministic worker allocation respects actual demand, native ceilings and the shared PHP budget. Idle leases remain fully charged until safe compaction or drained retirement; an inactive registered account receives no permanent reservation. A low-demand busy account leaves unused worker capacity available to a busier one. Waiting tickets remain available when a next worker is unfunded, so genuine idle peers can yield. Queue growth includes connection-startup work.
+
+Idle compaction may retain one proven idle native child: the root master/cgroup and actual memory charge must match, no queued/active dispatch may exist, and a sole child must be verified accepting on the private listener. More than one child, unknown proc visibility or background work preserves the full reservation. The master and OPcache survive compaction. Fair-share reductions still drain before restarting; no in-flight request is replayed.
+
+A final service-screening failure exposed a separate retry defect: new arrivals erased a deferred drain cooldown. Immediate growth and deferred shrink now use independent scheduling. A native 20-second post-response job completed under continuous arrivals; retry spacing, retained reservations and foreground completion were verified separately on the final source. A single bounded drain attempt may still pause queued work while proving idleness; it is not a zero-latency guarantee.
+
+Native global per-version PHP-FPM settings, account/host kernel limits, aggregate CPU headroom, OPcache total and shared Redis mode are unchanged. The new policy does not divide workers by registered account count or inflate physical safety limits with overselling. Actual charged reservations and admission checks remain the safety boundary; deterministic targets do not release memory themselves.
+
+Use the complete reviewed package and keep ownership/restoration manifests with runtime files. Source changes are already included; do not append duplicate functions after installation. See the exact path, before/after anchors, replacement blocks, context and verification instructions in source-changes-1.1.32.md/.json. Rollback restores runtime files and their manifests together in a drained maintenance window.
+
+Validation levels are separate: unit/syntax checks, bounded current-host live comparisons and workload capacity. A best measured candidate is scoped to the tested hardware, workload and account mix. Clean-OS installation, unknown future vendor releases and an unlimited maximum shopper count are not certified. WordPress source, currency behavior, CSF, SSL and backup remediation are outside this change.

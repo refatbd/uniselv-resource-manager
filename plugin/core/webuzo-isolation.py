@@ -10,7 +10,7 @@ SELF=pathlib.Path('/usr/local/sbin/webuzo-isolation.py')
 UNITS=pathlib.Path('/etc/systemd/system')
 PROXY='/usr/lib/systemd/systemd-socket-proxyd'
 MARKER='# WEBUZO-ISOLATION MANAGED LAUNCHER'
-CAPACITY_MODEL_VERSION='account-demand-v5-warm'
+CAPACITY_MODEL_VERSION='account-demand-v7-stable-sharing'
 NATIVE_CGROUP_USERS=pathlib.Path('/var/webuzo/conf/cgroupusers')
 NATIVE_CGROUP_DROPIN=UNITS/'cgroup.service.d/90-uniselv-resman.conf'
 
@@ -18,7 +18,11 @@ NATIVE_CGROUP_DROPIN=UNITS/'cgroup.service.d/90-uniselv-resman.conf'
 CAPACITY_BUSY_HTML = b'<!doctype html>\n<html lang="en">\n<head>\n  <meta charset="utf-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="robots" content="noindex, nofollow">\n  <meta name="color-scheme" content="light">\n  <title>We\'ll be right with you | Temporarily unavailable</title>\n  <style>\n    *{box-sizing:border-box}html{min-height:100%;background:#faf9f7}body{margin:0;min-height:100svh;color:#25252b;font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;display:grid;place-items:center;padding:40px 24px;isolation:isolate;overflow-x:hidden}\n    .ambient{position:fixed;z-index:-1;inset:0;pointer-events:none;background:radial-gradient(ellipse at 82% 25%,#ffe9e7aa,transparent 48%),radial-gradient(ellipse at 8% 90%,#f3ebe480,transparent 40%)}.grid{position:fixed;z-index:-1;inset:0;pointer-events:none;background-image:radial-gradient(#c5b6b455 1px,transparent 1px);background-size:24px 24px;mask-image:linear-gradient(transparent,#0003,transparent)}\n    main{width:min(100%,1000px);animation:arrive .7s ease-out both}.brand{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:2px;margin:0 4px 24px;color:#6d6060}.brand svg{width:26px;height:26px}.brand span{letter-spacing:0;font-size:11px;font-weight:400;color:#7c7373;border-left:1px solid #ddd4d1;padding-left:15px;margin-left:6px}\n    .card{position:relative;display:grid;grid-template-columns:1.1fr 1fr;align-items:center;gap:30px;border:1px solid #ece6e3;border-radius:30px;background:#fff;padding:64px;box-shadow:0 30px 80px -40px #714c4930,0 3px 12px #493c3404;overflow:hidden}.card:before{content:"";position:absolute;top:0;left:12%;right:12%;height:2px;background:linear-gradient(90deg,transparent,#eb6c6355,transparent)}\n    .eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid #f5d8d5;border-radius:6px;background:#fff5f3;color:#b23d34;font-size:10px;font-weight:650;letter-spacing:1.4px;text-transform:uppercase}.dot{width:5px;height:5px;border-radius:50%;background:#d9564c;box-shadow:0 0 0 3px #d9564c12;animation:pulse 2.5s ease-in-out infinite}h1{font-size:clamp(36px,4.5vw,50px);font-weight:650;letter-spacing:-2.2px;line-height:1.12;margin:25px 0 20px}h1 span{color:#7e7778;font-weight:450}.description{color:#706b70;font-size:14px;line-height:1.8;max-width:340px;margin:0 0 28px}.retry{display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 21px;min-height:48px;border:1px solid #bd4037;border-radius:10px;background:#c3463c;color:#fff;font-size:13px;font-weight:650;text-decoration:none;box-shadow:0 4px 10px #bd403718;transition:background .2s,transform .2s,box-shadow .2s}.retry:hover{background:#a9362e;transform:translateY(-2px);box-shadow:0 8px 20px #bd403728}.retry:focus-visible{outline:3px solid #df8e87;outline-offset:4px}.retry svg{width:16px;height:16px}.hint{display:block;font-size:11px;color:#817878;margin-top:13px}\n    .visual{position:relative;height:340px;display:grid;place-items:center}.halo{position:absolute;width:310px;height:310px;border-radius:50%;background:radial-gradient(circle,#fff1ef,transparent 70%)}.error-number{position:absolute;top:8px;font-size:112px;font-weight:750;letter-spacing:-8px;line-height:1;color:#f8e9e6;user-select:none}.orbit{position:absolute;width:266px;height:266px;border:1px solid #f2ded9;border-radius:50%}.orbit.inner{width:206px;height:206px;border-style:dashed;border-color:#ecd3cd}.satellite{position:absolute;inset:-1px;border-radius:50%;animation:orbit 22s linear infinite}.satellite:before{content:"";position:absolute;top:-4px;left:50%;width:8px;height:8px;background:#df7d72;border:2px solid white;border-radius:50%;box-shadow:0 0 0 4px #f9e6e2}.core{position:relative;width:118px;height:118px;display:grid;place-items:center;border:1px solid #f4d2cc;border-radius:30px;background:linear-gradient(145deg,#fff9f7,#fdeae5);box-shadow:inset 0 2px #fff,0 18px 35px -20px #c8736777;transform:rotate(-8deg);animation:float 6s ease-in-out infinite}.core svg{width:53px;height:53px;color:#c44e42;transform:rotate(8deg)}.alert-badge{position:absolute;right:-10px;top:-10px;width:34px;height:34px;display:grid;place-items:center;border:4px solid white;border-radius:50%;background:#cd5146;color:white;font-size:17px;font-weight:700;line-height:1;box-shadow:0 3px 8px #bf635522}.status{position:absolute;bottom:4px;display:flex;align-items:center;gap:9px;padding:9px 14px;background:#fff;border:1px solid #eee2dd;border-radius:30px;color:#88736e;font-size:10px;box-shadow:0 5px 15px #95605208}.bars{display:flex;gap:3px;align-items:center;height:15px}.bars i{width:3px;height:5px;background:#d9786d;border-radius:2px;animation:bars 1.4s ease-in-out infinite}.bars i:nth-child(2){animation-delay:.15s}.bars i:nth-child(3){animation-delay:.3s}.small-cross{position:absolute;top:70px;right:22px;color:#d49c92;font-size:18px}.code{position:absolute;left:9px;bottom:50px;color:#b1877e;font:9px ui-monospace,monospace;letter-spacing:1.5px}\n    footer{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:22px 4px 0;color:#8b8180;font-size:10px}.foot-status{display:flex;align-items:center;gap:7px}.foot-status:before{content:"";width:5px;height:5px;background:#d17a70;border-radius:50%}\n    @keyframes arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}@keyframes orbit{to{transform:rotate(360deg)}}@keyframes float{50%{transform:translateY(-9px) rotate(-4deg)}}@keyframes pulse{50%{opacity:.45}}@keyframes bars{50%{height:14px}}\n    @media(max-width:700px){body{padding:28px 18px}.brand{margin-bottom:20px;font-size:10px;letter-spacing:1.5px}.brand span{display:none}.card{grid-template-columns:1fr;padding:30px 26px;gap:24px;border-radius:24px}.visual{grid-row:1;height:240px}.orbit{width:200px;height:200px}.orbit.inner{width:154px;height:154px}.error-number{top:0;font-size:88px}.core{width:94px;height:94px;border-radius:24px}.core svg{width:43px;height:43px}.status{bottom:-7px;font-size:9px}.small-cross{top:38px;right:20px}.code{left:0;bottom:26px;font-size:8px}h1{font-size:38px;letter-spacing:-1.8px;margin-top:20px}.description{max-width:100%;font-size:13px}.hint{font-size:10px}footer{align-items:flex-start;font-size:9px;gap:14px}.foot-status{max-width:145px}}\n    @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}}\n  </style>\n</head>\n<body>\n  <div class="ambient" aria-hidden="true"></div><div class="grid" aria-hidden="true"></div>\n  <main>\n    <div class="brand"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="5" y="5" width="22" height="22" rx="8" stroke="#b76b62" stroke-width="1.5"/><path d="M13 12v8m6-8v8" stroke="#b76b62" stroke-width="2.5" stroke-linecap="round"/></svg>A MOMENT, PLEASE<span>We appreciate your patience.</span></div>\n    <section class="card" aria-labelledby="title">\n      <div class="copy">\n        <div class="eyebrow"><span class="dot" aria-hidden="true"></span>Temporarily at capacity</div>\n        <h1 id="title">A little pause.<br><span>We\'ll be right<br>with you.</span></h1>\n        <p class="description">We\'re experiencing high demand right now. Please give us a moment, then try this page again.</p>\n        <a class="retry" href=""><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4.5 9a8 8 0 0113.2-3L20 9M4 17v-5h5m10.5 3a8 8 0 01-13.2 3L4 15"/></svg>Try Again</a>\n        <small class="hint">Wait a few seconds before trying again.</small>\n      </div>\n      <div class="visual" aria-hidden="true"><div class="halo"></div><span class="error-number">503</span><div class="orbit"><div class="satellite"></div></div><div class="orbit inner"></div><span class="small-cross">+</span><div class="core"><span class="alert-badge">!</span><svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="12" width="40" height="16" rx="5"/><rect x="12" y="36" width="40" height="16" rx="5"/><path d="M20 20h1m-1 24h1m17-24h6m-6 24h6M32 28v8"/></svg></div><span class="code">PLEASE STAND BY</span><div class="status"><span class="bars"><i></i><i></i><i></i></span>A moment to catch our breath.</div></div>\n    </section>\n    <footer><span>Thank you for your patience.</span><span class="foot-status">503 &middot; Service temporarily unavailable</span></footer>\n  </main>\n</body>\n</html>\n'
 
 def execute(args,check=True,timeout=60):
-    r=subprocess.run(args,capture_output=True,text=True,timeout=timeout)
+    # Only this supervisor owns its service notification endpoint. PHP syntax
+    # checks and other children must not publish readiness/watchdog messages.
+    env={key:value for key,value in os.environ.items() if key not in
+         ('NOTIFY_SOCKET','WATCHDOG_PID','WATCHDOG_USEC')}
+    r=subprocess.run(args,capture_output=True,text=True,timeout=timeout,env=env)
     if check and r.returncode:raise RuntimeError('Command failed: '+str(args)+': exit='+str(r.returncode)+' '+r.stdout[-1200:]+r.stderr[-1200:])
     return r
 
@@ -432,6 +436,156 @@ def waiting_units(exclude=None):
     return result
 
 
+def peer_budget_pressure(leases, peers, p):
+    """Warm peers alone are not demand. Yield only for an unfunded next worker."""
+    if not peers:return False
+    free=p['phpBudgetMiB']-sum(int(row['costMiB']) for row in leases.values())
+    minimum=[]
+    for name in peers:
+        if name in leases:
+            minimum.append(p['workerRssMiB']);continue
+        # Versions may have different native relay sizes. The admitting peer
+        # publishes its own complete minimum instead of borrowing our overhead.
+        try:
+            row=json.loads((RUN/'waiting'/name).read_text());cost=row['minimumMiB']
+            if type(cost) is not int or cost<1:raise ValueError('Invalid peer minimum')
+            minimum.append(cost)
+        except (OSError,ValueError,KeyError,TypeError):
+            return True  # Legacy/unknown demand cannot establish spare capacity.
+    required=min(minimum)
+    return free<required
+
+
+def publish_runtime_demand(unit,uid,ceiling,demand,minimum_mib=None):
+    """A granted busy peer remains demand; a cleared waiting ticket is not idleness."""
+    if type(demand) is not int or demand<0:raise ValueError('Invalid runtime demand')
+    directory=RUN/'demand';directory.mkdir(mode=0o700,exist_ok=True);path=directory/unit
+    if not demand:path.unlink(missing_ok=True);return
+    row={'uid':uid,'wanted':min(ceiling,demand),'ceiling':ceiling,'expires':time.monotonic()+3}
+    if minimum_mib is not None:row['minimumMiB']=minimum_mib
+    atomic(path,json.dumps(row))
+
+
+def refresh_draining_demand(unit):
+    """A proxy still owns queued demand while its old backend drains/restarts."""
+    with lock('admission'):
+        path=RUN/'demand'/unit
+        try:row=json.loads(path.read_text())
+        except FileNotFoundError:return
+        row['expires']=time.monotonic()+3
+        atomic(path,json.dumps(row))
+
+
+def clear_runtime_demand(unit):
+    (RUN/'demand'/unit).unlink(missing_ok=True)
+
+
+def fair_demand_ceiling(unit,ceiling,demand,leases,peers,p):
+    """Water-fill live demand, charging idle leases in full before sharing workers.
+
+    Persistent busy-peer heartbeats prevent grow/shrink ping-pong when a peer's
+    waiting ticket disappears after a successful grant. Nothing here releases a
+    reservation; admission and drained regrant still enforce actual lease costs.
+    """
+    if demand<1:return ceiling
+    own=leases[unit];rss=p['workerRssMiB'];claims={};idle_cost=0;now=time.monotonic()
+    def fallback():
+        return min(ceiling,contention_ceiling(ceiling,int(own['costMiB'])-int(own['runtimeMaxChildren'])*rss-48-p['opcacheMiB'],p,len(set(leases)|peers))) if peer_budget_pressure(leases,peers,p) else ceiling
+    for name,row in leases.items():
+        current=int(row['runtimeMaxChildren']);overhead=int(row['costMiB'])-current*rss
+        if name==unit:claims[name]={'wanted':min(ceiling,demand),'overhead':overhead};continue
+        wanted=None
+        try:
+            record=json.loads((RUN/'demand'/name).read_text())
+            if (record.get('uid')==row['uid'] and type(record.get('expires')) in (int,float)
+                    and now<record['expires']<float('inf') and type(record.get('wanted')) is int
+                    and type(record.get('ceiling')) is int and 1<=record['wanted']<=record['ceiling']<=int(row['nativeMaxChildren'])):
+                wanted=record['wanted']
+        except (OSError,ValueError,TypeError,KeyError):pass
+        if wanted is None and name in peers:
+            try:
+                ticket=json.loads((RUN/'waiting'/name).read_text());cap=ticket['ceiling']
+                if ticket.get('uid')!=row['uid'] or type(cap) is not int or not 1<=cap<=int(row['nativeMaxChildren']):return fallback()
+                wanted=cap
+            except (OSError,ValueError,TypeError,KeyError):return fallback()
+        if wanted is None:idle_cost+=int(row['costMiB'])
+        else:claims[name]={'wanted':wanted,'overhead':overhead}
+    # A restarted backend temporarily has no lease, but its live proxy still
+    # owns queued demand. Do not let peers steal that claimant's fair target.
+    unleased=set(peers)-set(leases)
+    for path in (RUN/'demand').glob('*.service'):
+        if path.name in leases:continue
+        try:
+            record=json.loads(path.read_text());match=re.fullmatch(r'wpiso-fpm-php\d{2,3}-([a-z_][a-z0-9_-]*)\.service',path.name)
+            if (not match or record.get('uid')!=pwd.getpwnam(match[1]).pw_uid
+                    or type(record.get('expires')) not in (int,float) or not now<record['expires']<float('inf')
+                    or type(record.get('wanted')) is not int or type(record.get('ceiling')) is not int
+                    or not 1<=record['wanted']<=record['ceiling']<=128):continue
+            minimum=record['minimumMiB']
+            if type(minimum) is not int or minimum<rss+48+p['opcacheMiB']:continue
+            claims[path.name]={'wanted':record['wanted'],'overhead':minimum-rss};unleased.discard(path.name)
+        except (OSError,ValueError,TypeError,KeyError):continue
+    for name in unleased:
+        try:
+            ticket=json.loads((RUN/'waiting'/name).read_text());minimum=ticket['minimumMiB'];cap=ticket['ceiling']
+            if type(minimum) is not int or minimum<rss+48+p['opcacheMiB'] or type(cap) is not int or not 1<=cap<=128:return fallback()
+            claims[name]={'wanted':cap,'overhead':minimum-rss}
+        except (OSError,ValueError,TypeError,KeyError):return fallback()
+    if len(claims)<2:return ceiling  # Idle peers must still receive an unfunded-demand ticket.
+    needed=idle_cost+sum(c['overhead']+rss*(max(int(own['runtimeMaxChildren']),c['wanted']) if n==unit else c['wanted']) for n,c in claims.items())
+    if needed<=p['phpBudgetMiB']:return ceiling
+    available=p['phpBudgetMiB']-idle_cost-sum(c['overhead'] for c in claims.values());grants={name:0 for name in claims}
+    while available>=rss:
+        changed=False
+        for name in sorted(claims):
+            if grants[name]<claims[name]['wanted'] and available>=rss:
+                grants[name]+=1;available-=rss;changed=True
+        if not changed:break
+    return min(ceiling,max(1,grants[unit]))
+
+
+def compact_idle_lease(unit, limits):
+    """Release excess reservation after surplus native children have exited.
+
+    The master retains one fully charged worker plus opcode/relay overhead.
+    The caller holds its dispatch mutex with an empty request queue throughout.
+    A sole remaining child must be proven idle on the private listener. Unknown
+    proc state or excessive charged memory never earns a smaller reservation.
+    """
+    match=re.fullmatch(r'wpiso-fpm-(php\d{2,3})-([a-z_][a-z0-9_-]*)\.service',unit)
+    if not match:return False
+    p=policy()
+    if not p.get('accountRuntimeCaps',False):return False
+    with lock('admission'):
+        path=RUN/'slots'/unit
+        if not path.exists():return False
+        row=json.loads(path.read_text())
+        if not row.get('relayEnforced') or int(row['runtimeMaxChildren'])<=1:return False
+        uid=pwd.getpwnam(match[2]).pw_uid
+        if row.get('uid')!=uid:raise ValueError('Idle runtime UID changed')
+        pid=int((RUN/(match[1]+'-'+match[2]+'.pid')).read_text())
+        proc=pathlib.Path('/proc')/str(pid);expected=account_cgroup(uid)+'/'+unit
+        if (proc/'cgroup').read_text().strip()!='0::'+expected:return False
+        if not re.search(r'^Uid:\s+0\b',(proc/'status').read_text(),re.M):return False
+        children=(proc/'task'/str(pid)/'children').read_text().split()
+        if len(children)>1:return False
+        if children and not backend_drained(unit,RUN/(match[1]+'-'+match[2]+'.sock')):return False
+        cost=p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB']
+        charged=int((pathlib.Path('/sys/fs/cgroup'+expected)/'memory.current').read_text())
+        if charged>cost*1048576:return False
+        previous=int(row['runtimeMaxChildren'])
+        row.update(runtimeMaxChildren=1,costMiB=cost,lastResizeAt=time.time(),idleCompacted=True)
+        atomic(path,json.dumps(row))
+        return {'previous':previous,'ceiling':1,'releasedMiB':(previous-1)*p['workerRssMiB']}
+
+
+def idle_peer_pressure(unit, limits):
+    p=policy()
+    with lock('admission'):
+        leases={path.name:json.loads(path.read_text()) for path in (RUN/'slots').glob('*.service')}
+        return peer_budget_pressure(leases,waiting_units(unit),p)
+
+
 def contention_ceiling(ceiling,relay_memory,p,pool_count):
     """Share a pressured cold grant; final admission still charges complete leases."""
     overhead=48+p['opcacheMiB']+relay_memory
@@ -536,18 +690,27 @@ def elastic_regrant_plan(unit,limits,demand):
         native=int(own['nativeMaxChildren']);current=int(own['runtimeMaxChildren']);old_cost=int(own['costMiB'])
         if not 1<=current<=native<=128:raise ValueError('Invalid elastic worker lease')
         ceiling=runtime_ceiling(uid,native,p,limits['queue'],limits['timeout'])
+        publish_runtime_demand(unit,uid,ceiling,demand,p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB'])
         peers=waiting_units(unit)
         leases={path.name:json.loads(path.read_text()) for path in (RUN/'slots').glob('*.service')}
-        target=min(ceiling,contention_ceiling(ceiling,limits['memoryMiB'],p,len(set(leases)|peers))) if peers else ceiling
+        target=fair_demand_ceiling(unit,ceiling,demand,leases,peers,p)
         waiting=RUN/'waiting';waiting.mkdir(mode=0o700,exist_ok=True);ticket=waiting/unit
         def request(cap):
             atomic(ticket,json.dumps({'mode':'elastic','uid':uid,'ceiling':cap,
+                'minimumMiB':p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB'],
                 'expires':time.monotonic()+limits['timeout']+5}))
         if current>target:
+            # No queued/forwarded request means this is an idle or post-response
+            # backend. Let verified idle compaction/yield handle it; restarting
+            # here would discard its warm cache or interrupt background work.
+            if demand==0:
+                clear_elastic_demand(unit);return None
             request(target)
-            return {'ceiling':target,'previous':current,'reasonDetail':'peer_fair_share' if peers else 'account_boundary'}
-        if demand<=current or current>=target:
+            return {'ceiling':target,'previous':current,'reasonDetail':'peer_fair_share' if target<ceiling else 'account_boundary'}
+        if demand<=current or current>=ceiling:
             clear_elastic_demand(unit);return None
+        if current>=target:
+            request(target);return None  # Let idle reservations yield without destabilizing busy peers.
         group=pathlib.Path('/sys/fs/cgroup'+account_cgroup(uid))
         boundary=int((group/'memory.max').read_text())*.9/1048576
         high=(group/'memory.high').read_text().strip()
@@ -559,11 +722,11 @@ def elastic_regrant_plan(unit,limits,demand):
         # Credit only physically charged backend memory in the host-headroom check.
         charged=int((group/unit/'memory.current').read_text())/1048576
         reserved=sum(int(row['costMiB']) for name,row in leases.items() if name!=unit)
-        granted,_=demand_grant(target,limits['memoryMiB'],p,reserved,
+        granted,_=demand_grant(min(target,max(current,demand)),limits['memoryMiB'],p,reserved,
             available+min(old_cost,charged),account_available)
         if granted>current:
             if own.get('relayEnforced') and elastic_proxy_ready(unit):
-                own.update(runtimeMaxChildren=granted,costMiB=granted*p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB'],lastResizeAt=time.time())
+                own.update(runtimeMaxChildren=granted,costMiB=granted*p['workerRssMiB']+48+p['opcacheMiB']+limits['memoryMiB'],lastResizeAt=time.time(),idleCompacted=False)
                 atomic(lease,json.dumps(own));clear_elastic_demand(unit)
                 return {'ceiling':granted,'previous':current,'reasonDetail':'queued_demand_growth','liveGrowth':True}
             request(granted)
@@ -689,12 +852,14 @@ def admit(unit,children):
     deadline=time.monotonic()+3
     waiting=RUN/'waiting';waiting.mkdir(mode=0o700,exist_ok=True);ticket=waiting/unit
     grant_ceiling=children
+    regrant=False
     try:
         prior=json.loads(ticket.read_text()) if ticket.exists() else {}
         if (prior.get('mode')=='elastic' and prior.get('uid')==actual_uid
                 and type(prior.get('expires')) in (int,float) and time.monotonic()<prior['expires']<float('inf')
                 and type(prior.get('ceiling')) is int and 1<=prior['ceiling']<=children):
             grant_ceiling=prior['ceiling']
+            regrant=True
 
         while True:
             with lock('admission'):
@@ -735,10 +900,13 @@ def admit(unit,children):
                 peer_demand=waiting_units(unit)
                 if peer_demand:
                     grant_ceiling=min(grant_ceiling,contention_ceiling(ceiling,relay['memoryMiB'],p,len({x.name for x in lease_paths}|peer_demand|{unit})))
+                relay_enforced=dynamic and elastic_proxy_ready(unit)
+                # One cold request needs one reservation. Verified relays can
+                # acquire further capacity before dispatching queued requests.
+                if relay_enforced and not regrant:grant_ceiling=min(grant_ceiling,1)
                 granted,cost=demand_grant(min(ceiling,grant_ceiling),relay['memoryMiB'],p,reserved,available,account_available)
                 eligible=granted>=1 if dynamic else (granted==children and len(list(slots.iterdir()))<p['maxActivePools'])
                 if eligible:
-                    relay_enforced=dynamic and elastic_proxy_ready(unit)
                     if dynamic:atomic(pool_path,private_backend(runtime_pool(pool,ceiling if relay_enforced else granted)))
                     atomic(lease,json.dumps({'costMiB':cost,'startedAt':time.time(),
                         'nativeMaxChildren':children,'accountCeiling':ceiling,'runtimeMaxChildren':granted,
@@ -748,7 +916,7 @@ def admit(unit,children):
                 if dynamic and account_available>=minimum:
                     peers={x.name for x in lease_paths}|waiting_units()|{unit}
                     grant_ceiling=min(grant_ceiling,contention_ceiling(ceiling,relay['memoryMiB'],p,len(peers)))
-                    atomic(ticket,json.dumps({'expires':deadline,'uid':actual_uid,'ceiling':grant_ceiling}))
+                    atomic(ticket,json.dumps({'expires':deadline,'uid':actual_uid,'ceiling':grant_ceiling,'minimumMiB':minimum}))
             if time.monotonic()>=deadline:
                 minimum=p['workerRssMiB']+48+p['opcacheMiB']+relay['memoryMiB']
                 reasons=[]
@@ -802,7 +970,7 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve
     listener.settimeout(1)
     pending=queue.Queue(maxsize=limits['queue']);lock=threading.Lock();start_lock=threading.Lock()
     stopping=threading.Event();activity={'last':time.monotonic(),'active':0,'forwarded':0}
-    dispatch=threading.Condition(lock);draining=False;regrant=None;rebalance_after=0;drain_deadline=0;dispatch_limit=1 if stop_backend else limits['workers']
+    dispatch=threading.Condition(lock);draining=False;regrant=None;rebalance_after=0;shrink_after=0;drain_deadline=0;dispatch_limit=1 if stop_backend else limits['workers']
     old_signals={}
     if threading.current_thread() is threading.main_thread():
         for sig in (signal.SIGTERM,signal.SIGINT):
@@ -894,13 +1062,13 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve
                 try:
                     limit=runtime_dispatch_limit(unit,limits['workers'])
                     with dispatch:dispatch_limit=limit;dispatch.notify_all()
-                    with lock:demand=activity['forwarded']+pending.qsize()
+                    with lock:demand=activity['active']+pending.qsize()
                     plan=elastic_regrant_plan(unit,limits,demand)
                     if plan:
                         if plan.get('liveGrowth'):
                             with dispatch:dispatch_limit=runtime_dispatch_limit(unit,limits['workers']);dispatch.notify_all()
                             diagnostic('runtime_grant_grown',**plan)
-                        else:
+                        elif time.monotonic()>=shrink_after:
                             # Rebalancing must not consume a whole client deadline while
                             # an unforwarded/background PHP job prevents idle proof.
                             # Retain the full charged grant and resume its queue if this
@@ -912,12 +1080,14 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve
                     diagnostic('runtime_regrant_error',error=type(error).__name__)
                     rebalance_after=time.monotonic()+max(2,min(15,limits['timeout']/4))
             if draining:
+                refresh_draining_demand(unit)
                 with lock:drained=activity['active']==0
                 if drained and not backend_drained(unit,backend):drained=False
                 if not drained and time.monotonic()>=drain_deadline:
                     clear_elastic_demand(unit)
                     with dispatch:draining=False;regrant=None;dispatch.notify_all()
                     rebalance_after=time.monotonic()+max(2,min(15,limits['timeout']/4))
+                    shrink_after=rebalance_after
                     diagnostic('runtime_regrant_deferred',reasonDetail='backend_not_proven_idle')
                 if drained:
                     # Already-forwarded work completed before any backend stop.
@@ -935,7 +1105,27 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve
                         rebalance_after=time.monotonic()+1
                 # Accept into the bounded queue while current work drains.
             has_lease=not stop_backend or (RUN/'slots'/unit).exists()
-            reason=None if draining else idle_retirement_reason(time.monotonic()-activity['last'],int(idle),quiescent,has_lease and bool(waiting_units(unit)),available,host_reserve_mib)
+            elapsed=time.monotonic()-activity['last']
+            pressure=has_lease and bool(waiting_units(unit))
+            if stop_backend and quiescent and not draining:
+                try:
+                    # Native surplus children must have exited; a sole remaining
+                    # child must be proven accepting. Do not add another arbitrary
+                    # idle delay or compete with a dequeued request.
+                    with dispatch:
+                        if activity['active']==0 and pending.unfinished_tasks==0:
+                            compacted=compact_idle_lease(unit,limits)
+                            if compacted:
+                                dispatch_limit=runtime_dispatch_limit(unit,limits['workers'])
+                                diagnostic('idle_grant_compacted',**compacted)
+                    pressure=has_lease and elapsed>=policy()['idleSeconds'] and idle_peer_pressure(unit,limits)
+                except (OSError,ValueError,KeyError,TypeError) as error:
+                    # Retain the conservative grant; an unknown state never releases
+                    # memory reservations or forces a peer-driven cache eviction.
+                    pressure=False;diagnostic('idle_compaction_unavailable',error=type(error).__name__)
+            reason=None if draining else idle_retirement_reason(elapsed,int(idle),quiescent,pressure,available,host_reserve_mib)
+            if reason and stop_backend and has_lease and not backend_drained(unit,backend):
+                reason=None  # Relay completion does not prove post-response PHP finished.
             if reason:
                 diagnostic('warm_idle_retire' if reason=='warm_idle_expired' else 'idle_lease_yield',reasonDetail=reason)
                 return
@@ -949,7 +1139,14 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve
             # Apply backpressure; waiting requests never allocate a thread each.
             try:
                 pending.put_nowait((client,deadline,accepted))
-                with dispatch:dispatch.notify_all()
+                with dispatch:
+                    # New burst demand should not wait for the periodic tick.
+                    # Allocation still passes the same locked budget checks.
+                    if stop_backend and activity['active']+pending.qsize()>dispatch_limit:
+                        # Wake live growth immediately, but never erase the
+                        # separate cooldown of a deferred background-job drain.
+                        rebalance_after=0
+                    dispatch.notify_all()
             except queue.Full:
                 diagnostic('queue_full_deadline',queued=pending.qsize())
                 try:unavailable(client)
@@ -961,6 +1158,8 @@ def serve_proxy(listener,unit,backend,idle,limits,stop_backend=True,host_reserve
         if stop_backend:
             try:clear_elastic_demand(unit)
             except (OSError,ValueError,TypeError):pass
+            try:clear_runtime_demand(unit)
+            except OSError:pass  # Expiry still bounds a failed cleanup; finish shutdown.
         while True:
             try:client,_,_=pending.get_nowait()
             except queue.Empty:break
@@ -996,7 +1195,10 @@ def fastcgi_proxy(unit,backend,idle,children=None,backlog=None,request_timeout=N
 
 def release(unit):
     if not re.fullmatch(r'wpiso-fpm-php\d{2,3}-[a-z_][a-z0-9_-]*\.service',unit):raise ValueError('Invalid release unit')
-    with lock('admission'):(RUN/'slots'/unit).unlink(missing_ok=True)
+    with lock('admission'):
+        (RUN/'slots'/unit).unlink(missing_ok=True)
+        # The proxy may still own queued work during a drained regrant.
+        # Proxy shutdown clears demand; a crashed proxy expires automatically.
 
 def is_managed(version):
     if not (STATE/'installed.json').exists(): return False

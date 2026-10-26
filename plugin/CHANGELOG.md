@@ -1,4 +1,24 @@
-## 1.1.30 — 2026-10-25
+## 1.1.32 — 2026-10-26
+
+- Preserve live busy-peer demand independently of cleared admission tickets, preventing greedy growth and repeated fair-share PHP master restarts.
+- Allocate shared worker capacity deterministically from actual demand while charging idle reservations in full; retain unfunded tickets for safe idle peer release.
+- Count connection-startup work in demand and compact a sole proven idle native child without restarting the master or OPcache.
+- Keep deferred-shrink cooldown independent of arrival-driven growth, preventing repeated queue pauses behind post-response background jobs.
+- Preserve global native defaults, physical/account safety boundaries and shared Redis mode. Include repeated comparison evidence, failed-before results and exact source guides.
+
+## 1.1.31 — 2026-10-25
+
+- Size verified cold relay grants to one worker; grow to actual queued/forwarded demand within existing physical and account limits.
+- Recheck locked allocation on new queued bursts instead of waiting for the periodic regrant tick; preserve in-flight requests.
+- Compact genuinely idle leases after all FPM children exit, preserving the master and OPcache while retaining one fully charged worker.
+- Rebalance for unfunded peer demand rather than every valid ticket; avoid fair-share master restarts for zero-demand pools.
+- Require native backend-idle proof before idle retirement, including post-response background work.
+- Use each cold peer's own complete admission footprint across PHP versions; keep unknown minima conservative.
+- Keep supervisor notification/watchdog endpoints out of child commands to avoid spurious readiness messages.
+- Coordinate a hardware-scaled interned-string recommendation with the canonical planner; 32 MiB fits the measured string working set inside the unchanged 256-MiB cache.
+- Preserve global per-version PHP-FPM defaults, existing safety reserves and shared Redis mode; include source placement guides and bounded validation evidence.
+
+## 1.1.30 — 2026-10-24
 
 - Repair and activate the checked native PHP service bridge when an already-managed PHP version is onboarded or repaired. Refuse a changed/custom native unit instead of overwriting it.
 - Include native bridge activity in runtime governance health, repair admission and post-operation verification. A healthy coordinator and health master alone no longer hide an inactive compatibility bridge.
@@ -7,8 +27,6 @@
 - Add optional owner-selected Shared Redis integration sized from the matching physical Global Inputs: one cache service, no per-user allocation. Verify restart readiness, cache/client/process limits and Golden placement; retain and restore native ownership/configuration transactionally.
 - Add cache-only consent, hardware-drift refusal, idempotence and rollback regression coverage.
 - Add a dated current-host readiness follow-up. Historical Redis guard and backup rotation evidence is distinguished from the actual current installation.
-
-- Verify native Webuzo 4.8.6 to 4.8.7 update, subsequent automatic bridge recovery/reboot, four PHP versions, account provisioning and 25 native HTTP routes. No additional runtime code change was needed for that update.
 
 ## 1.1.29 — 2026-10-24
 
