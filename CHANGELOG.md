@@ -1,3 +1,10 @@
+## 1.1.33 — 2026-10-27
+
+- Preserve routing and charged leases on unchanged native graceful reload; keep explicit restart as a maintenance operation.
+- Derive managed master control grace from the inherited finite request timeout, preserve longer native values, and verify every managed pool.
+- Retain balanced native global settings after repeated worker, queue, Apache and database comparisons; synchronize the canonical generator source and asset versions.
+- Record 184 isolated Linux tests, 24,363 accepted recorded requests without failures, 331 matching configured values, and automatic reboot recovery. Preserve failed/rejected attempts and workload boundaries in the dated report.
+
 ## 1.1.30 — 2026-10-25
 
 - Repair and activate the checked native PHP service bridge when an already-managed PHP version is onboarded or repaired. Refuse a changed/custom native unit instead of overwriting it.

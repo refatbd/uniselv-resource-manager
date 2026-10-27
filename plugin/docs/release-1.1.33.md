@@ -1,0 +1,15 @@
+# Release 1.1.33 — native reload and background completion safety
+
+Native reload previously forced a full pool/routing restart, even when account definitions were unchanged. Reload now performs checked selective reconciliation, then gracefully reloads surviving PHP masters while preserving public socket/proxy units and runtime reservations. PHP ini and extension changes are still reloaded. Explicit restart retains its intentional restart semantics.
+
+A strict native test also exposed the vendor process_control_timeout = 10s escalation cutting off a still-running post-response job. Managed global FPM copies now derive a minimum control grace from the inherited finite request timeout. Longer existing operator values are preserved; malformed/duplicate directives fail closed. This is an automatic managed-runtime safeguard, not a manual per-user setting. Native global panel defaults remain inherited and no new per-user panel input is created.
+
+The strict live case completed a true 30.0-second post-response job during native reload, preserved the public socket and proxy PID, applied a private harmless INI readback change, and recorded 823 foreground requests with zero failures. The maximum request wait during that maintenance case was 20.8 seconds: graceful reload is not a zero-latency guarantee. Native global ini source remained unchanged and all temporary views were removed. 184 isolated Linux regressions passed. Full repeated configuration comparisons are recorded separately after completion; do not infer them from this paragraph alone.
+
+Final current-host resource acceptance passed: 331 configured-value checks with zero mismatches, 184 isolated Linux regressions, 24,363 accepted recorded requests with zero recorded failures or fixture OOM kills, and actual reboot recovery without manually starting services. Repeated comparisons retain eight global FPM children, backlog 64, warm retention 600 seconds, Apache 20 workers, a 1-GiB database buffer pool and 256-MiB OPcache. Exact comparisons, rejected attempts and workload boundaries are recorded in server-policy-report-1.1.33.md and server-policy-validation.json.
+
+The shared CPU/RAM safety budgets, automatic demand-sharing allocation, account boundaries, global FPM ceiling, OPcache allocation and owner-selected Shared Redis policy are retained. No WordPress/theme/plugin feature or currency logic is modified by this release.
+
+Install the complete reviewed package. Exact advanced source replacements, anchors, context, duplicate handling and verification are in source-changes-1.1.33.md/.json. These changes are already included; do not paste them again after installing. Keep owned source and restoration manifests consistent when restoring a prior runtime.
+
+Current-host resource/runtime validation is distinct from clean-OS installation, unknown future vendor releases, different hardware and application shopper capacity. Changed routing or resource limits and explicit restart remain controlled maintenance operations.

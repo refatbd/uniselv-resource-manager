@@ -1,3 +1,10 @@
+## 1.1.33 — 2026-10-27
+
+- Preserve public routing and active proxy processes on native reload; refresh surviving native PHP masters gracefully after selective configuration validation.
+- Derive managed FPM control grace from the inherited request timeout so valid post-response work is not cut off by the vendor ten-second escalation. Preserve longer operator values and fail malformed/duplicate controls closed.
+- Verify managed reload timeout safety in mechanical health checks and include strict native foreground/background/INI readback evidence.
+- Retain global defaults, automatic runtime caps, physical/account budgets and Shared Redis policy.
+
 ## 1.1.32 — 2026-10-26
 
 - Preserve live busy-peer demand independently of cleared admission tickets, preventing greedy growth and repeated fair-share PHP master restarts.

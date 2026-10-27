@@ -1,22 +1,34 @@
 {
+  "release": "1.1.33",
+  "date": "2026-10-27",
+  "scope": "Current-host Resman resource allocation and server configuration; WordPress source/feature remediation excluded",
+  "runtimeSha256": "dac8d288f8ec00c794dffb61f451ef4bfd61a35a10216d4c9623f5a35074beaf",
+  "model": "account-demand-v8-native-reload-safety",
+  "resourceScopeAccepted": true,
+  "acceptanceMeaning": "Best balanced selected configuration among the tested feasible candidates for this current host and workload; not unique mathematical optimality over every possible future workload.",
   "configuration": {
     "checks": 331,
     "mismatches": 0,
     "mechanicalChecksPass": true,
     "goldenChecksPass": true,
-    "accountPlacement": "25 accounts PASS",
-    "pendingOverrideRecovery": 0
+    "managedReloadTimeoutSafe": true
+  },
+  "unitRegressions": {
+    "passed": 184,
+    "environment": "Isolated Linux fixtures against shipping source, separate from live tests"
   },
   "generatorCases": {
     "passed": true,
-    "cases": [
+    "canonical": "M:/Codenew/FFFFFF/uniselv.win/webuzo-planner/",
+    "matchedProfileValuesUnchanged": true,
+    "hardwareCases": [
       {
         "cpu": 2,
+        "ram": 4,
         "oversell": 100,
-        "opcacheMiB": 64,
-        "internedMiB": 8,
-        "physicalCpuPercent": 170,
-        "profileValidationErrors": [
+        "hostingCpuPercent": 170,
+        "phpBudgetMiB": 1057,
+        "validationErrors": [
           "Go: VPS or I/O budget is too small to meet Webuzo minimums",
           "Go: CPU must exceed 25 and stay within the usable CPU budget",
           "Fix the Resource Plans configuration first"
@@ -24,11 +36,11 @@
       },
       {
         "cpu": 2,
+        "ram": 4,
         "oversell": 300,
-        "opcacheMiB": 64,
-        "internedMiB": 8,
-        "physicalCpuPercent": 170,
-        "profileValidationErrors": [
+        "hostingCpuPercent": 170,
+        "phpBudgetMiB": 1057,
+        "validationErrors": [
           "Go: VPS or I/O budget is too small to meet Webuzo minimums",
           "Go: CPU must exceed 25 and stay within the usable CPU budget",
           "Fix the Resource Plans configuration first"
@@ -36,2011 +48,51 @@
       },
       {
         "cpu": 4,
+        "ram": 8,
         "oversell": 100,
-        "opcacheMiB": 256,
-        "internedMiB": 32,
-        "physicalCpuPercent": 340,
-        "profileValidationErrors": []
+        "hostingCpuPercent": 340,
+        "phpBudgetMiB": 2994,
+        "validationErrors": []
       },
       {
         "cpu": 4,
+        "ram": 8,
         "oversell": 300,
-        "opcacheMiB": 256,
-        "internedMiB": 32,
-        "physicalCpuPercent": 340,
-        "profileValidationErrors": []
+        "hostingCpuPercent": 340,
+        "phpBudgetMiB": 2994,
+        "validationErrors": []
       },
       {
         "cpu": 8,
+        "ram": 16,
         "oversell": 100,
-        "opcacheMiB": 256,
-        "internedMiB": 32,
-        "physicalCpuPercent": 680,
-        "profileValidationErrors": []
+        "hostingCpuPercent": 680,
+        "phpBudgetMiB": 6388,
+        "validationErrors": []
       },
       {
         "cpu": 8,
+        "ram": 16,
         "oversell": 300,
-        "opcacheMiB": 256,
-        "internedMiB": 32,
-        "physicalCpuPercent": 680,
-        "profileValidationErrors": []
+        "hostingCpuPercent": 680,
+        "phpBudgetMiB": 6388,
+        "validationErrors": []
       },
       {
         "cpu": 16,
+        "ram": 32,
         "oversell": 100,
-        "opcacheMiB": 256,
-        "internedMiB": 32,
-        "physicalCpuPercent": 1360,
-        "profileValidationErrors": []
+        "hostingCpuPercent": 1360,
+        "phpBudgetMiB": 13368,
+        "validationErrors": []
       },
       {
         "cpu": 16,
+        "ram": 32,
         "oversell": 300,
-        "opcacheMiB": 256,
-        "internedMiB": 32,
-        "physicalCpuPercent": 1360,
-        "profileValidationErrors": []
-      }
-    ]
-  },
-  "opcacheComparison": {
-    "interned16-a": {
-      "samples": 6,
-      "medianCpuMs": 1222.8419999999992,
-      "medianWallMs": 1350.7499694824219,
-      "interned": {
-        "buffer_size": 16777216,
-        "used_memory": 16777208,
-        "free_memory": 8,
-        "number_of_strings": 185110
-      },
-      "opcodeStart": 1792942694
-    },
-    "interned32-b": {
-      "samples": 6,
-      "medianCpuMs": 1211.7510000000004,
-      "medianWallMs": 1332.5859308242798,
-      "interned": {
-        "buffer_size": 33554432,
-        "used_memory": 26954504,
-        "free_memory": 6599928,
-        "number_of_strings": 261806
-      },
-      "opcodeStart": 1792942961
-    },
-    "interned16-c": {
-      "samples": 6,
-      "medianCpuMs": 1270.7030000000007,
-      "medianWallMs": 1397.655963897705,
-      "interned": {
-        "buffer_size": 16777216,
-        "used_memory": 16777216,
-        "free_memory": 0,
-        "number_of_strings": 179640
-      },
-      "opcodeStart": 1792943010
-    }
-  },
-  "appliedIni": {
-    "opcache.memory_consumption": 256,
-    "opcache.interned_strings_buffer": 32,
-    "scope": "Native global per installed PHP version; existing private health-master overrides remain separate"
-  },
-  "remainingBoundaries": [
-    "No universal optimum or never-retune guarantee: application cost, RAM/RSS, account mix and vendor/hardware changes can alter the best settings.",
-    "An unfunded concurrent peer may legitimately require a drained rebalance or warm-cache eviction; preserving every cache under memory pressure is not promised.",
-    "RSS is an admission estimate; kernel cgroup limits remain the enforced boundary.",
-    "Clean-OS fresh installation and unknown future vendor releases are not certified by these existing-host tests.",
-    "Shared Redis is intentionally shared. CSF, SSL and backup configuration are outside this task.",
-    "Website-specific CPU bottlenecks and currency/checkout behavior are deferred. USD default with geolocated BDT and no loading mask is recorded as intended behavior."
-  ],
-  "release": "1.1.32",
-  "date": "2026-10-26",
-  "scope": "Existing-host repeated resource configuration comparison; WordPress code unchanged",
-  "runtimeSha256": "ee49bbb6e3b9219a9476ddcc3f10e662f6f2e47900dfc49350809e1dfd138e01",
-  "unitRegressions": {
-    "passed": 135,
-    "environment": "Linux root, disposable mocked fixtures; separate from live comparisons"
-  },
-  "comparison": {
-    "mainEvidence": "run-1792951472774027500",
-    "websiteEvidence": "run-1792952414093368000",
-    "oldBaselineEvidence": "run-1792950282749660900",
-    "supplementEvidence": "run-1792952712704455000",
-    "oldRuntimeFairRestarts": 41,
-    "newRuntimeFairRestarts": 2,
-    "sharingEvents": [
-      {
-        "label": "ab-r1-new32-target",
-        "fairRestarts": 0,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 2,
-        "events": {
-          "runtime_grant_grown": 2
-        }
-      },
-      {
-        "label": "ab-r1-new32-peer",
-        "fairRestarts": 1,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 4,
-        "events": {
-          "runtime_grant_grown": 4,
-          "runtime_regrant_drain": 1,
-          "runtime_regrant_ready": 1
-        }
-      },
-      {
-        "label": "ab-r2-new32-target",
-        "fairRestarts": 1,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 4,
-        "events": {
-          "runtime_grant_grown": 4,
-          "runtime_regrant_drain": 1,
-          "runtime_regrant_ready": 1
-        }
-      },
-      {
-        "label": "ab-r2-new32-peer",
-        "fairRestarts": 0,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 2,
-        "events": {
-          "runtime_grant_grown": 2
-        }
-      },
-      {
-        "label": "new32-sharing-soak-peer",
-        "fairRestarts": 0,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 1,
-        "events": {
-          "started": 1,
-          "runtime_grant_grown": 1
-        }
-      },
-      {
-        "label": "new32-sharing-soak-target",
-        "fairRestarts": 1,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 2,
-        "events": {
-          "started": 1,
-          "runtime_grant_grown": 2,
-          "runtime_regrant_drain": 1,
-          "runtime_regrant_ready": 1
-        }
-      },
-      {
-        "label": "new32-sharing-recovery",
-        "fairRestarts": 0,
-        "steadyFairRestarts": 0,
-        "settlingWindowSeconds": 15,
-        "growth": 3,
-        "events": {
-          "runtime_grant_grown": 3
-        }
-      },
-      {
-        "label": "ab-r1-old31-target",
-        "fairRestarts": 6,
-        "growth": 8,
-        "events": {
-          "runtime_grant_grown": 8,
-          "runtime_regrant_drain": 6,
-          "runtime_regrant_ready": 6
-        }
-      },
-      {
-        "label": "ab-r1-old31-peer",
-        "fairRestarts": 6,
-        "growth": 6,
-        "events": {
-          "runtime_grant_grown": 6,
-          "runtime_regrant_drain": 6,
-          "runtime_regrant_ready": 6
-        }
-      },
-      {
-        "label": "ab-r2-old31-peer",
-        "fairRestarts": 14,
-        "growth": 18,
-        "events": {
-          "runtime_grant_grown": 18,
-          "runtime_regrant_drain": 14,
-          "runtime_regrant_ready": 14
-        }
-      },
-      {
-        "label": "ab-r2-old31-target",
-        "fairRestarts": 15,
-        "growth": 16,
-        "events": {
-          "runtime_grant_grown": 16,
-          "runtime_regrant_drain": 15,
-          "runtime_regrant_ready": 15
-        }
-      }
-    ],
-    "workerMedians": [
-      {
-        "cap": 2,
-        "work": "cpu",
-        "repeats": 3,
-        "medianRps": 9.683533004565342,
-        "medianP95": 2.473071726009948,
-        "medianCpuPercent": 199.3641740174494
-      },
-      {
-        "cap": 2,
-        "work": "io",
-        "repeats": 3,
-        "medianRps": 12.237651589873192,
-        "medianP95": 1.964578472005087,
-        "medianCpuPercent": 18.934323995819113
-      },
-      {
-        "cap": 2,
-        "work": "mixed",
-        "repeats": 3,
-        "medianRps": 11.047411285012982,
-        "medianP95": 2.1723953419859754,
-        "medianCpuPercent": 118.81959508324555
-      },
-      {
-        "cap": 4,
-        "work": "cpu",
-        "repeats": 3,
-        "medianRps": 13.38709054156822,
-        "medianP95": 1.8304072910104878,
-        "medianCpuPercent": 277.1530749309467
-      },
-      {
-        "cap": 4,
-        "work": "io",
-        "repeats": 3,
-        "medianRps": 24.174431176146378,
-        "medianP95": 0.9937363950011786,
-        "medianCpuPercent": 35.939371378602566
-      },
-      {
-        "cap": 4,
-        "work": "mixed",
-        "repeats": 3,
-        "medianRps": 20.2771329236942,
-        "medianP95": 1.20932194100169,
-        "medianCpuPercent": 217.6160492742708
-      },
-      {
-        "cap": 6,
-        "work": "cpu",
-        "repeats": 3,
-        "medianRps": 13.009965960235665,
-        "medianP95": 2.004918071004795,
-        "medianCpuPercent": 270.7326910409973
-      },
-      {
-        "cap": 6,
-        "work": "io",
-        "repeats": 3,
-        "medianRps": 35.45030839526919,
-        "medianP95": 0.6750926790118683,
-        "medianCpuPercent": 51.24760554537122
-      },
-      {
-        "cap": 6,
-        "work": "mixed",
-        "repeats": 3,
-        "medianRps": 23.064675767419377,
-        "medianP95": 1.083437227003742,
-        "medianCpuPercent": 247.06015756718358
-      },
-      {
-        "cap": 8,
-        "work": "cpu",
-        "repeats": 3,
-        "medianRps": 13.539155297618015,
-        "medianP95": 2.092741358996136,
-        "medianCpuPercent": 279.53126190847496
-      },
-      {
-        "cap": 8,
-        "work": "io",
-        "repeats": 3,
-        "medianRps": 46.33903757787063,
-        "medianP95": 0.5078846710093785,
-        "medianCpuPercent": 65.26940328538537
-      },
-      {
-        "cap": 8,
-        "work": "mixed",
-        "repeats": 3,
-        "medianRps": 25.132079575979244,
-        "medianP95": 1.0009415859967703,
-        "medianCpuPercent": 268.7490552097482
-      }
-    ],
-    "stages": [
-      {
-        "label": "ab-r1-new32-target",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 8,
-        "requests": 658,
-        "failed": 0,
-        "durationSeconds": 45.55479188601021,
-        "rps": 14.444144573121639,
-        "p50": 0.509494824000285,
-        "p95": 0.7642213689978234,
-        "p99": 1.3546000700007426,
-        "cpuPercent": 156.25614793305624,
-        "maxMemoryMiB": 959.86328125,
-        "minHostAvailableMiB": 5679,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "ab-r1-new32-peer",
-        "user": "bdservic",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 4,
-        "requests": 572,
-        "failed": 0,
-        "durationSeconds": 45.56648667200352,
-        "rps": 12.553085431347117,
-        "p50": 0.2953039770072792,
-        "p95": 0.435221908002859,
-        "p99": 1.0081919119984377,
-        "cpuPercent": 136.73726800245416,
-        "maxMemoryMiB": 166.4921875,
-        "minHostAvailableMiB": 5679,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "ab-r2-new32-target",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 8,
-        "requests": 648,
-        "failed": 0,
-        "durationSeconds": 45.545360101998085,
-        "rps": 14.227574412603493,
-        "p50": 0.5126125579990912,
-        "p95": 0.7358846989955055,
-        "p99": 2.250024132008548,
-        "cpuPercent": 155.43097000762182,
-        "maxMemoryMiB": 958.46875,
-        "minHostAvailableMiB": 5670,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "ab-r2-new32-peer",
-        "user": "bdservic",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 4,
-        "requests": 596,
-        "failed": 0,
-        "durationSeconds": 45.57874456400168,
-        "rps": 13.076270654254127,
-        "p50": 0.29702098401321564,
-        "p95": 0.4089136770053301,
-        "p99": 0.5135228260041913,
-        "cpuPercent": 141.01409465051984,
-        "maxMemoryMiB": 135.16015625,
-        "minHostAvailableMiB": 5670,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r1-cap8-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.5452728730015224,
-        "rps": 13.539155297618015,
-        "p50": 1.5523509360064054,
-        "p95": 2.092741358996136,
-        "p99": 2.3612107379885856,
-        "cpuPercent": 279.53126190847496,
-        "maxMemoryMiB": 995.94921875,
-        "minHostAvailableMiB": 5901,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r1-cap8-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.0358436969981994,
-        "rps": 46.33903757787063,
-        "p50": 0.49054760100261774,
-        "p95": 0.5078846710093785,
-        "p99": 0.5157814639969729,
-        "cpuPercent": 65.26940328538537,
-        "maxMemoryMiB": 931.91015625,
-        "minHostAvailableMiB": 5980,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r1-cap8-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.91074084599677,
-        "rps": 25.12114612537107,
-        "p50": 0.8479918599914527,
-        "p95": 1.0187066240032436,
-        "p99": 1.0657454600004712,
-        "cpuPercent": 268.45922149762174,
-        "maxMemoryMiB": 1107.72265625,
-        "minHostAvailableMiB": 5815,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r1-cap4-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.585543837994919,
-        "rps": 13.38709054156822,
-        "p50": 1.7130594439950073,
-        "p95": 1.8099599970009876,
-        "p99": 1.850443664996419,
-        "cpuPercent": 277.1530749309467,
-        "maxMemoryMiB": 923.9296875,
-        "minHostAvailableMiB": 5934,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r1-cap4-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.9855689530086238,
-        "rps": 24.174431176146378,
-        "p50": 0.9760059780091979,
-        "p95": 0.9937363950011786,
-        "p99": 0.9964959080098197,
-        "cpuPercent": 35.939371378602566,
-        "maxMemoryMiB": 891.9296875,
-        "minHostAvailableMiB": 6003,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r1-cap4-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 2.3671985670080176,
-        "rps": 20.2771329236942,
-        "p50": 1.112982121994719,
-        "p95": 1.20932194100169,
-        "p99": 1.225159423003788,
-        "cpuPercent": 217.6160492742708,
-        "maxMemoryMiB": 988.15234375,
-        "minHostAvailableMiB": 5949,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r1-cap2-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 4.956868529014173,
-        "rps": 9.683533004565342,
-        "p50": 2.4584457299934,
-        "p95": 2.473071726009948,
-        "p99": 2.4778023649996612,
-        "cpuPercent": 199.3641740174494,
-        "maxMemoryMiB": 887.76171875,
-        "minHostAvailableMiB": 6029,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r1-cap2-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.9214833279984305,
-        "rps": 12.240266242442434,
-        "p50": 1.9445250930002658,
-        "p95": 1.964578472005087,
-        "p99": 1.965072983992286,
-        "cpuPercent": 18.487545129257022,
-        "maxMemoryMiB": 871.8125,
-        "minHostAvailableMiB": 6053,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r1-cap2-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 4.350431422004476,
-        "rps": 11.03338849503892,
-        "p50": 2.162179142003879,
-        "p95": 2.1817885630007368,
-        "p99": 2.183394549007062,
-        "cpuPercent": 118.81959508324555,
-        "maxMemoryMiB": 919.7578125,
-        "minHostAvailableMiB": 6012,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r1-cap6-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.689479292006581,
-        "rps": 13.009965960235665,
-        "p50": 1.6237560870067682,
-        "p95": 2.004918071004795,
-        "p99": 2.1073226559965406,
-        "cpuPercent": 270.2924507966641,
-        "maxMemoryMiB": 960.2109375,
-        "minHostAvailableMiB": 5954,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r1-cap6-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.4094393179984763,
-        "rps": 34.05609548920778,
-        "p50": 0.6588788649969501,
-        "p95": 0.7119538200058741,
-        "p99": 0.7240128800040111,
-        "cpuPercent": 49.84123764885346,
-        "maxMemoryMiB": 911.59765625,
-        "minHostAvailableMiB": 5987,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r1-cap6-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 2.081104476994369,
-        "rps": 23.064675767419377,
-        "p50": 0.9310686769895256,
-        "p95": 1.083437227003742,
-        "p99": 1.1262189059925731,
-        "cpuPercent": 247.06015756718358,
-        "maxMemoryMiB": 1056.07421875,
-        "minHostAvailableMiB": 5834,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r2-cap6-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.692802653997205,
-        "rps": 12.998257555963164,
-        "p50": 1.655251945994678,
-        "p95": 2.0616380510036834,
-        "p99": 2.2748169310070807,
-        "cpuPercent": 270.7326910409973,
-        "maxMemoryMiB": 959.59765625,
-        "minHostAvailableMiB": 5874,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r2-cap6-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.3540079670056002,
-        "rps": 35.45030839526919,
-        "p50": 0.6548752079979749,
-        "p95": 0.6750926790118683,
-        "p99": 0.6823418359999778,
-        "cpuPercent": 53.74325836570135,
-        "maxMemoryMiB": 911.88671875,
-        "minHostAvailableMiB": 5963,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r2-cap6-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.9627789669902995,
-        "rps": 24.455122460173186,
-        "p50": 0.8941549940063851,
-        "p95": 0.9867307189997518,
-        "p99": 1.0211718210048275,
-        "cpuPercent": 262.4776445357875,
-        "maxMemoryMiB": 1056.1640625,
-        "minHostAvailableMiB": 5828,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r2-cap2-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 5.157782203998067,
-        "rps": 9.306325490594132,
-        "p50": 2.4637141860002885,
-        "p95": 2.677162085994496,
-        "p99": 2.6883096739911707,
-        "cpuPercent": 191.93976419411658,
-        "maxMemoryMiB": 887.7578125,
-        "minHostAvailableMiB": 5899,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r2-cap2-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.9419269260106375,
-        "rps": 12.176785846351954,
-        "p50": 1.9513369979977142,
-        "p95": 1.9794564680050826,
-        "p99": 1.9815018890076317,
-        "cpuPercent": 19.184779783965972,
-        "maxMemoryMiB": 871.8046875,
-        "minHostAvailableMiB": 6053,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r2-cap2-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 4.3389259800023865,
-        "rps": 11.062645507488837,
-        "p50": 2.1505093300074805,
-        "p95": 2.1723953419859754,
-        "p99": 2.1740365809964715,
-        "cpuPercent": 118.84457176190784,
-        "maxMemoryMiB": 919.86328125,
-        "minHostAvailableMiB": 6047,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r2-cap4-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.550293377993512,
-        "rps": 13.520009444156905,
-        "p50": 1.6859495910030091,
-        "p95": 1.8304072910104878,
-        "p99": 1.8415122510050423,
-        "cpuPercent": 278.47571869081935,
-        "maxMemoryMiB": 923.84375,
-        "minHostAvailableMiB": 6095,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r2-cap4-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.9781741670012707,
-        "rps": 24.264799733364008,
-        "p50": 0.9763127939950209,
-        "p95": 0.9882854370080167,
-        "p99": 0.9917298079963075,
-        "cpuPercent": 35.021992075157605,
-        "maxMemoryMiB": 891.98046875,
-        "minHostAvailableMiB": 6105,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r2-cap4-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 2.3082657999912044,
-        "rps": 20.794832207011385,
-        "p50": 1.0922171290003462,
-        "p95": 1.178684266997152,
-        "p99": 1.1902611990080914,
-        "cpuPercent": 223.95631387077253,
-        "maxMemoryMiB": 988.26171875,
-        "minHostAvailableMiB": 5973,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r2-cap8-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.543975540000247,
-        "rps": 13.544111537518303,
-        "p50": 1.485195275003207,
-        "p95": 2.2753224640036933,
-        "p99": 2.4216701940022176,
-        "cpuPercent": 280.6273883030047,
-        "maxMemoryMiB": 996.203125,
-        "minHostAvailableMiB": 5973,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r2-cap8-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.0463891029939987,
-        "rps": 45.87203733549899,
-        "p50": 0.5007418220047839,
-        "p95": 0.5202508299989859,
-        "p99": 0.5310494370060042,
-        "cpuPercent": 64.83993364023893,
-        "maxMemoryMiB": 928.34765625,
-        "minHostAvailableMiB": 6001,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r2-cap8-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.906184713006951,
-        "rps": 25.1811902972831,
-        "p50": 0.8678255720005836,
-        "p95": 1.0009415859967703,
-        "p99": 1.0624227369989967,
-        "cpuPercent": 269.7987747413672,
-        "maxMemoryMiB": 1097.46875,
-        "minHostAvailableMiB": 5884,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r3-cap4-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.606006059999345,
-        "rps": 13.311125716746222,
-        "p50": 1.705344938003691,
-        "p95": 1.8573689220065717,
-        "p99": 1.8633040559943765,
-        "cpuPercent": 275.10258815266116,
-        "maxMemoryMiB": 924.08984375,
-        "minHostAvailableMiB": 5980,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r3-cap4-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 2.1211302329902537,
-        "rps": 22.62944502579279,
-        "p50": 1.0145573240006343,
-        "p95": 1.1086145129957004,
-        "p99": 1.1101911310106516,
-        "cpuPercent": 36.13455638315452,
-        "maxMemoryMiB": 891.53515625,
-        "minHostAvailableMiB": 6016,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r3-cap4-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 4,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 2.442159594997065,
-        "rps": 19.65473513620132,
-        "p50": 1.1514446910005063,
-        "p95": 1.228436753997812,
-        "p99": 1.2469882550067268,
-        "cpuPercent": 212.44324124551062,
-        "maxMemoryMiB": 981.3046875,
-        "minHostAvailableMiB": 5967,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r3-cap8-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.567219631993794,
-        "rps": 13.455857769310322,
-        "p50": 1.617194861988537,
-        "p95": 1.9950499770056922,
-        "p99": 2.147473278993857,
-        "cpuPercent": 278.20033594212026,
-        "maxMemoryMiB": 995.96484375,
-        "minHostAvailableMiB": 5969,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r3-cap8-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.0305357559991535,
-        "rps": 46.57771428169585,
-        "p50": 0.4894916779885534,
-        "p95": 0.5072301109903492,
-        "p99": 0.5104962660116144,
-        "cpuPercent": 65.7720021895637,
-        "maxMemoryMiB": 928.73828125,
-        "minHostAvailableMiB": 6019,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r3-cap8-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.9099095980054699,
-        "rps": 25.132079575979244,
-        "p50": 0.851553366999724,
-        "p95": 0.9762791529938113,
-        "p99": 1.0305577750114026,
-        "cpuPercent": 268.7490552097482,
-        "maxMemoryMiB": 1124.49609375,
-        "minHostAvailableMiB": 5817,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r3-cap6-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.5553409959975397,
-        "rps": 13.500814704985112,
-        "p50": 1.5840741010033526,
-        "p95": 2.000869469004101,
-        "p99": 2.1457999990088865,
-        "cpuPercent": 277.98506559922777,
-        "maxMemoryMiB": 960.09765625,
-        "minHostAvailableMiB": 5878,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r3-cap6-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 1.350468949007336,
-        "rps": 35.54320892404262,
-        "p50": 0.6537914240034297,
-        "p95": 0.6687594740069471,
-        "p99": 0.6733580080035608,
-        "cpuPercent": 51.24760554537122,
-        "maxMemoryMiB": 912.1015625,
-        "minHostAvailableMiB": 6004,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r3-cap6-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 6,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 2.134157854001387,
-        "rps": 22.491307243277987,
-        "p50": 0.9231626589898951,
-        "p95": 1.1753481250052573,
-        "p99": 1.2410516500094673,
-        "cpuPercent": 240.08880085384115,
-        "maxMemoryMiB": 1055.9140625,
-        "minHostAvailableMiB": 5869,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-r3-cap2-cpu",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 4.953433167000185,
-        "rps": 9.690248839890769,
-        "p50": 2.447453521002899,
-        "p95": 2.470381727995118,
-        "p99": 2.4849551540100947,
-        "cpuPercent": 199.81646398177054,
-        "maxMemoryMiB": 887.78125,
-        "minHostAvailableMiB": 5995,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 16
-        }
-      },
-      {
-        "label": "new32-r3-cap2-io",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 3.922321178004495,
-        "rps": 12.237651589873192,
-        "p50": 1.9474676720128627,
-        "p95": 1.9628543280123267,
-        "p99": 1.963460101003875,
-        "cpuPercent": 18.934323995819113,
-        "maxMemoryMiB": 871.82421875,
-        "minHostAvailableMiB": 6048,
-        "oomKills": 0,
-        "work": {
-          "cpu": 10,
-          "wait": 150,
-          "mem": 8
-        }
-      },
-      {
-        "label": "new32-r3-cap2-mixed",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 2,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 24,
-        "requests": 48,
-        "failed": 0,
-        "durationSeconds": 4.344909296996775,
-        "rps": 11.047411285012982,
-        "p50": 2.1555614520038944,
-        "p95": 2.1710919570032274,
-        "p99": 2.1732015420129756,
-        "cpuPercent": 118.15869213998485,
-        "maxMemoryMiB": 920.0625,
-        "minHostAvailableMiB": 6051,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 75,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-sharing-soak-peer",
-        "user": "bdservic",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 4,
-        "requests": 3989,
-        "failed": 0,
-        "durationSeconds": 300.29731041500054,
-        "rps": 13.283502254773243,
-        "p50": 0.29289514500123914,
-        "p95": 0.3943678290088428,
-        "p99": 0.557644871994853,
-        "cpuPercent": 143.03336030762674,
-        "maxMemoryMiB": 139.07421875,
-        "minHostAvailableMiB": 5660,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-sharing-soak-target",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 8,
-        "requests": 4548,
-        "failed": 0,
-        "durationSeconds": 300.77573922500596,
-        "rps": 15.120900414769514,
-        "p50": 0.505545293999603,
-        "p95": 0.6641648969962262,
-        "p99": 0.9695701550081139,
-        "cpuPercent": 163.62282552045824,
-        "maxMemoryMiB": 987.97265625,
-        "minHostAvailableMiB": 5660,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "new32-sharing-recovery",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 8,
-        "requests": 807,
-        "failed": 0,
-        "durationSeconds": 60.56355450200499,
-        "rps": 13.324845389867,
-        "p50": 0.5898943970096298,
-        "p95": 1.0480545699974755,
-        "p99": 1.3457387399976142,
-        "cpuPercent": 275.2643439950028,
-        "maxMemoryMiB": 1124.890625,
-        "minHostAvailableMiB": 5765,
-        "oomKills": 0,
-        "work": {
-          "cpu": 200,
-          "mem": 32
-        }
-      }
-    ],
-    "oldBaselineStages": [
-      {
-        "label": "ab-r1-old31-target",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 8,
-        "requests": 652,
-        "failed": 0,
-        "durationSeconds": 45.55368771299254,
-        "rps": 14.312781966366261,
-        "p50": 0.40990054300345946,
-        "p95": 1.294177050003782,
-        "p99": 3.3470892570039723,
-        "cpuPercent": 163.03348362907138,
-        "maxMemoryMiB": 994.39453125,
-        "minHostAvailableMiB": 5709,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "ab-r1-old31-peer",
-        "user": "bdservic",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 4,
-        "requests": 386,
-        "failed": 0,
-        "durationSeconds": 45.56718447399908,
-        "rps": 8.471008346373782,
-        "p50": 0.36900601400702726,
-        "p95": 1.1147801509941928,
-        "p99": 3.194481073995121,
-        "cpuPercent": 99.02136487222832,
-        "maxMemoryMiB": 166.2265625,
-        "minHostAvailableMiB": 5709,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "ab-r2-old31-peer",
-        "user": "bdservic",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 4,
-        "requests": 145,
-        "failed": 0,
-        "durationSeconds": 45.53563661999942,
-        "rps": 3.18431915666499,
-        "p50": 0.3419478860014351,
-        "p95": 3.5970939499966335,
-        "p99": 3.6851762119913474,
-        "cpuPercent": 53.14973896592094,
-        "maxMemoryMiB": 166.09765625,
-        "minHostAvailableMiB": 5797,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      },
-      {
-        "label": "ab-r2-old31-target",
-        "user": "uniselvin",
-        "settings": {
-          "cap": 8,
-          "queue": 64,
-          "idle": 600
-        },
-        "clients": 8,
-        "requests": 314,
-        "failed": 0,
-        "durationSeconds": 46.03562514200166,
-        "rps": 6.820804518922778,
-        "p50": 0.6784509680001065,
-        "p95": 2.4632512020034483,
-        "p99": 4.035258674994111,
-        "cpuPercent": 92.88832696003809,
-        "maxMemoryMiB": 1013.16015625,
-        "minHostAvailableMiB": 5797,
-        "oomKills": 0,
-        "work": {
-          "cpu": 100,
-          "wait": 50,
-          "mem": 32
-        }
-      }
-    ],
-    "websiteTrials": [
-      {
-        "repeat": 1,
-        "cap": 8,
-        "requests": 18,
-        "failed": 0,
-        "rps": 1.7763657506947388,
-        "p95": 4.334700042993063,
-        "p99": 4.334700042993063
-      },
-      {
-        "repeat": 2,
-        "cap": 4,
-        "requests": 18,
-        "failed": 0,
-        "rps": 1.583063289509254,
-        "p95": 5.491896004998125,
-        "p99": 5.491896004998125
-      },
-      {
-        "repeat": 3,
-        "cap": 4,
-        "requests": 18,
-        "failed": 0,
-        "rps": 1.8650924692997732,
-        "p95": 4.046161361999111,
-        "p99": 4.046161361999111
-      },
-      {
-        "repeat": 4,
-        "cap": 8,
-        "requests": 18,
-        "failed": 0,
-        "rps": 1.8066054514048717,
-        "p95": 4.18768396100495,
-        "p99": 4.18768396100495
-      },
-      {
-        "repeat": 5,
-        "cap": 8,
-        "requests": 18,
-        "failed": 0,
-        "rps": 1.7610174304811466,
-        "p95": 3.91155489400262,
-        "p99": 3.91155489400262
-      },
-      {
-        "repeat": 6,
-        "cap": 4,
-        "requests": 18,
-        "failed": 0,
-        "rps": 1.8652074665071803,
-        "p95": 3.979552014003275,
-        "p99": 3.979552014003275
-      }
-    ],
-    "serviceTrials": [
-      {
-        "label": "apache-r1-workers20-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 839.1068179433973,
-        "p95": 0.03785644500749186,
-        "p99": 0.04021743900375441,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.09765625
-      },
-      {
-        "label": "apache-r1-workers20-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.1488140185558966,
-        "p95": 10.104340944002615,
-        "p99": 10.145221658007358,
-        "maxApacheProcesses": 21,
-        "maxApacheMemoryMiB": 126.85546875
-      },
-      {
-        "label": "apache-r1-workers12-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 783.2778981186786,
-        "p95": 0.04096629600098822,
-        "p99": 0.042943153996020555,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.0859375
-      },
-      {
-        "label": "apache-r1-workers12-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.341646399293206,
-        "p95": 9.446169438000652,
-        "p99": 9.532522237001103,
-        "maxApacheProcesses": 13,
-        "maxApacheMemoryMiB": 87.22265625
-      },
-      {
-        "label": "apache-r1-workers24-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 888.5893931442379,
-        "p95": 0.036750696002854966,
-        "p99": 0.0388549659983255,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.08984375
-      },
-      {
-        "label": "apache-r1-workers24-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.403996674788349,
-        "p95": 9.133934641999076,
-        "p99": 9.381168818988954,
-        "maxApacheProcesses": 25,
-        "maxApacheMemoryMiB": 143.7734375
-      },
-      {
-        "label": "apache-r2-workers24-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 982.2256146295422,
-        "p95": 0.02895465400069952,
-        "p99": 0.030014116011443548,
-        "maxApacheProcesses": 0,
-        "maxApacheMemoryMiB": 0.0
-      },
-      {
-        "label": "apache-r2-workers24-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 2.575036908665772,
-        "p95": 12.135345850008889,
-        "p99": 12.405896359996404,
-        "maxApacheProcesses": 25,
-        "maxApacheMemoryMiB": 144.80078125
-      },
-      {
-        "label": "apache-r2-workers20-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 1149.0436624418417,
-        "p95": 0.029401189007330686,
-        "p99": 0.03180684101243969,
-        "maxApacheProcesses": 0,
-        "maxApacheMemoryMiB": 0.0
-      },
-      {
-        "label": "apache-r2-workers20-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.3302744478102797,
-        "p95": 9.404896118998295,
-        "p99": 9.58169550501043,
-        "maxApacheProcesses": 21,
-        "maxApacheMemoryMiB": 125.76953125
-      },
-      {
-        "label": "apache-r2-workers12-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 870.7845050064827,
-        "p95": 0.035065258998656645,
-        "p99": 0.03645391800091602,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.09765625
-      },
-      {
-        "label": "apache-r2-workers12-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.250489951761485,
-        "p95": 9.801133922999725,
-        "p99": 9.822601314997883,
-        "maxApacheProcesses": 13,
-        "maxApacheMemoryMiB": 87.26953125
-      },
-      {
-        "label": "apache-r3-workers12-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 865.2047578478047,
-        "p95": 0.03807547299948055,
-        "p99": 0.03897608499391936,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.1015625
-      },
-      {
-        "label": "apache-r3-workers12-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.3354740555225066,
-        "p95": 9.563974028002121,
-        "p99": 9.574191309991875,
-        "maxApacheProcesses": 13,
-        "maxApacheMemoryMiB": 87.29296875
-      },
-      {
-        "label": "apache-r3-workers24-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 840.3657576396806,
-        "p95": 0.04029707999143284,
-        "p99": 0.04206355300266296,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.33984375
-      },
-      {
-        "label": "apache-r3-workers24-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 3.38240300265231,
-        "p95": 9.421039081993513,
-        "p99": 9.43828177099931,
-        "maxApacheProcesses": 25,
-        "maxApacheMemoryMiB": 144.62890625
-      },
-      {
-        "label": "apache-r3-workers20-static",
-        "requests": 96,
-        "failed": 0,
-        "rps": 409.4823800529193,
-        "p95": 0.08561324399488512,
-        "p99": 0.08887432899791747,
-        "maxApacheProcesses": 3,
-        "maxApacheMemoryMiB": 38.44921875
-      },
-      {
-        "label": "apache-r3-workers20-php",
-        "requests": 32,
-        "failed": 0,
-        "rps": 2.683456160510206,
-        "p95": 11.749453585987794,
-        "p99": 11.890144108998356,
-        "maxApacheProcesses": 21,
-        "maxApacheMemoryMiB": 128.3515625
-      },
-      {
-        "label": "database-r1-pool1024-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 281.1795540849891,
-        "p95": 0.0640383389982162,
-        "p99": 0.06760955099889543,
-        "maxApacheProcesses": 16,
-        "maxApacheMemoryMiB": 105.421875
-      },
-      {
-        "label": "database-r1-pool1024-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 1.838615665056106,
-        "p95": 2.37992248799128,
-        "p99": 2.37992248799128
-      },
-      {
-        "label": "database-r1-pool512-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 400.41722469435706,
-        "p95": 0.04259878599259537,
-        "p99": 0.04582414600008633,
-        "maxApacheProcesses": 14,
-        "maxApacheMemoryMiB": 100.16015625
-      },
-      {
-        "label": "database-r1-pool512-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 1.8819772214725148,
-        "p95": 2.33679625998775,
-        "p99": 2.33679625998775
-      },
-      {
-        "label": "database-r1-pool768-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 368.58454411334384,
-        "p95": 0.04681257299671415,
-        "p99": 0.04954567200911697,
-        "maxApacheProcesses": 14,
-        "maxApacheMemoryMiB": 101.56640625
-      },
-      {
-        "label": "database-r1-pool768-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 1.8022502246589838,
-        "p95": 2.547001562998048,
-        "p99": 2.547001562998048
-      },
-      {
-        "label": "database-r2-pool768-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 242.70389738975118,
-        "p95": 0.0823718559986446,
-        "p99": 0.08548329200129956,
-        "maxApacheProcesses": 13,
-        "maxApacheMemoryMiB": 95.921875
-      },
-      {
-        "label": "database-r2-pool768-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 0.8713680816783445,
-        "p95": 7.7483204349991865,
-        "p99": 7.7483204349991865
-      },
-      {
-        "label": "database-r2-pool1024-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 1.9317217908262365,
-        "p95": 12.712817258012365,
-        "p99": 12.731931829999667,
-        "maxApacheProcesses": 21,
-        "maxApacheMemoryMiB": 136.49609375
-      },
-      {
-        "label": "database-r2-pool1024-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 1.9104096646228477,
-        "p95": 2.2849443960003555,
-        "p99": 2.2849443960003555
-      },
-      {
-        "label": "database-r2-pool512-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 381.7308665531864,
-        "p95": 0.043997129003400914,
-        "p99": 0.05700643999443855,
-        "maxApacheProcesses": 15,
-        "maxApacheMemoryMiB": 106.76171875
-      },
-      {
-        "label": "database-r2-pool512-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 0.9192675282220594,
-        "p95": 8.550929508011905,
-        "p99": 8.550929508011905
-      },
-      {
-        "label": "database-r3-pool512-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 348.9636350827422,
-        "p95": 0.05708999298803974,
-        "p99": 0.06297117899521254,
-        "maxApacheProcesses": 16,
-        "maxApacheMemoryMiB": 112.41796875
-      },
-      {
-        "label": "database-r3-pool512-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 0.7742409610553007,
-        "p95": 12.180313720993581,
-        "p99": 12.180313720993581
-      },
-      {
-        "label": "database-r3-pool768-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 283.9157571378691,
-        "p95": 0.06431110898847692,
-        "p99": 0.06708390999119729,
-        "maxApacheProcesses": 15,
-        "maxApacheMemoryMiB": 106.70703125
-      },
-      {
-        "label": "database-r3-pool768-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 1.7747490533594736,
-        "p95": 2.3764616109983763,
-        "p99": 2.3764616109983763
-      },
-      {
-        "label": "database-r3-pool1024-read",
-        "requests": 48,
-        "failed": 0,
-        "rps": 296.5805925856993,
-        "p95": 0.06634616100927815,
-        "p99": 0.07290543799172156,
-        "maxApacheProcesses": 14,
-        "maxApacheMemoryMiB": 101.73046875
-      },
-      {
-        "label": "database-r3-pool1024-wordpress",
-        "requests": 12,
-        "failed": 0,
-        "rps": 1.8117710135864147,
-        "p95": 2.4620994870056165,
-        "p99": 2.4620994870056165
-      }
-    ],
-    "offeredArrivalTrials": [
-      {
-        "repeat": 1,
-        "offeredRps": 6,
-        "requests": 120,
-        "failed": 0,
-        "completionRps": 5.988778026509445,
-        "p95Scheduled": 0.22040252767328639,
-        "p99Scheduled": 0.25532412332540844,
-        "maxPendingClientTasks": 2
-      },
-      {
-        "repeat": 1,
-        "offeredRps": 12,
-        "requests": 240,
-        "failed": 0,
-        "completionRps": 11.927728246744113,
-        "p95Scheduled": 0.2146649663191056,
-        "p99Scheduled": 0.22675289932521991,
-        "maxPendingClientTasks": 3
-      },
-      {
-        "repeat": 1,
-        "offeredRps": 18,
-        "requests": 360,
-        "failed": 0,
-        "completionRps": 13.053652171423266,
-        "p95Scheduled": 7.464205279335147,
-        "p99Scheduled": 8.19484402622038,
-        "maxPendingClientTasks": 104
-      },
-      {
-        "repeat": 2,
-        "offeredRps": 18,
-        "requests": 360,
-        "failed": 0,
-        "completionRps": 13.482468708188195,
-        "p95Scheduled": 6.556331843559747,
-        "p99Scheduled": 7.1747650411125505,
-        "maxPendingClientTasks": 96
-      },
-      {
-        "repeat": 2,
-        "offeredRps": 12,
-        "requests": 240,
-        "failed": 0,
-        "completionRps": 11.926527930051543,
-        "p95Scheduled": 0.7703195816720836,
-        "p99Scheduled": 1.0374201253289357,
-        "maxPendingClientTasks": 11
-      },
-      {
-        "repeat": 2,
-        "offeredRps": 6,
-        "requests": 120,
-        "failed": 0,
-        "completionRps": 5.987945011615894,
-        "p95Scheduled": 0.21404728568450082,
-        "p99Scheduled": 0.22180969933106098,
-        "maxPendingClientTasks": 2
+        "hostingCpuPercent": 1360,
+        "phpBudgetMiB": 13368,
+        "validationErrors": []
       }
     ]
   },
@@ -2052,61 +104,2337 @@
     "databaseBufferPoolMiB": 1024,
     "opcacheMiB": 256,
     "internedStringsMiB": 32,
-    "physicalBudgetsChanged": false,
-    "meaning": "Keep the balanced measured defaults. Eight retains wait-heavy concurrency without assuming sixteen 120-MiB workers are safe. CPU-bound throughput plateaus near the existing quota; no universal optimum or fixed shopper count follows."
+    "nativeGlobalValuesChanged": false,
+    "managedControlGrace": "At least the inherited finite native request timeout; longer existing values preserved",
+    "meaning": "Retain balanced defaults; repair native reload/managed control grace rather than blindly raising physical or account limits."
   },
-  "cleanup": {
-    "main": {
-      "success": false,
-      "finishedAt": 1792952175.5138423,
-      "runtimeSourceUnchanged": true,
-      "fixturesRemoved": true,
-      "dropinsRemoved": true
-    },
-    "mainStatusExplanation": "All 43 controlled fixture stages passed; subsequent maintenance website warmup aborted. Six separately repeated website trials use identical runtime source and their own completed/restored run.",
-    "website": {
-      "success": true,
-      "finishedAt": 1792952574.1048021,
-      "runtimeSourceUnchanged": true,
-      "fixturesRemoved": true,
-      "dropinsRemoved": true
-    },
-    "supplement": {
-      "success": true,
-      "runtimeSourceUnchanged": true,
-      "apacheSourceUnchanged": true,
-      "databasePoolRestored": true,
-      "fixturesRemoved": true,
-      "dropinsRemoved": true
-    },
-    "finalChecksPass": true
-  },
-  "historicalEvidence": {
-    "release": "1.1.31",
-    "file": "server-policy-report-1.1.31.md",
-    "note": "Prior idle retention, 16/32/16 OPcache, queue 16/32/64, burst ramp and post-response safety evidence remains dated. New repeated sharing tests exposed and fixed a defect missed by that earlier bounded scope."
-  },
-  "requestTotals": {
-    "mainFixtureRequests": 13546,
-    "mainWebsiteRequests": 108,
-    "supplementServiceRequests": 1692,
-    "offeredArrivalRequests": 1440,
-    "failures": 0,
-    "fixtureOomKills": 0
-  },
-  "finalCodeDelta": {
-    "comparisonRuntimeSha256": "486f372f45a698c250f1e37ca26e3b014918a27fd7176d8a8a14a40b7e6aef5f",
-    "finalRuntimeSha256": "ee49bbb6e3b9219a9476ddcc3f10e662f6f2e47900dfc49350809e1dfd138e01",
-    "reason": "Service screening exposed repeated deferred drains: an arrival cleared the shared scheduling timestamp. The final code adds an independent shrink cooldown; physical settings and all non-deferred paths are unchanged.",
-    "nativeBackgroundProof": {
+  "comparison": {
+    "controlledStages": [
+      {
+        "label": "worker-r1-cap8-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.589003471977776,
+        "rps": 13.374186003099311,
+        "p50": 1.6128147389972582,
+        "p95": 2.0970738219912164,
+        "p99": 2.1978789390122984,
+        "cpuPercent": 276.83043712757717,
+        "maxMemoryMiB": 1029.1875,
+        "minHostAvailableMiB": 5443,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r1-cap8-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.0464730369858444,
+        "rps": 45.86835809764805,
+        "p50": 0.5061279910150915,
+        "p95": 0.5239583739894442,
+        "p99": 0.5286458850023337,
+        "cpuPercent": 65.68530441834004,
+        "maxMemoryMiB": 961.39453125,
+        "minHostAvailableMiB": 5464,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r1-cap8-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.9316290610004216,
+        "rps": 24.84949153495342,
+        "p50": 0.8606219550129026,
+        "p95": 0.9782868770125788,
+        "p99": 1.0360793370055035,
+        "cpuPercent": 265.9172044833342,
+        "maxMemoryMiB": 1157.3125,
+        "minHostAvailableMiB": 5288,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r1-cap8-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.05799967498751357,
+        "rps": 413.79542221860424,
+        "p50": 0.0270382669987157,
+        "p95": 0.03233274398371577,
+        "p99": 0.034104790014680475,
+        "cpuPercent": 150.46463625664742,
+        "maxMemoryMiB": 902.06640625,
+        "minHostAvailableMiB": 5434,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r1-cap4-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.580656033998821,
+        "rps": 13.405364699717987,
+        "p50": 1.7076088809990324,
+        "p95": 1.812701436021598,
+        "p99": 1.8382896109833382,
+        "cpuPercent": 277.196689817631,
+        "maxMemoryMiB": 956.7109375,
+        "minHostAvailableMiB": 5466,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r1-cap4-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 2.017036648991052,
+        "rps": 23.797286987328775,
+        "p50": 0.9921084330126178,
+        "p95": 1.0179082710237708,
+        "p99": 1.0251373020000756,
+        "cpuPercent": 40.34666402353556,
+        "maxMemoryMiB": 917.5546875,
+        "minHostAvailableMiB": 5505,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r1-cap4-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 2.3638542180124205,
+        "rps": 20.3058207372701,
+        "p50": 1.0971346079895739,
+        "p95": 1.207734397990862,
+        "p99": 1.2373313210264314,
+        "cpuPercent": 218.62054608195157,
+        "maxMemoryMiB": 1021.19921875,
+        "minHostAvailableMiB": 5437,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r1-cap4-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.09006026099086739,
+        "rps": 266.4882350544568,
+        "p50": 0.046025864023249596,
+        "p95": 0.06281233401386999,
+        "p99": 0.06704201700631529,
+        "cpuPercent": 132.4579772338178,
+        "maxMemoryMiB": 893.125,
+        "minHostAvailableMiB": 5486,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r1-cap2-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.966378290002467,
+        "rps": 9.664990702908408,
+        "p50": 2.456117692985572,
+        "p95": 2.4726003799878526,
+        "p99": 2.487665862980066,
+        "cpuPercent": 199.6257115564001,
+        "maxMemoryMiB": 920.51171875,
+        "minHostAvailableMiB": 5531,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r1-cap2-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.999912477011094,
+        "rps": 12.00026257471205,
+        "p50": 1.945222342008492,
+        "p95": 2.0302258350129705,
+        "p99": 2.037053548003314,
+        "cpuPercent": 18.552905951445442,
+        "maxMemoryMiB": 904.83203125,
+        "minHostAvailableMiB": 5532,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r1-cap2-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.3811209890118334,
+        "rps": 10.956100075845304,
+        "p50": 2.1495199570199475,
+        "p95": 2.1770772259915248,
+        "p99": 2.1784925669780932,
+        "cpuPercent": 118.31314435279111,
+        "maxMemoryMiB": 952.49609375,
+        "minHostAvailableMiB": 5468,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r1-cap2-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.12845114100491628,
+        "rps": 186.841469933548,
+        "p50": 0.05080545900273137,
+        "p95": 0.10072673900867812,
+        "p99": 0.10542500700103119,
+        "cpuPercent": 81.5594156504926,
+        "maxMemoryMiB": 888.7109375,
+        "minHostAvailableMiB": 5475,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r1-cap6-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.535347594995983,
+        "rps": 13.577165670481842,
+        "p50": 1.6915514009888284,
+        "p95": 1.8637449629895855,
+        "p99": 2.0608108850137796,
+        "cpuPercent": 280.4736375578726,
+        "maxMemoryMiB": 993.140625,
+        "minHostAvailableMiB": 5473,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r1-cap6-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.342672197992215,
+        "rps": 35.74960446174243,
+        "p50": 0.6528001859842334,
+        "p95": 0.6672744280076586,
+        "p99": 0.6715862859855406,
+        "cpuPercent": 50.949814930476904,
+        "maxMemoryMiB": 942.3984375,
+        "minHostAvailableMiB": 5492,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r1-cap6-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.932954454998253,
+        "rps": 24.832452661200122,
+        "p50": 0.8725683840166312,
+        "p95": 0.9898159879958257,
+        "p99": 1.0192859870148823,
+        "cpuPercent": 266.11289193591733,
+        "maxMemoryMiB": 1061.32421875,
+        "minHostAvailableMiB": 5372,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r1-cap6-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.0528707790072076,
+        "rps": 453.93694684786476,
+        "p50": 0.024988199002109468,
+        "p95": 0.0348337659961544,
+        "p99": 0.03519164299359545,
+        "cpuPercent": 140.45943977840054,
+        "maxMemoryMiB": 897.60546875,
+        "minHostAvailableMiB": 5496,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r2-cap6-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.8923659520223737,
+        "rps": 12.331831228525784,
+        "p50": 1.7466561360051855,
+        "p95": 2.2550810639804695,
+        "p99": 2.37040177398012,
+        "cpuPercent": 254.91369830847205,
+        "maxMemoryMiB": 992.66015625,
+        "minHostAvailableMiB": 5410,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r2-cap6-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.3627859860134777,
+        "rps": 35.221964778499924,
+        "p50": 0.6499495430034585,
+        "p95": 0.679598034999799,
+        "p99": 0.6803864709800109,
+        "cpuPercent": 50.59092235141179,
+        "maxMemoryMiB": 944.59765625,
+        "minHostAvailableMiB": 5467,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r2-cap6-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.9510809570201673,
+        "rps": 24.601746958418932,
+        "p50": 0.8864892689744011,
+        "p95": 0.9930082469945773,
+        "p99": 1.0025208199804183,
+        "cpuPercent": 262.6110916394454,
+        "maxMemoryMiB": 1082.69140625,
+        "minHostAvailableMiB": 5384,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r2-cap6-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.058543618011754006,
+        "rps": 409.95074809318135,
+        "p50": 0.02003049899940379,
+        "p95": 0.035324925993336365,
+        "p99": 0.037150411983020604,
+        "cpuPercent": 136.73223951401243,
+        "maxMemoryMiB": 897.6484375,
+        "minHostAvailableMiB": 5423,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r2-cap2-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.918924318975769,
+        "rps": 9.75823104552149,
+        "p50": 2.4450131920166314,
+        "p95": 2.4533546669990756,
+        "p99": 2.4546537779970095,
+        "cpuPercent": 201.23863182471464,
+        "maxMemoryMiB": 920.74609375,
+        "minHostAvailableMiB": 5508,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r2-cap2-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.955952201009495,
+        "rps": 12.133614755949573,
+        "p50": 1.955759718985064,
+        "p95": 1.984663454000838,
+        "p99": 1.9894750360108446,
+        "cpuPercent": 19.382893448619797,
+        "maxMemoryMiB": 904.83984375,
+        "minHostAvailableMiB": 5531,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r2-cap2-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.358051810995676,
+        "rps": 11.014095766115624,
+        "p50": 2.149597173993243,
+        "p95": 2.1724563709867653,
+        "p99": 2.172789421019843,
+        "cpuPercent": 118.48473180084282,
+        "maxMemoryMiB": 952.63671875,
+        "minHostAvailableMiB": 5526,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r2-cap2-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.12794898397987708,
+        "rps": 187.5747602948887,
+        "p50": 0.059924228000454605,
+        "p95": 0.10107193200383335,
+        "p99": 0.1018523090169765,
+        "cpuPercent": 91.88505945345369,
+        "maxMemoryMiB": 888.67578125,
+        "minHostAvailableMiB": 5526,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r2-cap4-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.5648637390113436,
+        "rps": 13.464750272141401,
+        "p50": 1.7035050620033871,
+        "p95": 1.8039678900095169,
+        "p99": 1.8535060790018179,
+        "cpuPercent": 278.3951569142548,
+        "maxMemoryMiB": 956.59375,
+        "minHostAvailableMiB": 5520,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r2-cap4-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.985501359013142,
+        "rps": 24.17525416545549,
+        "p50": 0.9764855119865388,
+        "p95": 0.9907997269765474,
+        "p99": 0.992339943011757,
+        "cpuPercent": 36.225258508888246,
+        "maxMemoryMiB": 924.4765625,
+        "minHostAvailableMiB": 5524,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r2-cap4-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 2.3834119199891575,
+        "rps": 20.139196081648514,
+        "p50": 1.1020297250070143,
+        "p95": 1.2300135230179876,
+        "p99": 1.2457509899977595,
+        "cpuPercent": 215.3599198254975,
+        "maxMemoryMiB": 1021.0,
+        "minHostAvailableMiB": 5435,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r2-cap4-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.06010033798520453,
+        "rps": 399.3321968656533,
+        "p50": 0.028115067980252206,
+        "p95": 0.041100789996562526,
+        "p99": 0.04256356999394484,
+        "cpuPercent": 141.11567895155386,
+        "maxMemoryMiB": 893.265625,
+        "minHostAvailableMiB": 5465,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r2-cap8-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.140993008011719,
+        "rps": 11.591422614607843,
+        "p50": 1.6593117369920947,
+        "p95": 2.254334571014624,
+        "p99": 2.2910133879922796,
+        "cpuPercent": 239.97719824142908,
+        "maxMemoryMiB": 1029.34375,
+        "minHostAvailableMiB": 5382,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r2-cap8-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.6900665749853943,
+        "rps": 28.401248039838208,
+        "p50": 0.7311411520058755,
+        "p95": 0.9735413239977788,
+        "p99": 0.9899708890006877,
+        "cpuPercent": 44.49244847094254,
+        "maxMemoryMiB": 950.55078125,
+        "minHostAvailableMiB": 5323,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r2-cap8-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 2.5812288229935803,
+        "rps": 18.595794209492826,
+        "p50": 1.0643522230093367,
+        "p95": 1.5825608070008457,
+        "p99": 1.6789682899834588,
+        "cpuPercent": 201.60521816755423,
+        "maxMemoryMiB": 1119.046875,
+        "minHostAvailableMiB": 5170,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r2-cap8-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.05502171700936742,
+        "rps": 436.19140413073643,
+        "p50": 0.01747446198714897,
+        "p95": 0.03174201201181859,
+        "p99": 0.03214241500245407,
+        "cpuPercent": 150.37880403825525,
+        "maxMemoryMiB": 901.9921875,
+        "minHostAvailableMiB": 5239,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r3-cap4-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.5541757160099223,
+        "rps": 13.505241112244997,
+        "p50": 1.670414547988912,
+        "p95": 1.879814622021513,
+        "p99": 1.8896984050225,
+        "cpuPercent": 278.909620459866,
+        "maxMemoryMiB": 956.89453125,
+        "minHostAvailableMiB": 5342,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r3-cap4-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 2.0025008899974637,
+        "rps": 23.970026799868638,
+        "p50": 0.9793268220091704,
+        "p95": 1.0095344149740413,
+        "p99": 1.0103211399982683,
+        "cpuPercent": 35.81786173392954,
+        "maxMemoryMiB": 919.96484375,
+        "minHostAvailableMiB": 5391,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r3-cap4-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 2.336713504017098,
+        "rps": 20.541670991108706,
+        "p50": 1.1085901120095514,
+        "p95": 1.1887940559827257,
+        "p99": 1.193287775007775,
+        "cpuPercent": 220.95995042284056,
+        "maxMemoryMiB": 1021.0859375,
+        "minHostAvailableMiB": 5347,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r3-cap4-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.0674223730165977,
+        "rps": 355.9649256796672,
+        "p50": 0.031839864008361474,
+        "p95": 0.049141750001581386,
+        "p99": 0.049630540976068005,
+        "cpuPercent": 145.38497477071806,
+        "maxMemoryMiB": 893.48828125,
+        "minHostAvailableMiB": 5400,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r3-cap8-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.9713498459896073,
+        "rps": 12.086570526762303,
+        "p50": 1.8413794770021923,
+        "p95": 2.506764744000975,
+        "p99": 2.6218929669994395,
+        "cpuPercent": 249.8771799221128,
+        "maxMemoryMiB": 1029.0625,
+        "minHostAvailableMiB": 5306,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r3-cap8-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.068284937995486,
+        "rps": 44.93183259708453,
+        "p50": 0.4927394409896806,
+        "p95": 0.5472980719932821,
+        "p99": 0.5497911569837015,
+        "cpuPercent": 62.20259935957347,
+        "maxMemoryMiB": 965.1015625,
+        "minHostAvailableMiB": 5396,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r3-cap8-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.8967994560080115,
+        "rps": 25.30578541024068,
+        "p50": 0.8184213750064373,
+        "p95": 1.0446829489956144,
+        "p99": 1.1141318620066158,
+        "cpuPercent": 269.6956699242323,
+        "maxMemoryMiB": 1157.3046875,
+        "minHostAvailableMiB": 5248,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r3-cap8-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.048424944980069995,
+        "rps": 495.6123338886096,
+        "p50": 0.026324103004299104,
+        "p95": 0.031073590012965724,
+        "p99": 0.031109786999877542,
+        "cpuPercent": 143.87626052786337,
+        "maxMemoryMiB": 901.81640625,
+        "minHostAvailableMiB": 5379,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r3-cap6-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.5802417540107854,
+        "rps": 13.40691587271383,
+        "p50": 1.6073535379837267,
+        "p95": 1.9915260660054628,
+        "p99": 2.0149689340032637,
+        "cpuPercent": 277.64817805568936,
+        "maxMemoryMiB": 993.078125,
+        "minHostAvailableMiB": 5352,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r3-cap6-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.3576298429979943,
+        "rps": 35.355734295000254,
+        "p50": 0.6555398530035745,
+        "p95": 0.6798370740143582,
+        "p99": 0.6837102230056189,
+        "cpuPercent": 50.25618754028877,
+        "maxMemoryMiB": 944.83984375,
+        "minHostAvailableMiB": 5412,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r3-cap6-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 1.9148067310161423,
+        "rps": 25.06780408826302,
+        "p50": 0.8680803579918575,
+        "p95": 0.9704107719880994,
+        "p99": 1.0224972070136573,
+        "cpuPercent": 267.8460920846201,
+        "maxMemoryMiB": 1083.43359375,
+        "minHostAvailableMiB": 5314,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r3-cap6-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 6,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.060016173985786736,
+        "rps": 399.89220248667925,
+        "p50": 0.023286615003598854,
+        "p95": 0.03711824998026714,
+        "p99": 0.03740287400432862,
+        "cpuPercent": 130.90971113654552,
+        "maxMemoryMiB": 897.51171875,
+        "minHostAvailableMiB": 5364,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "worker-r3-cap2-cpu",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.948179644998163,
+        "rps": 9.700537054777408,
+        "p50": 2.4457144030020572,
+        "p95": 2.4775061670225114,
+        "p99": 2.4790604829904623,
+        "cpuPercent": 199.79046253894992,
+        "maxMemoryMiB": 920.73046875,
+        "minHostAvailableMiB": 5394,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 16
+        }
+      },
+      {
+        "label": "worker-r3-cap2-io",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 3.9190298939938657,
+        "rps": 12.247929027936916,
+        "p50": 1.9400198890070897,
+        "p95": 1.958157104003476,
+        "p99": 1.9595109480142128,
+        "cpuPercent": 18.29008758260628,
+        "maxMemoryMiB": 904.8125,
+        "minHostAvailableMiB": 5475,
+        "oomKills": 0,
+        "work": {
+          "cpu": 10,
+          "wait": 150,
+          "mem": 8
+        }
+      },
+      {
+        "label": "worker-r3-cap2-mixed",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 48,
+        "failed": 0,
+        "durationSeconds": 4.352225978014758,
+        "rps": 11.028839091184993,
+        "p50": 2.1487826469819993,
+        "p95": 2.180084394989535,
+        "p99": 2.1811736389936414,
+        "cpuPercent": 118.71265476791106,
+        "maxMemoryMiB": 952.81640625,
+        "minHostAvailableMiB": 5445,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 75,
+          "mem": 32
+        }
+      },
+      {
+        "label": "worker-r3-cap2-db",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 2,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 24,
+        "requests": 24,
+        "failed": 0,
+        "durationSeconds": 0.1359437349892687,
+        "rps": 176.54362668419066,
+        "p50": 0.07251082401489839,
+        "p95": 0.11115530299139209,
+        "p99": 0.11817314798827283,
+        "cpuPercent": 96.6039369231446,
+        "maxMemoryMiB": 888.73828125,
+        "minHostAvailableMiB": 5454,
+        "oomKills": 0,
+        "work": {
+          "db": "read"
+        }
+      },
+      {
+        "label": "queue-r1-q64",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.840697306994116,
+        "rps": 33.7945193117328,
+        "p50": 1.30525793301058,
+        "p95": 1.4662399230001029,
+        "p99": 1.5354579129780177,
+        "cpuPercent": 273.7603538699066,
+        "maxMemoryMiB": 1029.1875,
+        "minHostAvailableMiB": 5367,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r1-q16",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 16,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.896666015003575,
+        "rps": 33.14154945815578,
+        "p50": 1.3441461579932366,
+        "p95": 1.4650513310043607,
+        "p99": 1.528305170009844,
+        "cpuPercent": 270.53215522295307,
+        "maxMemoryMiB": 1029.421875,
+        "minHostAvailableMiB": 5364,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r1-q32",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 32,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.8592593020002823,
+        "rps": 33.57512903178815,
+        "p50": 1.3245835599955171,
+        "p95": 1.4441054229973815,
+        "p99": 1.53261565300636,
+        "cpuPercent": 273.15668762662045,
+        "maxMemoryMiB": 1029.37890625,
+        "minHostAvailableMiB": 5353,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r2-q32",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 32,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.839559874002589,
+        "rps": 33.808056269185215,
+        "p50": 1.29936259999522,
+        "p95": 1.4387372249912005,
+        "p99": 1.5875636290002149,
+        "cpuPercent": 273.54482189703316,
+        "maxMemoryMiB": 1029.22265625,
+        "minHostAvailableMiB": 5342,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r2-q64",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 3.236620309005957,
+        "rps": 29.66056899935967,
+        "p50": 1.333719978982117,
+        "p95": 1.8184349110233597,
+        "p99": 1.8849874819861725,
+        "cpuPercent": 239.9470515089605,
+        "maxMemoryMiB": 1029.1796875,
+        "minHostAvailableMiB": 5301,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r2-q16",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 16,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.8256011640187353,
+        "rps": 33.975070941527775,
+        "p50": 1.3115288190019783,
+        "p95": 1.4619041180121712,
+        "p99": 1.481361260986887,
+        "cpuPercent": 274.8401684884253,
+        "maxMemoryMiB": 1017.65625,
+        "minHostAvailableMiB": 5346,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r3-q16",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 16,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.8338769169931766,
+        "rps": 33.87585375509488,
+        "p50": 1.3103300709917676,
+        "p95": 1.451174219022505,
+        "p99": 1.4906480490171816,
+        "cpuPercent": 275.60642994640006,
+        "maxMemoryMiB": 1029.12890625,
+        "minHostAvailableMiB": 5357,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r3-q32",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 32,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.8305139179865364,
+        "rps": 33.91610243990209,
+        "p50": 1.3012071989942342,
+        "p95": 1.456779769010609,
+        "p99": 1.529611713020131,
+        "cpuPercent": 274.97653166590163,
+        "maxMemoryMiB": 1028.85546875,
+        "minHostAvailableMiB": 5374,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "queue-r3-q64",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 48,
+        "requests": 96,
+        "failed": 0,
+        "durationSeconds": 2.830081305000931,
+        "rps": 33.92128693630179,
+        "p50": 1.3008657709870022,
+        "p95": 1.44638905901229,
+        "p99": 1.48778257300728,
+        "cpuPercent": 275.00450203487844,
+        "maxMemoryMiB": 1028.953125,
+        "minHostAvailableMiB": 5355,
+        "oomKills": 0,
+        "work": {
+          "cpu": 75,
+          "wait": 50,
+          "mem": 16
+        }
+      },
+      {
+        "label": "ramp-4",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 4,
+        "requests": 16,
+        "failed": 0,
+        "durationSeconds": 1.9111961979942862,
+        "rps": 8.371720295797614,
+        "p50": 0.2938939419982489,
+        "p95": 1.0354056099895388,
+        "p99": 1.0354056099895388,
+        "cpuPercent": 205.7653737552986,
+        "maxMemoryMiB": 1022.6640625,
+        "minHostAvailableMiB": 5337,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 32
+        }
+      },
+      {
+        "label": "ramp-8",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 8,
+        "requests": 16,
+        "failed": 0,
+        "durationSeconds": 1.2164030669955537,
+        "rps": 13.153534740354683,
+        "p50": 0.5160824809863698,
+        "p95": 0.8375037249934394,
+        "p99": 0.8375037249934394,
+        "cpuPercent": 274.19694100559116,
+        "maxMemoryMiB": 1156.70703125,
+        "minHostAvailableMiB": 5219,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 32
+        }
+      },
+      {
+        "label": "ramp-16",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 16,
+        "requests": 32,
+        "failed": 0,
+        "durationSeconds": 2.3784279150131624,
+        "rps": 13.454265230410781,
+        "p50": 1.077623830002267,
+        "p95": 1.6728042530012317,
+        "p99": 1.6786064309999347,
+        "cpuPercent": 279.26888000569244,
+        "maxMemoryMiB": 1157.37109375,
+        "minHostAvailableMiB": 5218,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 32
+        }
+      },
+      {
+        "label": "ramp-32",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 32,
+        "requests": 64,
+        "failed": 0,
+        "durationSeconds": 4.737690545996884,
+        "rps": 13.508691498239973,
+        "p50": 2.0985166449972894,
+        "p95": 2.6022571510111447,
+        "p99": 2.724706545996014,
+        "cpuPercent": 280.1314664001005,
+        "maxMemoryMiB": 1157.421875,
+        "minHostAvailableMiB": 5225,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 32
+        }
+      },
+      {
+        "label": "ramp-64",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 64,
+        "requests": 128,
+        "failed": 0,
+        "durationSeconds": 10.207462085003499,
+        "rps": 12.539845745599566,
+        "p50": 4.72361761200591,
+        "p95": 5.782898620993365,
+        "p99": 6.017192749015521,
+        "cpuPercent": 260.0090088896069,
+        "maxMemoryMiB": 1157.4375,
+        "minHostAvailableMiB": 5182,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 32
+        }
+      },
+      {
+        "label": "soak-cap4",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 4,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 4,
+        "requests": 3191,
+        "failed": 0,
+        "durationSeconds": 300.4503823679988,
+        "rps": 10.620722046848943,
+        "p50": 0.2606946589949075,
+        "p95": 0.3125416320108343,
+        "p99": 0.5726263250107877,
+        "cpuPercent": 224.5613540852868,
+        "maxMemoryMiB": 1308.203125,
+        "minHostAvailableMiB": 4835,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "wait": 50,
+          "mem": 64
+        }
+      },
+      {
+        "label": "soak-cap8",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 4,
+        "requests": 3201,
+        "failed": 0,
+        "durationSeconds": 300.4534459040151,
+        "rps": 10.653896780476977,
+        "p50": 0.2609743630164303,
+        "p95": 0.312312452995684,
+        "p99": 0.5587709009996615,
+        "cpuPercent": 225.49543106802693,
+        "maxMemoryMiB": 1311.62890625,
+        "minHostAvailableMiB": 4772,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "wait": 50,
+          "mem": 64
+        }
+      },
+      {
+        "label": "sharing-target",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 8,
+        "requests": 903,
+        "failed": 0,
+        "durationSeconds": 60.55423904498457,
+        "rps": 14.912250805912675,
+        "p50": 0.4855124629975762,
+        "p95": 0.9290087110130116,
+        "p99": 1.5271609839983284,
+        "cpuPercent": 167.52321819227288,
+        "maxMemoryMiB": 1057.57421875,
+        "minHostAvailableMiB": 5012,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 50,
+          "mem": 32
+        }
+      },
+      {
+        "label": "sharing-peer",
+        "user": "bdservic",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 4,
+        "requests": 717,
+        "failed": 0,
+        "durationSeconds": 60.75846998699126,
+        "rps": 11.80082382182293,
+        "p50": 0.29318849099217914,
+        "p95": 0.5018005339952651,
+        "p99": 1.5613461150205694,
+        "cpuPercent": 132.86458499906928,
+        "maxMemoryMiB": 167.08984375,
+        "minHostAvailableMiB": 5012,
+        "oomKills": 0,
+        "work": {
+          "cpu": 100,
+          "wait": 50,
+          "mem": 32
+        }
+      },
+      {
+        "label": "sharing-recovery",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
+        },
+        "clients": 8,
+        "requests": 779,
+        "failed": 0,
+        "durationSeconds": 60.55501795199234,
+        "rps": 12.864334391207457,
+        "p50": 0.5975530779978726,
+        "p95": 0.8970303749956656,
+        "p99": 1.3790674289921299,
+        "cpuPercent": 269.6793305048093,
+        "maxMemoryMiB": 1158.4140625,
+        "minHostAvailableMiB": 5061,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "mem": 32
+        }
+      }
+    ],
+    "workerMedians": [
+      {
+        "cap": 2,
+        "work": "cpu",
+        "repeats": 3,
+        "medianRps": 9.700537054777408,
+        "medianP95": 2.4726003799878526,
+        "medianCpuPercent": 199.79046253894992,
+        "medianPayloadShareOfAccountCpuPercent": 97.27972428106263
+      },
+      {
+        "cap": 2,
+        "work": "io",
+        "repeats": 3,
+        "medianRps": 12.133614755949573,
+        "medianP95": 1.984663454000838,
+        "medianCpuPercent": 18.552905951445442
+      },
+      {
+        "cap": 2,
+        "work": "mixed",
+        "repeats": 3,
+        "medianRps": 11.014095766115624,
+        "medianP95": 2.1770772259915248,
+        "medianCpuPercent": 118.48473180084282
+      },
+      {
+        "cap": 4,
+        "work": "cpu",
+        "repeats": 3,
+        "medianRps": 13.464750272141401,
+        "medianP95": 1.812701436021598,
+        "medianCpuPercent": 278.3951569142548,
+        "medianPayloadShareOfAccountCpuPercent": 97.0182201296037
+      },
+      {
+        "cap": 4,
+        "work": "io",
+        "repeats": 3,
+        "medianRps": 23.970026799868638,
+        "medianP95": 1.0095344149740413,
+        "medianCpuPercent": 36.225258508888246
+      },
+      {
+        "cap": 4,
+        "work": "mixed",
+        "repeats": 3,
+        "medianRps": 20.3058207372701,
+        "medianP95": 1.207734397990862,
+        "medianCpuPercent": 218.62054608195157
+      },
+      {
+        "cap": 6,
+        "work": "cpu",
+        "repeats": 3,
+        "medianRps": 13.40691587271383,
+        "medianP95": 1.9915260660054628,
+        "medianCpuPercent": 277.64817805568936,
+        "medianPayloadShareOfAccountCpuPercent": 97.06220632696021
+      },
+      {
+        "cap": 6,
+        "work": "io",
+        "repeats": 3,
+        "medianRps": 35.355734295000254,
+        "medianP95": 0.679598034999799,
+        "medianCpuPercent": 50.59092235141179
+      },
+      {
+        "cap": 6,
+        "work": "mixed",
+        "repeats": 3,
+        "medianRps": 24.832452661200122,
+        "medianP95": 0.9898159879958257,
+        "medianCpuPercent": 266.11289193591733
+      },
+      {
+        "cap": 8,
+        "work": "cpu",
+        "repeats": 3,
+        "medianRps": 12.086570526762303,
+        "medianP95": 2.254334571014624,
+        "medianCpuPercent": 249.8771799221128,
+        "medianPayloadShareOfAccountCpuPercent": 96.96446941712045
+      },
+      {
+        "cap": 8,
+        "work": "io",
+        "repeats": 3,
+        "medianRps": 44.93183259708453,
+        "medianP95": 0.5472980719932821,
+        "medianCpuPercent": 62.20259935957347
+      },
+      {
+        "cap": 8,
+        "work": "mixed",
+        "repeats": 3,
+        "medianRps": 24.84949153495342,
+        "medianP95": 1.0446829489956144,
+        "medianCpuPercent": 265.9172044833342
+      }
+    ],
+    "websiteTrials": [
+      {
+        "repeat": 1,
+        "cap": 8,
+        "requests": 18,
+        "failed": 0,
+        "rps": 1.381385431960908,
+        "p95": 5.117573894007364,
+        "p99": 5.117573894007364
+      },
+      {
+        "repeat": 2,
+        "cap": 4,
+        "requests": 18,
+        "failed": 0,
+        "rps": 1.332604317925629,
+        "p95": 5.745003127987729,
+        "p99": 5.745003127987729
+      },
+      {
+        "repeat": 3,
+        "cap": 4,
+        "requests": 18,
+        "failed": 0,
+        "rps": 1.4404784077720172,
+        "p95": 5.043453142017825,
+        "p99": 5.043453142017825
+      },
+      {
+        "repeat": 4,
+        "cap": 8,
+        "requests": 18,
+        "failed": 0,
+        "rps": 1.2606301904572108,
+        "p95": 6.304313421976985,
+        "p99": 6.304313421976985
+      },
+      {
+        "repeat": 5,
+        "cap": 8,
+        "requests": 18,
+        "failed": 0,
+        "rps": 1.3204529532882348,
+        "p95": 6.524432596983388,
+        "p99": 6.524432596983388
+      },
+      {
+        "repeat": 6,
+        "cap": 4,
+        "requests": 18,
+        "failed": 0,
+        "rps": 1.2644578019017565,
+        "p95": 6.383364489011001,
+        "p99": 6.383364489011001
+      }
+    ],
+    "serviceTrials": [
+      {
+        "label": "apache-r1-workers20-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 527.718064247017,
+        "p95": 0.06024017900926992,
+        "p99": 0.07143018502392806,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.0234375
+      },
+      {
+        "label": "apache-r1-workers20-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.050840480640241,
+        "p95": 10.397625417012023,
+        "p99": 10.468320247979136,
+        "maxApacheProcesses": 21,
+        "maxApacheMemoryMiB": 126.2265625
+      },
+      {
+        "label": "apache-r1-workers12-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 888.5498577166165,
+        "p95": 0.03616887400858104,
+        "p99": 0.037078875000588596,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.34765625
+      },
+      {
+        "label": "apache-r1-workers12-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 1.992260122467077,
+        "p95": 15.722862196998904,
+        "p99": 16.041672834981,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 89.74609375
+      },
+      {
+        "label": "apache-r1-workers24-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 833.130785682267,
+        "p95": 0.03638264301116578,
+        "p99": 0.03781921399058774,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.3359375
+      },
+      {
+        "label": "apache-r1-workers24-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.0093635733516253,
+        "p95": 10.511147300014272,
+        "p99": 10.612638555001467,
+        "maxApacheProcesses": 25,
+        "maxApacheMemoryMiB": 144.3828125
+      },
+      {
+        "label": "apache-r2-workers24-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 789.0273840536024,
+        "p95": 0.04259786498732865,
+        "p99": 0.04383018799126148,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.08203125
+      },
+      {
+        "label": "apache-r2-workers24-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.3959609843080143,
+        "p95": 9.069705447996967,
+        "p99": 9.37713897798676,
+        "maxApacheProcesses": 25,
+        "maxApacheMemoryMiB": 143.78125
+      },
+      {
+        "label": "apache-r2-workers20-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 884.3875121067912,
+        "p95": 0.033161385013954714,
+        "p99": 0.03611281598568894,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.13671875
+      },
+      {
+        "label": "apache-r2-workers20-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.2084849755224116,
+        "p95": 9.61035731001175,
+        "p99": 9.947547724004835,
+        "maxApacheProcesses": 21,
+        "maxApacheMemoryMiB": 125.6796875
+      },
+      {
+        "label": "apache-r2-workers12-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 597.6058527677502,
+        "p95": 0.07144274600432254,
+        "p99": 0.07684005299233831,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.125
+      },
+      {
+        "label": "apache-r2-workers12-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 2.9169967645401926,
+        "p95": 10.764839960989775,
+        "p99": 10.941457731008995,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 87.91796875
+      },
+      {
+        "label": "apache-r3-workers12-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 790.8837010307227,
+        "p95": 0.04304369000601582,
+        "p99": 0.049350415996741503,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.1484375
+      },
+      {
+        "label": "apache-r3-workers12-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.217874118128607,
+        "p95": 9.778715550986817,
+        "p99": 9.88202541100327,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 87.37109375
+      },
+      {
+        "label": "apache-r3-workers24-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 908.1470382590496,
+        "p95": 0.03387585701420903,
+        "p99": 0.03814076699200086,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.3203125
+      },
+      {
+        "label": "apache-r3-workers24-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.325394442176808,
+        "p95": 9.56990562597639,
+        "p99": 9.601900413981639,
+        "maxApacheProcesses": 25,
+        "maxApacheMemoryMiB": 144.25
+      },
+      {
+        "label": "apache-r3-workers20-static",
+        "requests": 96,
+        "failed": 0,
+        "rps": 866.2300512970654,
+        "p95": 0.03604013699805364,
+        "p99": 0.04085664197918959,
+        "maxApacheProcesses": 3,
+        "maxApacheMemoryMiB": 38.1328125
+      },
+      {
+        "label": "apache-r3-workers20-php",
+        "requests": 32,
+        "failed": 0,
+        "rps": 3.322756790454584,
+        "p95": 9.532701396994526,
+        "p99": 9.60598392400425,
+        "maxApacheProcesses": 21,
+        "maxApacheMemoryMiB": 126.109375
+      },
+      {
+        "label": "database-r1-pool1024-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 251.0884304076795,
+        "p95": 0.06810131497331895,
+        "p99": 0.07209198898635805,
+        "maxApacheProcesses": 11,
+        "maxApacheMemoryMiB": 79.13671875
+      },
+      {
+        "label": "database-r1-pool1024-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 0.8200421106226394,
+        "p95": 7.755513699987205,
+        "p99": 7.755513699987205
+      },
+      {
+        "label": "database-r1-pool512-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 302.2123607328984,
+        "p95": 0.061126252025133,
+        "p99": 0.06753397898864932,
+        "maxApacheProcesses": 14,
+        "maxApacheMemoryMiB": 100.3203125
+      },
+      {
+        "label": "database-r1-pool512-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 0.8705996267733608,
+        "p95": 8.352043584018247,
+        "p99": 8.352043584018247
+      },
+      {
+        "label": "database-r1-pool768-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 273.5292838935801,
+        "p95": 0.07640605900087394,
+        "p99": 0.07912361499620602,
+        "maxApacheProcesses": 14,
+        "maxApacheMemoryMiB": 101.31640625
+      },
+      {
+        "label": "database-r1-pool768-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 1.5871115523151307,
+        "p95": 2.712534215999767,
+        "p99": 2.712534215999767
+      },
+      {
+        "label": "database-r2-pool768-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 139.34546907599378,
+        "p95": 0.12582730897702277,
+        "p99": 0.1417742059857119,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 95.30859375
+      },
+      {
+        "label": "database-r2-pool768-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 1.2406664228197783,
+        "p95": 4.498849133000476,
+        "p99": 4.498849133000476
+      },
+      {
+        "label": "database-r2-pool1024-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 261.23036835127107,
+        "p95": 0.0692591950064525,
+        "p99": 0.07345055000041611,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 91.78125
+      },
+      {
+        "label": "database-r2-pool1024-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 1.3403498034816594,
+        "p95": 3.419927993003512,
+        "p99": 3.419927993003512
+      },
+      {
+        "label": "database-r2-pool512-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 246.6821342689812,
+        "p95": 0.07661006698617712,
+        "p99": 0.08235140901524574,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 96.671875
+      },
+      {
+        "label": "database-r2-pool512-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 1.5551129786660343,
+        "p95": 2.713765704014804,
+        "p99": 2.713765704014804
+      },
+      {
+        "label": "database-r3-pool512-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 350.34940745650584,
+        "p95": 0.05914076999761164,
+        "p99": 0.06519315100740641,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 96.56640625
+      },
+      {
+        "label": "database-r3-pool512-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 1.4773118779531313,
+        "p95": 3.014474194002105,
+        "p99": 3.014474194002105
+      },
+      {
+        "label": "database-r3-pool768-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 257.554490408657,
+        "p95": 0.06668116702348925,
+        "p99": 0.07360239402623847,
+        "maxApacheProcesses": 12,
+        "maxApacheMemoryMiB": 91.0859375
+      },
+      {
+        "label": "database-r3-pool768-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 0.7890737711360657,
+        "p95": 9.102286245004507,
+        "p99": 9.102286245004507
+      },
+      {
+        "label": "database-r3-pool1024-read",
+        "requests": 48,
+        "failed": 0,
+        "rps": 226.82568948067404,
+        "p95": 0.08972472901223227,
+        "p99": 0.09202294799615629,
+        "maxApacheProcesses": 13,
+        "maxApacheMemoryMiB": 96.875
+      },
+      {
+        "label": "database-r3-pool1024-wordpress",
+        "requests": 12,
+        "failed": 0,
+        "rps": 1.3769705562602068,
+        "p95": 3.745931273995666,
+        "p99": 3.745931273995666
+      }
+    ],
+    "offeredArrivalTrials": [
+      {
+        "repeat": 1,
+        "offeredRps": 6,
+        "requests": 120,
+        "failed": 0,
+        "completionRps": 5.988487420685268,
+        "p95Scheduled": 0.20761214097728953,
+        "p99Scheduled": 0.2120291386381723,
+        "maxPendingClientTasks": 2
+      },
+      {
+        "repeat": 1,
+        "offeredRps": 12,
+        "requests": 240,
+        "failed": 0,
+        "completionRps": 11.265683084160058,
+        "p95Scheduled": 2.94607969163917,
+        "p99Scheduled": 3.0944505289953668,
+        "maxPendingClientTasks": 34
+      },
+      {
+        "repeat": 1,
+        "offeredRps": 18,
+        "requests": 360,
+        "failed": 0,
+        "completionRps": 13.291037593726411,
+        "p95Scheduled": 7.030491271783831,
+        "p99Scheduled": 7.273098310222849,
+        "maxPendingClientTasks": 100
+      },
+      {
+        "repeat": 2,
+        "offeredRps": 18,
+        "requests": 360,
+        "failed": 0,
+        "completionRps": 13.129924773616926,
+        "p95Scheduled": 7.406746412132634,
+        "p99Scheduled": 7.591249117220286,
+        "maxPendingClientTasks": 102
+      },
+      {
+        "repeat": 2,
+        "offeredRps": 12,
+        "requests": 240,
+        "failed": 0,
+        "completionRps": 11.925665968659166,
+        "p95Scheduled": 0.5001949556462932,
+        "p99Scheduled": 1.0207231143431272,
+        "maxPendingClientTasks": 10
+      },
+      {
+        "repeat": 2,
+        "offeredRps": 6,
+        "requests": 120,
+        "failed": 0,
+        "completionRps": 5.988595167555051,
+        "p95Scheduled": 0.21353911233018152,
+        "p99Scheduled": 0.21587608932168223,
+        "maxPendingClientTasks": 2
+      }
+    ],
+    "largerSqlConfirmation": [
+      {
+        "bufferMiB": 1024,
+        "requestsPerTrial": 48,
+        "repeats": 3,
+        "medianRps": 1.4282228740946927,
+        "medianP95": 3.968823636008892,
+        "medianAccountCpuMsPerRequest": 1817.5598333333335,
+        "rpsTrials": [
+          1.2074876568913442,
+          1.4282228740946927,
+          1.5357384321455643
+        ]
+      },
+      {
+        "bufferMiB": 512,
+        "requestsPerTrial": 48,
+        "repeats": 3,
+        "medianRps": 1.453777169171615,
+        "medianP95": 3.3003255180083215,
+        "medianAccountCpuMsPerRequest": 1811.6179791666666,
+        "rpsTrials": [
+          1.4939703671116127,
+          1.453777169171615,
+          1.23352484046536
+        ]
+      }
+    ],
+    "smallerBufferMedianThroughputGainPercent": 1.7892372080317243,
+    "strictReload": {
       "passed": true,
-      "runtimeSha256": "ee49bbb6e3b9219a9476ddcc3f10e662f6f2e47900dfc49350809e1dfd138e01",
-      "durationSeconds": 30.57357883453369,
+      "runtimeSha256": "dac8d288f8ec00c794dffb61f451ef4bfd61a35a10216d4c9623f5a35074beaf",
+      "requests": 823,
+      "failures": 0,
+      "publicSocketPreserved": true,
+      "proxyPidPreserved": true,
+      "postResponseJobCompleted": true,
+      "postResponseStarted": 1793039747.4357488,
+      "postResponseCompleted": 1793039777.4437447,
+      "reloadStarted": 1793039749.5985382,
+      "reloadReturned": 1793039757.1063666,
+      "oldPrecision": "14",
+      "newPrecision": "13",
+      "expectedPrecision": "13",
+      "iniReloadApplied": true,
+      "nativeIniUnchanged": true,
+      "opcacheRestarted": true,
+      "reloadOutput": "php84: isolated socket routing active",
+      "actualPostResponseSeconds": 30.00799584388733,
+      "maximumRequestSeconds": 20.799548635986866
+    },
+    "backgroundBackoff": {
+      "passed": true,
+      "runtimeSha256": "dac8d288f8ec00c794dffb61f451ef4bfd61a35a10216d4c9623f5a35074beaf",
+      "durationSeconds": 30.564013481140137,
       "backgroundCompleted": true,
       "drains": [
         {
           "event": "php_proxy",
-          "at": 1792953487.611968,
+          "at": 1793042225.314621,
           "unit": "wpiso-fpm-php84-uniselvin.service",
           "reason": "runtime_regrant_drain",
           "drainBudgetSeconds": 6,
@@ -2116,7 +2444,7 @@
         },
         {
           "event": "php_proxy",
-          "at": 1792953508.8257432,
+          "at": 1793042246.5470858,
           "unit": "wpiso-fpm-php84-uniselvin.service",
           "reason": "runtime_regrant_drain",
           "drainBudgetSeconds": 6,
@@ -2128,416 +2456,301 @@
       "deferred": [
         {
           "event": "php_proxy",
-          "at": 1792953493.8139694,
+          "at": 1793042231.5000393,
           "unit": "wpiso-fpm-php84-uniselvin.service",
           "reason": "runtime_regrant_deferred",
           "reasonDetail": "backend_not_proven_idle"
-        }
-      ],
-      "events": [
-        {
-          "event": "php_proxy",
-          "at": 1792953487.611968,
-          "unit": "wpiso-fpm-php84-uniselvin.service",
-          "reason": "runtime_regrant_drain",
-          "drainBudgetSeconds": 6,
-          "ceiling": 4,
-          "previous": 8,
-          "reasonDetail": "peer_fair_share"
-        },
-        {
-          "event": "php_proxy",
-          "at": 1792953493.8139694,
-          "unit": "wpiso-fpm-php84-uniselvin.service",
-          "reason": "runtime_regrant_deferred",
-          "reasonDetail": "backend_not_proven_idle"
-        },
-        {
-          "event": "php_proxy",
-          "at": 1792953508.8257432,
-          "unit": "wpiso-fpm-php84-uniselvin.service",
-          "reason": "runtime_regrant_drain",
-          "drainBudgetSeconds": 6,
-          "ceiling": 4,
-          "previous": 8,
-          "reasonDetail": "peer_fair_share"
-        },
-        {
-          "event": "php_proxy",
-          "at": 1792953509.1912913,
-          "unit": "wpiso-fpm-php84-uniselvin.service",
-          "reason": "runtime_regrant_ready",
-          "ceiling": 4,
-          "previous": 8,
-          "reasonDetail": "peer_fair_share"
-        },
-        {
-          "event": "php_proxy",
-          "at": 1792953510.4592369,
-          "unit": "wpiso-fpm-php84-uniselvin.service",
-          "reason": "runtime_grant_grown",
-          "ceiling": 5,
-          "previous": 4,
-          "reasonDetail": "queued_demand_growth",
-          "liveGrowth": true
         }
       ],
       "fakePeerTicketPurpose": "Temporary root-owned admission demand only; no tenant setting changed"
     },
-    "finalOriginFixtureStages": [
+    "saturationStages": [
       {
-        "label": "private-config-denied",
-        "concurrency": 1,
-        "requests": 1,
-        "failed": 0,
-        "elapsed": 0.071,
-        "rps": 14.11,
-        "median": 0.012,
-        "p95": 0.012,
-        "avg": 0.012,
-        "php_cpu_ms_median": null,
-        "sql_ms_median": null,
-        "avg_account_cpu_percent": 0.0,
-        "db_cpu_percent": 169.3,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5598,
-        "max_account_mib": 820,
-        "max_fpm_workers": 0,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 0
+        "label": "saturation-600-seconds",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
         },
-        "cf_cache_values": [
-          "None"
-        ]
+        "clients": 16,
+        "requests": 7183,
+        "failed": 0,
+        "durationSeconds": 601.1119475580053,
+        "rps": 11.94952126501672,
+        "p50": 1.232281952019548,
+        "p95": 1.8440862330025993,
+        "p99": 3.4899086759833153,
+        "cpuPercent": 261.4895956378112,
+        "maxMemoryMiB": 1625.63671875,
+        "minHostAvailableMiB": 4609,
+        "oomKills": 0,
+        "work": {
+          "cpu": 200,
+          "wait": 50,
+          "mem": 64
+        }
       },
       {
-        "label": "integrity-before",
-        "concurrency": 1,
-        "requests": 1,
-        "failed": 0,
-        "elapsed": 0.625,
-        "rps": 1.6,
-        "median": 0.568,
-        "p95": 0.568,
-        "avg": 0.568,
-        "php_cpu_ms_median": 0.891,
-        "sql_ms_median": 3.843,
-        "avg_account_cpu_percent": 88.7,
-        "db_cpu_percent": 22.4,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5531,
-        "max_account_mib": 855,
-        "max_fpm_workers": 1,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 1
+        "label": "saturation-recovery",
+        "user": "uniselvin",
+        "settings": {
+          "cap": 8,
+          "queue": 64,
+          "idle": 600
         },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "db-read-high-1",
-        "concurrency": 1,
+        "clients": 4,
         "requests": 32,
         "failed": 0,
-        "elapsed": 0.847,
-        "rps": 37.8,
-        "median": 0.013,
-        "p95": 0.028,
-        "avg": 0.015,
-        "php_cpu_ms_median": 0.761,
-        "sql_ms_median": 2.602,
-        "avg_account_cpu_percent": 11.6,
-        "db_cpu_percent": 22.4,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5529,
-        "max_account_mib": 855,
-        "max_fpm_workers": 1,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 32
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "db-read-high-8",
-        "concurrency": 8,
-        "requests": 32,
-        "failed": 0,
-        "elapsed": 0.296,
-        "rps": 108.06,
-        "median": 0.029,
-        "p95": 0.057,
-        "avg": 0.034,
-        "php_cpu_ms_median": 0.983,
-        "sql_ms_median": 5.588,
-        "avg_account_cpu_percent": 44.2,
-        "db_cpu_percent": 64.2,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5538,
-        "max_account_mib": 864,
-        "max_fpm_workers": 5,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 32
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "db-read-high-16",
-        "concurrency": 16,
-        "requests": 32,
-        "failed": 0,
-        "elapsed": 0.316,
-        "rps": 101.15,
-        "median": 0.076,
-        "p95": 0.096,
-        "avg": 0.074,
-        "php_cpu_ms_median": 1.003,
-        "sql_ms_median": 10.095,
-        "avg_account_cpu_percent": 35.1,
-        "db_cpu_percent": 69.5,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5535,
-        "max_account_mib": 866,
-        "max_fpm_workers": 6,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 32
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "db-cache-warm",
-        "concurrency": 1,
-        "requests": 1,
-        "failed": 0,
-        "elapsed": 0.095,
-        "rps": 10.55,
-        "median": 0.024,
-        "p95": 0.024,
-        "avg": 0.024,
-        "php_cpu_ms_median": 1.486,
-        "sql_ms_median": 3.415,
-        "avg_account_cpu_percent": 4.8,
-        "db_cpu_percent": 137.2,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5550,
-        "max_account_mib": 866,
-        "max_fpm_workers": 6,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 1,
-          "BYPASS": 0
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "db-cached-40",
-        "concurrency": 40,
-        "requests": 80,
-        "failed": 0,
-        "elapsed": 0.577,
-        "rps": 138.63,
-        "median": 0.055,
-        "p95": 0.107,
-        "avg": 0.059,
-        "php_cpu_ms_median": 0.289,
-        "sql_ms_median": 0.208,
-        "avg_account_cpu_percent": 32.7,
-        "db_cpu_percent": 29.5,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5544,
-        "max_account_mib": 866,
-        "max_fpm_workers": 6,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 80,
-          "MISS": 0,
-          "BYPASS": 0
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "cpu-low-40",
-        "concurrency": 40,
-        "requests": 80,
-        "failed": 0,
-        "elapsed": 1.325,
-        "rps": 60.37,
-        "median": 0.48,
-        "p95": 0.592,
-        "avg": 0.444,
-        "php_cpu_ms_median": 30.854,
-        "sql_ms_median": null,
-        "avg_account_cpu_percent": 203.0,
-        "db_cpu_percent": 9.8,
-        "throttled_seconds": 0.023,
-        "min_available_mib": 5493,
-        "max_account_mib": 900,
-        "max_fpm_workers": 8,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 80
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "cpu-high-40",
-        "concurrency": 40,
-        "requests": 80,
-        "failed": 0,
-        "elapsed": 26.454,
-        "rps": 3.02,
-        "median": 10.899,
-        "p95": 14.039,
-        "avg": 9.672,
-        "php_cpu_ms_median": 812.621,
-        "sql_ms_median": null,
-        "avg_account_cpu_percent": 250.1,
-        "db_cpu_percent": 0.9,
-        "throttled_seconds": 18.459,
-        "min_available_mib": 5076,
-        "max_account_mib": 1064,
-        "max_fpm_workers": 8,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 80
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "static-40",
-        "concurrency": 40,
-        "requests": 80,
-        "failed": 0,
-        "elapsed": 1.419,
-        "rps": 56.36,
-        "median": 0.092,
-        "p95": 0.332,
-        "avg": 0.123,
-        "php_cpu_ms_median": null,
-        "sql_ms_median": null,
-        "avg_account_cpu_percent": 16.6,
-        "db_cpu_percent": 9.9,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5202,
-        "max_account_mib": 872,
-        "max_fpm_workers": 8,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 0
-        },
-        "cf_cache_values": [
-          "None"
-        ]
-      },
-      {
-        "label": "integrity-after",
-        "concurrency": 1,
-        "requests": 1,
-        "failed": 0,
-        "elapsed": 0.614,
-        "rps": 1.63,
-        "median": 0.522,
-        "p95": 0.522,
-        "avg": 0.522,
-        "php_cpu_ms_median": 0.769,
-        "sql_ms_median": 3.544,
-        "avg_account_cpu_percent": 81.9,
-        "db_cpu_percent": 21.2,
-        "throttled_seconds": 0.0,
-        "min_available_mib": 5340,
-        "max_account_mib": 857,
-        "max_fpm_workers": 1,
-        "max_socket_recv_queue": 0,
-        "oom_delta": 0,
-        "cache_counts": {
-          "HIT": 0,
-          "MISS": 0,
-          "BYPASS": 1
-        },
-        "cf_cache_values": [
-          "None"
-        ]
+        "durationSeconds": 0.27973212400684133,
+        "rps": 114.39515612878765,
+        "p50": 0.030744793999474496,
+        "p95": 0.04877911802032031,
+        "p99": 0.05096643100841902,
+        "cpuPercent": 262.71276586811564,
+        "maxMemoryMiB": 902.828125,
+        "minHostAvailableMiB": 5152,
+        "oomKills": 0,
+        "work": {
+          "cpu": 20,
+          "mem": 8
+        }
       }
     ],
-    "finalWebsiteStages": [
+    "coldPublic": [
       {
-        "name": "1-concurrent",
-        "start": 1792953653.606553,
-        "end": 1792953668.8990877,
-        "requests": 6,
-        "verifiedUncachedFailures": 0,
-        "duration": 15.29251503944397,
-        "rps": 0.39234880492346785,
-        "p95Seconds": 5.945821523666382
+        "trial": 1,
+        "path": "/free-fire-diamond-bd-auto-topup/",
+        "status": 200,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC",
+        "productForm": true,
+        "seconds": 6.914670630008914,
+        "coldProxyBeforeRequest": true
       },
       {
-        "name": "4-concurrent",
-        "start": 1792953668.8991053,
-        "end": 1792953675.872753,
-        "requests": 12,
-        "verifiedUncachedFailures": 0,
-        "duration": 6.973626136779785,
-        "rps": 1.720769046781915,
-        "p95Seconds": 2.4542107582092285
+        "trial": 2,
+        "path": "/uno/",
+        "status": 200,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC",
+        "productForm": true,
+        "seconds": 8.174482063011965,
+        "coldProxyBeforeRequest": true
       },
       {
-        "name": "8-concurrent",
-        "start": 1792953675.8727653,
-        "end": 1792953684.6874,
-        "requests": 16,
-        "verifiedUncachedFailures": 0,
-        "duration": 8.81460952758789,
-        "rps": 1.8151683236703038,
-        "p95Seconds": 6.672040939331055
+        "trial": 3,
+        "path": "/free-fire-diamond-bd/",
+        "status": 200,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC",
+        "productForm": true,
+        "seconds": 7.076386763015762,
+        "coldProxyBeforeRequest": true
+      },
+      {
+        "trial": 4,
+        "path": "/free-fire-diamond-bd-auto-topup/",
+        "status": 200,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC",
+        "productForm": true,
+        "seconds": 6.566304871026659,
+        "coldProxyBeforeRequest": true
+      },
+      {
+        "trial": 5,
+        "path": "/uno/",
+        "status": 200,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC",
+        "productForm": true,
+        "seconds": 6.474965453991899,
+        "coldProxyBeforeRequest": true
+      },
+      {
+        "trial": 6,
+        "path": "/free-fire-diamond-bd/",
+        "status": 200,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC",
+        "productForm": true,
+        "seconds": 6.4424321400001645,
+        "coldProxyBeforeRequest": true
       }
-    ],
-    "finalWebsiteRequests": 34,
-    "evidenceLevel": "Earlier repeated configuration comparisons plus targeted final-code regression/native post-response/origin/uncached verification; do not mislabel earlier source hashes as final-code trials."
+    ]
+  },
+  "requestTotals": {
+    "controlledFixtureRequests": 11927,
+    "pairedWebsiteRequests": 108,
+    "serviceComparisonRequests": 1692,
+    "offeredArrivalRequests": 1440,
+    "strictReloadForegroundRequests": 823,
+    "backgroundFixtureRequests": 576,
+    "saturationAndRecoveryRequests": 7215,
+    "genuineColdPublicRequests": 6,
+    "largerSqlConfirmationRequests": 576,
+    "acceptedRecordedRequests": 24363,
+    "acceptedRecordedFailures": 0,
+    "acceptedFixtureOomKills": 0
+  },
+  "reboot": {
+    "passed": true,
+    "before": {
+      "bootId": "e33af61b-c4e7-41f7-b946-f6ee91dfedd1",
+      "at": 1793044581.659471,
+      "units": {
+        "golden-apache": "active",
+        "golden-shield": "active",
+        "cgroup": "active",
+        "uniselv-resman-agent": "active",
+        "webuzo": "active",
+        "mariadb": "active",
+        "redis": "active",
+        "wpiso-manager-php74": "active",
+        "wpiso-manager-php81": "active",
+        "wpiso-manager-php82": "active",
+        "wpiso-manager-php84": "active"
+      },
+      "versions": [
+        "php74",
+        "php81",
+        "php82",
+        "php84"
+      ],
+      "runtimeSha256": "dac8d288f8ec00c794dffb61f451ef4bfd61a35a10216d4c9623f5a35074beaf",
+      "profileSha256": "c0eb314c6ba1024c25d8c6a9d99ed73b9143daa8f4a37d66f143fa645316d3c4",
+      "phpIniSha256": "2b7588c0419e87f6c35136736f68fcd67d5f159becfe357246f5a868667837bc",
+      "pluginVersion": "1.1.33",
+      "cronActive": true,
+      "cronEnablement": "enabled"
+    },
+    "after": {
+      "bootId": "93540f01-2a6e-4f6e-985d-8448e2539fac",
+      "at": 1793044738.4035575,
+      "units": {
+        "golden-apache": "active",
+        "golden-shield": "active",
+        "cgroup": "active",
+        "uniselv-resman-agent": "active",
+        "webuzo": "active",
+        "mariadb": "active",
+        "redis": "active",
+        "wpiso-manager-php74": "active",
+        "wpiso-manager-php81": "active",
+        "wpiso-manager-php82": "active",
+        "wpiso-manager-php84": "active"
+      },
+      "runtimeSha256": "dac8d288f8ec00c794dffb61f451ef4bfd61a35a10216d4c9623f5a35074beaf",
+      "profileSha256": "c0eb314c6ba1024c25d8c6a9d99ed73b9143daa8f4a37d66f143fa645316d3c4",
+      "phpIniSha256": "2b7588c0419e87f6c35136736f68fcd67d5f159becfe357246f5a868667837bc",
+      "pluginVersion": "1.1.33",
+      "cronActive": true
+    },
+    "secondsUntilAutomaticReady": 156.74408650398254,
+    "manualServiceStartsAfterBoot": false,
+    "events": [
+      {
+        "at": 1793044593.291638,
+        "connection": "SSHException"
+      },
+      {
+        "at": 1793044690.2110958,
+        "connection": "TimeoutError"
+      },
+      {
+        "at": 1793044719.7156398,
+        "bootChanged": true,
+        "states": {
+          "golden-apache": "active",
+          "golden-shield": "active",
+          "cgroup": "active",
+          "uniselv-resman-agent": "active",
+          "webuzo": "active",
+          "mariadb": "active",
+          "redis": "active",
+          "wpiso-manager-php74": "active",
+          "wpiso-manager-php81": "active",
+          "wpiso-manager-php82": "active",
+          "wpiso-manager-php84": "activating"
+        }
+      },
+      {
+        "at": 1793044738.706639,
+        "bootChanged": true,
+        "states": {
+          "golden-apache": "active",
+          "golden-shield": "active",
+          "cgroup": "active",
+          "uniselv-resman-agent": "active",
+          "webuzo": "active",
+          "mariadb": "active",
+          "redis": "active",
+          "wpiso-manager-php74": "active",
+          "wpiso-manager-php81": "active",
+          "wpiso-manager-php82": "active",
+          "wpiso-manager-php84": "active"
+        }
+      }
+    ]
+  },
+  "historicalEvidence": {
+    "release": "1.1.32",
+    "file": "server-policy-report-1.1.32.md",
+    "note": "Earlier source hashes and measurements remain historical, not relabeled as the final runtime."
+  },
+  "rejectedAndSeparatedEvidence": [
+    {
+      "case": "Old-runtime five-minute test",
+      "result": "158 failed requests in 3116; routing/socket interruption during native regeneration; retained as failed-before evidence."
+    },
+    {
+      "case": "Intermediate reload candidate",
+      "result": "Foreground requests survived but a truly timed post-response job did not complete under the native ten-second master control grace. Rejected; not shipped."
+    },
+    {
+      "case": "Final-code full matrix website warmup",
+      "result": "All 67 fixture stages passed, then an unrecorded public warmup assertion after a deliberate maintenance transition aborted the complete run. Its paired website comparison was not accepted. Six separately repeated logged paired trials and six genuine cold public starts passed."
+    },
+    {
+      "case": "Preliminary sleep-only background fixture",
+      "result": "Signal-interrupted sleep returned early. Excluded as proof of the requested background duration; replaced with a monotonic deadline loop and elapsed-time assertion."
+    }
+  ],
+  "remainingBoundaries": [
+    "Clean-OS installation requires a disposable host, which the owner does not have. Existing-host lifecycle evidence is retained separately.",
+    "Unknown future vendor behavior or changed hardware/data/workload requires renewed checks.",
+    "Explicit restart, changed routing and resource downgrades remain maintenance operations. Graceful reload may delay queued work; strict test maximum was about 20.8 seconds.",
+    "Shared SQL and owner-selected Shared Redis are shared services, not per-tenant database/cache isolation.",
+    "Synthetic requests and HTML-only BDT-cookie comparisons are not a maximum checkout/shopper claim."
+  ],
+  "cleanup": {
+    "temporaryFixturesRemoved": true,
+    "temporaryViewsRemoved": true,
+    "runtimeSourceUnchangedDuringTrials": true,
+    "sqlRuntimeValuesRestored": true,
+    "publicPostchecks": [
+      {
+        "path": "/free-fire-diamond-bd-auto-topup/",
+        "status": 200,
+        "product_form": true,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC"
+      },
+      {
+        "path": "/uno/",
+        "status": 200,
+        "product_form": true,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC"
+      },
+      {
+        "path": "/free-fire-diamond-bd/",
+        "status": 200,
+        "product_form": true,
+        "cache": "BYPASS",
+        "cloudflare": "DYNAMIC"
+      }
+    ]
   }
 }

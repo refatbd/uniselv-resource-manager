@@ -10,7 +10,7 @@ SELF=pathlib.Path('/usr/local/sbin/webuzo-isolation.py')
 UNITS=pathlib.Path('/etc/systemd/system')
 PROXY='/usr/lib/systemd/systemd-socket-proxyd'
 MARKER='# WEBUZO-ISOLATION MANAGED LAUNCHER'
-CAPACITY_MODEL_VERSION='account-demand-v7-stable-sharing'
+CAPACITY_MODEL_VERSION='account-demand-v8-native-reload-safety'
 NATIVE_CGROUP_USERS=pathlib.Path('/var/webuzo/conf/cgroupusers')
 NATIVE_CGROUP_DROPIN=UNITS/'cgroup.service.d/90-uniselv-resman.conf'
 
@@ -361,10 +361,26 @@ def validate_fpm(args):
         if result.returncode!=-15 or attempt==2:raise RuntimeError('PHP syntax verification failed: '+str(args)+': exit='+str(result.returncode)+' '+result.stdout[-1200:]+result.stderr[-1200:])
         time.sleep(.5)
 
+def reload_control_settings(global_settings,request_timeout):
+    """Do not escalate a graceful reload before valid native requests can finish."""
+    timeout=int(request_timeout)
+    if not 1<=timeout<=86400:raise ValueError('Finite native request timeout required for reload safety')
+    lines=re.findall(r'^\s*process_control_timeout\s*=\s*([^;\r\n]+)',global_settings,re.M)
+    if len(lines)>1:raise ValueError('Duplicate global process_control_timeout')
+    if lines:
+        match=re.fullmatch(r'(\d+)\s*([smhd]?)',lines[0].strip())
+        if not match:raise ValueError('Invalid global process_control_timeout')
+        current=int(match[1])*{'':1,'s':1,'m':60,'h':3600,'d':86400}[match[2]]
+        if current>=timeout:return global_settings
+        return re.sub(r'^(\s*process_control_timeout\s*=).*$',lambda m:m[1]+' '+str(timeout)+'s',global_settings,flags=re.M)
+    return global_settings.rstrip()+'\nprocess_control_timeout = '+str(timeout)+'s\n'
+
+
 def pool_config(version,row):
     prefix=paths(version);backend=RUN/(version+'-'+row['user']+'.sock')
     part=re.sub(r'^(\s*listen\s*=).*$',r'\1 '+str(backend),row['pool'],flags=re.M)
-    return '[global]\npid = '+str(RUN/(version+'-'+row['user']+'.pid'))+'\nerror_log = '+str(prefix/'var/log'/('wpiso-'+row['user']+'.log'))+'\n'+row['global']+'\n'+part
+    global_settings=reload_control_settings(row['global'],request_seconds(part))
+    return '[global]\npid = '+str(RUN/(version+'-'+row['user']+'.pid'))+'\nerror_log = '+str(prefix/'var/log'/('wpiso-'+row['user']+'.log'))+'\n'+global_settings+'\n'+part
 
 def request_seconds(pool, fallback=120):
     values=re.findall(r'^\s*request_terminate_timeout\s*=\s*(\d+)\s*([smhd]?)\s*(?:;.*)?$',pool,re.M)
@@ -1532,13 +1548,36 @@ def _retire(version):
     for unit in lifecycle_units(version):execute(['systemctl','reset-failed',unit],False)
     print('Successfully retired ' + version + ' from isolation.')
 
+def graceful_reload(version):
+    """Apply native configuration without turning an unchanged reload into a stop.
+
+    Changed routing/pool definitions still use normal checked reconciliation.
+    Surviving FPM masters re-exec gracefully so php.ini/extensions are refreshed,
+    while public socket/proxy units and charged runtime leases remain in place.
+    """
+    count=reconcile(version,False)
+    with lock(version):
+        targets=[names(version,row['user'])[0] for row in manifest(version)['pools']]
+        targets.append('wpiso-health-'+version+'.service')
+        for target in targets:
+            if execute(['systemctl','is-active',target],False).returncode!=0:continue
+            result=execute(['systemctl','kill','--kill-whom=main','--signal=USR2',target],False)
+            # An idle pool may have retired after the state check. Never start it
+            # merely to reload, and never hide a failure of a still-live master.
+            if result.returncode and execute(['systemctl','is-active',target],False).returncode==0:
+                raise RuntimeError('Native graceful PHP reload failed: '+target)
+    return count
+
+
 def action(version,command):
     unit='wpiso-manager-'+version+'.service'
     if not is_managed(version):
         raise RuntimeError('PHP version ' + version + ' is not onboarded in isolation. Run webuzo-isolation.py onboard ' + version + ' first.')
     assert_launcher(version)
     if command in ['start','restart','reload']:
-        if execute(['systemctl','is-active',unit],False).returncode==0:reconcile(version,command in ['restart','reload'])
+        if execute(['systemctl','is-active',unit],False).returncode==0:
+            if command=='reload':graceful_reload(version)
+            else:reconcile(version,command=='restart')
         else:execute(['systemctl','start',unit])
         print(version+': isolated socket routing active')
     elif command=='bridge-stop':execute(['systemctl','--no-block','stop',unit]);print(version+': isolated stop scheduled')
@@ -1602,6 +1641,9 @@ def verify():
                 fpm,proxy,sock=names(version,row['user']);root=pathlib.Path('/sys/fs/cgroup')/(str(row['uid'])+'.slice');socket_ok=execute(['systemctl','is-active',sock],False).returncode==0
                 item={'user':row['user'],'uid':row['uid'],'socketActive':socket_ok,'fpmActive':execute(['systemctl','is-active',fpm],False).returncode==0,'fpmControlGroup':execute(['systemctl','show',fpm,'-p','ControlGroup','--value'],False).stdout.strip(),'swapMax':(root/'memory.swap.max').read_text().strip(),'cpuMax':(root/'cpu.max').read_text().strip(),'memoryMax':(root/'memory.max').read_text().strip()}
                 private=(BASE/version/(row['user']+'.conf')).read_text()
+                private_global=re.search(r'^\[global\]\s*\n(.*?)(?=^\[|\Z)',private,re.M|re.S)
+                item['managedReloadTimeoutSafe']=bool(private_global) and reload_control_settings(private_global[1],request_seconds(private))==private_global[1]
+                results['mechanicalChecksPass']&=item['managedReloadTimeoutSafe']
                 native=row['maxChildren'];backlog=re.search(r'^\s*listen.backlog\s*=\s*(\d+)',private,re.M)
                 effective=re.search(r'^\s*pm\.max_children\s*=\s*(\d+)',private,re.M)
                 ceiling=runtime_ceiling(row['uid'],native,results['policy'],int(backlog[1]) if backlog else 511,request_seconds(private))
