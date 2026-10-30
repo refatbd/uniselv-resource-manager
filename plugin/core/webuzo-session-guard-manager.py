@@ -10,8 +10,13 @@ def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def atomic(p,data,mode=0o600):
  if p.is_symlink():raise RuntimeError('Refusing symlink: '+str(p))
  t=p.with_name(p.name+'.session-guard-'+str(time.time_ns()))
- with open(t,'xb') as f:f.write(data)
- os.chmod(t,mode);os.replace(t,p)
+ try:
+  with open(t,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
+  os.chmod(t,mode);os.replace(t,p)
+ finally:
+  if t.exists() or t.is_symlink():
+   try:t.unlink()
+   except OSError:pass
 def restore(rows):
  for name,row in rows.items():
   p=pathlib.Path(name)

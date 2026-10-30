@@ -14,8 +14,13 @@ def atomic(path,text,mode=0o600):
  path.parent.mkdir(parents=True,exist_ok=True)
  if path.is_symlink():raise RuntimeError('Refusing symlink: '+str(path))
  temp=path.with_name(path.name+'.golden-'+str(time.time_ns()))
- with open(temp,'x',encoding='utf-8') as f:f.write(text)
- os.chmod(temp,mode);os.replace(temp,path)
+ try:
+  with open(temp,'w',encoding='utf-8') as f:f.write(text);f.flush();os.fsync(f.fileno())
+  os.chmod(temp,mode);os.replace(temp,path)
+ finally:
+  if temp.exists() or temp.is_symlink():
+   try:temp.unlink()
+   except OSError:pass
 def properties(unit,keys):
  return dict(x.split('=',1) for x in command(['systemctl','show',unit]+[v for k in keys for v in ['-p',k]]).stdout.splitlines())
 def files():return json.loads((STATE/'shared-files.json').read_text()) if (STATE/'shared-files.json').exists() else {}

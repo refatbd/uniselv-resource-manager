@@ -29,10 +29,19 @@ def execute(args,check=True,timeout=60):
 def atomic(path,text,mode=0o600):
     path=pathlib.Path(path);path.parent.mkdir(parents=True,exist_ok=True)
     if path.is_symlink():raise RuntimeError('Refusing symlink: '+str(path))
-    temp=path.with_name(path.name+'.wpiso-new')
-    if temp.exists() or temp.is_symlink():raise RuntimeError('Staging path exists: '+str(temp))
-    with open(temp,'x',encoding='utf-8',newline='\n') as f:f.write(text)
-    os.chmod(temp,mode);os.replace(temp,path)
+    legacy_temp=path.with_name(path.name+'.wpiso-new')
+    if legacy_temp.exists() or legacy_temp.is_symlink():
+        try:legacy_temp.unlink()
+        except OSError:pass
+    temp=path.with_name(f"{path.name}.wpiso-new.{os.getpid()}")
+    try:
+        with open(temp,'w',encoding='utf-8',newline='\n') as f:
+            f.write(text);f.flush();os.fsync(f.fileno())
+        os.chmod(temp,mode);os.replace(temp,path)
+    finally:
+        if temp.exists() or temp.is_symlink():
+            try:temp.unlink()
+            except OSError:pass
 
 @contextlib.contextmanager
 def lock(name):

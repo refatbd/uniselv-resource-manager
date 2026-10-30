@@ -1,3 +1,10 @@
+## 1.1.34 — 2026-10-30
+
+- Add self-healing staging cleanup and PID-isolated temporary files to atomic writer, preventing zero-byte lock deadlock when disk space is exhausted.
+- Enforce try/finally unlinking across isolation, Golden Shield and session guard staging paths to guarantee incomplete writes never block future service admission.
+- Add explicit fsync and flush barriers prior to atomic replacement.
+- Preserve global native defaults, physical/account safety boundaries, and existing runtime policy.
+
 ## 1.1.33 — 2026-10-27
 
 - Preserve public routing and active proxy processes on native reload; refresh surviving native PHP masters gracefully after selective configuration validation.
