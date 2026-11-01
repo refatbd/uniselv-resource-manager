@@ -1,3 +1,9 @@
+## 1.1.35 — 2026-11-01
+
+- Optimize PAM Session Guard (`webuzo-session-guard.py`) by adding immediate fast-path bypass for non-interactive `cron` and `crond` sessions (`PAM_SERVICE in ('cron', 'crond')`). Eliminates concurrent subprocess storms and 500–700% CPU spikes during minute-boundary cron dispatch.
+- Fast-path existing slice verification: skip redundant `golden-shield.py prepare-account` execution when the account slice is already active and bounded.
+- Preserve interactive SSH session placement, cgroup isolation boundaries, and fail-safe error logging.
+
 ## 1.1.34 — 2026-10-30
 
 - Add self-healing staging cleanup and PID-isolated temporary files to atomic writer, preventing zero-byte lock deadlock when disk space is exhausted.
