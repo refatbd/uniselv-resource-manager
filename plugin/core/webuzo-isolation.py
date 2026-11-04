@@ -140,14 +140,16 @@ def native_cgroup_pass():
 
 
 def place_native_process(uid,pid,target):
+    if not pathlib.Path('/proc/'+str(pid)).exists():return
     if account_slice(uid).startswith('golden-'):
         # cgroup v2 forbids internal processes in a slice with enabled child
         # controllers. Adopt legacy CLI/session PIDs into a proper child scope.
         unit='resman-native-u'+str(uid)+'-p'+str(pid)+'-'+str(time.time_ns())+'.scope'
-        execute(['/usr/bin/busctl','call','org.freedesktop.systemd1','/org/freedesktop/systemd1',
+        r=execute(['/usr/bin/busctl','call','org.freedesktop.systemd1','/org/freedesktop/systemd1',
                  'org.freedesktop.systemd1.Manager','StartTransientUnit','ssa(sv)a(sa(sv))',
                  unit,'fail','3','Slice','s',account_slice(uid),'PIDs','au','1',str(pid),
-                 'MemorySwapMax','t','0','0'],timeout=10)
+                 'MemorySwapMax','t','0','0'],False,timeout=10)
+        if r.returncode!=0:execute(['systemctl','reset-failed',unit],False)
     else:(target/'cgroup.procs').write_text(str(pid))
 
 
@@ -419,7 +421,12 @@ def account_worker_ceiling(native_children, memory_max, memory_high, tasks_max, 
     # A finite account hard boundary is mandatory; optional high/task maxima inherit it.
     allowance=int(memory_max)*.9
     if str(memory_high)!='max':allowance=min(allowance,int(memory_high))
-    if str(tasks_max)!='max':ceiling=min(ceiling,max(0,(int(tasks_max)-8)//2))
+    overhead=48+p.get('opcacheMiB',256)+64
+    ram_workers=max(1,int((allowance/1048576-overhead)//p['workerRssMiB']))
+    ceiling=max(ceiling,ram_workers)
+    if str(tasks_max)!='max':ceiling=min(ceiling,max(1,(int(tasks_max)-8)//2))
+    hard_cap=p.get('accountMaxWorkers',32)
+    ceiling=min(ceiling,hard_cap)
     while ceiling>0:
         relay=proxy_limits(ceiling,backlog,timeout)
         if ceiling*p['workerRssMiB']+48+p['opcacheMiB']+relay['memoryMiB']<=allowance/1048576:return ceiling

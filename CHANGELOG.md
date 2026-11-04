@@ -1,3 +1,12 @@
+## 1.1.36 — 2026-11-04
+
+- Implement plan-proportional upward and downward PHP-FPM worker ceiling calculation (`account_worker_ceiling`) derived from cgroup RAM allowance and task limits, lifting the legacy 8-worker native ceiling for higher-tier accounts (Enterprise up to 21 workers, Turbo up to 15, Pro at 9, Starter at 6, Go at 3).
+- Integrate dynamic cgroups v2 `CPUWeight` generation in Golden Shield proportional to plan `CPUQuota` (Enterprise=280, Pro=150, Starter=100) ensuring fair dynamic CPU scheduling during peak multi-tenant contention while preserving single-tenant burstability.
+- Enforce strict Golden Shield root reservation for host OS and Webuzo Admin Panel (`system.slice` with `CPUWeight=1000` and guaranteed 1.4+ GB reserved physical RAM).
+- Extend coordinator startup reconciliation timeout (`TimeoutStartSec=180`) across all PHP runtime managers and implement atomic slice pre-caching to eliminate serial systemd reload stalls across 25+ tenant pools.
+- Patch `place_native_process` to verify PID existence and reset failed transient units, preventing systemd scope tracking exhaustion.
+- Update `policy.json` with `maxActivePools: 10`, `workerRssMiB: 140`, and `accountMaxWorkers: 32`.
+
 ## 1.1.35 — 2026-11-01
 
 - Optimize PAM Session Guard (`webuzo-session-guard.py`) by adding immediate fast-path bypass for non-interactive `cron` and `crond` sessions (`PAM_SERVICE in ('cron', 'crond')`). Eliminates concurrent subprocess storms and 500–700% CPU spikes during minute-boundary cron dispatch.
