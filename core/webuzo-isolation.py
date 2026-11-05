@@ -1505,7 +1505,7 @@ def _onboard(version):
 
     try:
         unit = 'wpiso-manager-' + version + '.service'
-        atomic(UNITS/unit, '[Unit]\nDescription=Experimental Webuzo isolation coordinator ' + version + '\nAfter=network.target\n[Service]\nType=notify\nExecStart=/usr/bin/python3 ' + str(SELF) + ' supervise ' + version + '\nTimeoutStartSec=60\nTimeoutStopSec=60\nRestart=on-failure\nRestartSec=2\n[Install]\nWantedBy=multi-user.target\n', 0o644)
+        atomic(UNITS/unit, '[Unit]\nDescription=Experimental Webuzo isolation coordinator ' + version + '\nAfter=network.target\n[Service]\nType=notify\nExecStart=/usr/bin/python3 ' + str(SELF) + ' supervise ' + version + '\nTimeoutStartSec=180\nTimeoutStopSec=60\nRestart=on-failure\nRestartSec=2\n[Install]\nWantedBy=multi-user.target\n', 0o644)
         execute(['systemctl', 'daemon-reload'])
         execute(['systemctl', 'enable', '--now', unit])
         execute(['systemctl', 'reset-failed', 'php-fpm' + version[3:] + '.service'], False)
@@ -1637,7 +1637,7 @@ def install(policy_file):
             time.sleep(.1)
         atomic(ctl,wrapper(version),0o755)
         unit='wpiso-manager-'+version+'.service'
-        atomic(UNITS/unit,'[Unit]\nDescription=Experimental Webuzo isolation coordinator '+version+'\nAfter=network.target\n[Service]\nType=notify\nExecStart=/usr/bin/python3 '+str(SELF)+' supervise '+version+'\nTimeoutStartSec=60\nTimeoutStopSec=60\nRestart=on-failure\nRestartSec=2\n[Install]\nWantedBy=multi-user.target\n',0o644)
+        atomic(UNITS/unit,'[Unit]\nDescription=Experimental Webuzo isolation coordinator '+version+'\nAfter=network.target\n[Service]\nType=notify\nExecStart=/usr/bin/python3 '+str(SELF)+' supervise '+version+'\nTimeoutStartSec=180\nTimeoutStopSec=60\nRestart=on-failure\nRestartSec=2\n[Install]\nWantedBy=multi-user.target\n',0o644)
     execute(['systemctl','daemon-reload'])
     for version in selected:execute(['systemctl','enable','--now','wpiso-manager-'+version+'.service']);execute(['systemctl','reset-failed','php-fpm'+version[3:]+'.service'],False);add_bridge(version)
     print('Installed experimental isolation for '+', '.join(selected)+'. Run verify before releasing traffic.')

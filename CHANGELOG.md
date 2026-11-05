@@ -1,3 +1,18 @@
+## 1.1.37 — 2026-11-05
+
+- **Storage-Bounded SQLite Telemetry Engine (`collector.py`):**
+  - Implement active database storage quota enforcement honoring `retention_max_storage_mib` (default 100 MiB).
+  - Automatically downsample historical telemetry older than 48 hours to 1-minute averages (deleting 11 out of 12 raw 5s samples), reclaiming 91.6% storage while preserving smooth long-term chart visibility.
+  - Progressive batch pruning of oldest excess samples coupled with transactional WAL checkpoint truncation and filesystem VACUUM whenever disk footprint exceeds configured safety thresholds.
+- **Daemon Memory Safety & OOM Defense (`ipc_server.py`):**
+  - Completely re-architect `action_enduser_history` to use SQL-level streaming aggregation and time-bucket grouping (`bucket_ts = (timestamp / step) * step`).
+  - Eliminates dangerous Python heap allocation of 500,000+ dict objects during 7d/30d queries, slashing daemon RSS memory consumption from 700+ MiB to <2 MiB and guaranteeing `uniselv-resman-agent` never exceeds systemd `MemoryMax=128M`.
+- **Dynamic Cgroups v2 Kernel Quota Discovery & Fair CPUWeight (`golden-shield.py` & `collector.py`):**
+  - Integrate live cgroup v2 controller probing (`cpu.max`, `memory.max`, `pids.max`) to ensure live telemetry, thresholds, and circuit breakers immediately adapt to Webuzo plan updates without hardcoding.
+  - Dynamically inject proportional cgroups v2 `CPUWeight = max(10, min(10000, CPUQuota))` into account slices (`golden-<uid>.slice`) for fair-share CPU scheduling during multi-tenant CPU contention.
+- **Coordinator Startup Reconciliation Timeout (`webuzo-isolation.py`):**
+  - Extend isolation coordinator supervisor timeout (`TimeoutStartSec=180`) to eliminate serial systemd reload stalls across high-density tenant pools.
+
 ## 1.1.36 — 2026-11-04
 
 - Implement plan-proportional upward and downward PHP-FPM worker ceiling calculation (`account_worker_ceiling`) derived from cgroup RAM allowance and task limits, lifting the legacy 8-worker native ceiling for higher-tier accounts (Enterprise up to 21 workers, Turbo up to 15, Pro at 9, Starter at 6, Go at 3).

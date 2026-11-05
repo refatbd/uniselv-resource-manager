@@ -3050,7 +3050,7 @@ class IpcRequestHandler:
             'used_percent': round(health['total_storage_bytes'] / (settings['max_storage_mib'] * 1024 * 1024) * 100, 2),
             'samples_count': counts['samples'], 'snapshots_count': counts['snapshots'],
             'events_count': counts['events'], 'audit_count': counts['audit_log'],
-            'size_limit_kind': 'warning_threshold_not_hard_quota'}}
+            'size_limit_kind': 'enforced_quota_with_auto_downsample'}}
 
     def action_save_storage_settings(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
         bounds = {'samples_days': (1, 90), 'snapshots_days': (1, 90),

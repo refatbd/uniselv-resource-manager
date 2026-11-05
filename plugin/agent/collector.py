@@ -335,6 +335,36 @@ class MetricsCollector:
                 pass
         return limits
 
+    def get_user_limits(self, uid: int, plan_name: str) -> Dict[str, Any]:
+        """Fetch plan limits, dynamically falling back to live cgroups v2 / slice limits."""
+        limits = self.get_plan_limits(plan_name)
+        candidates = [f'/sys/fs/cgroup/golden.slice/golden-{uid}.slice', f'/sys/fs/cgroup/{uid}.slice']
+        for p in candidates:
+            if not os.path.exists(p):
+                continue
+            try:
+                cpumax = os.path.join(p, 'cpu.max')
+                if os.path.exists(cpumax):
+                    line = open(cpumax).read().strip().split()
+                    if len(line) == 2 and line[0] != 'max':
+                        q, period = int(line[0]), int(line[1])
+                        if period > 0:
+                            limits['cpuquota'] = int(round((q / period) * 100))
+                memmax = os.path.join(p, 'memory.max')
+                if os.path.exists(memmax):
+                    v = open(memmax).read().strip()
+                    if v != 'max' and v.isdigit():
+                        limits['mem_max'] = int(v)
+                pidsmax = os.path.join(p, 'pids.max')
+                if os.path.exists(pidsmax):
+                    v = open(pidsmax).read().strip()
+                    if v != 'max' and v.isdigit():
+                        limits['maxtask'] = int(v)
+                break
+            except Exception:
+                pass
+        return limits
+
     def read_user_cgroup(self, uid: int) -> Tuple[str, Dict[str, Any]]:
         """Sum disjoint native/managed UID roots; never choose by resident memory.
 
@@ -686,7 +716,7 @@ class MetricsCollector:
             uid = udata['uid']
             plan_name = udata['plan_name']
             domain = udata['domain']
-            limits = self.get_plan_limits(plan_name)
+            limits = self.get_user_limits(uid, plan_name)
 
             slice_path, curr = self.read_user_cgroup(uid)
             prev = self.prev_user_stats.get(uname)
@@ -909,12 +939,14 @@ class MetricsCollector:
 
     def prune_retention(self, samples_days: int = None, snapshots_days: int = None,
                         events_days: int = None, audit_days: int = None, vacuum: bool = False) -> Dict[str, Any]:
-        """Purge stale telemetry, snapshots, and logs according to retention policy."""
+        """Purge stale telemetry, snapshots, and logs according to retention policy and enforce max storage quota."""
         settings = self.get_retention_settings()
         s_days = samples_days if samples_days is not None else settings['samples_days']
         sn_days = snapshots_days if snapshots_days is not None else settings['snapshots_days']
         e_days = events_days if events_days is not None else settings['events_days']
         a_days = audit_days if audit_days is not None else settings['audit_days']
+        max_storage_mib = settings.get('max_storage_mib', 100)
+        max_storage_bytes = max(10, max_storage_mib) * 1024 * 1024
 
         now = int(time.time())
         cutoff_samples = now - (max(1, s_days) * 86400)
@@ -932,24 +964,52 @@ class MetricsCollector:
         try:
             cur = conn.cursor()
             cur.execute("DELETE FROM samples WHERE timestamp < ?", (cutoff_samples,))
-            deleted_samples = cur.rowcount
+            deleted_samples += max(0, cur.rowcount)
             cur.execute("DELETE FROM snapshots WHERE timestamp < ?", (cutoff_snapshots,))
-            deleted_snapshots = cur.rowcount
+            deleted_snapshots = max(0, cur.rowcount)
             cur.execute("DELETE FROM events WHERE timestamp < ?", (cutoff_events,))
-            deleted_events = cur.rowcount
+            deleted_events = max(0, cur.rowcount)
             cur.execute("DELETE FROM system_metrics WHERE timestamp < ?", (cutoff_samples,))
             cur.execute("DELETE FROM audit_log WHERE timestamp < ? AND actor != 'system'", (cutoff_audit,))
-            deleted_audit = cur.rowcount
+            deleted_audit = max(0, cur.rowcount)
             conn.commit()
 
+            # Downsample older telemetry: samples older than 48 hours keep 1 sample per minute
+            two_days_ago = now - (2 * 86400)
+            cur.execute("DELETE FROM samples WHERE timestamp < ? AND (id % 12) != 0", (two_days_ago,))
+            deleted_samples += max(0, cur.rowcount)
+            cur.execute("DELETE FROM system_metrics WHERE timestamp < ? AND (timestamp % 60) != 0", (two_days_ago,))
+            conn.commit()
+
+            # Storage Quota Enforcement
             cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            if vacuum:
-                conn.execute("VACUUM")
-                conn.commit()
-        except Exception:
-            pass
+            cur_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
+
+            if cur_size > max_storage_bytes:
+                vacuum = True
+                while cur_size > max_storage_bytes:
+                    cur.execute("DELETE FROM samples WHERE id IN (SELECT id FROM samples ORDER BY timestamp ASC LIMIT 50000)")
+                    chunk_deleted = cur.rowcount
+                    deleted_samples += chunk_deleted
+                    cur.execute("DELETE FROM system_metrics WHERE timestamp IN (SELECT timestamp FROM system_metrics ORDER BY timestamp ASC LIMIT 5000)")
+                    conn.commit()
+                    cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                    cur_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
+                    if chunk_deleted < 50000:
+                        break
         finally:
             conn.close()
+
+        # Dedicated autocommit connection for VACUUM (SQLite strictly requires no active transaction)
+        if vacuum:
+            try:
+                vac_conn = sqlite3.connect(self.db_path, timeout=60, isolation_level=None)
+                vac_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                vac_conn.execute("VACUUM")
+                vac_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                vac_conn.close()
+            except Exception:
+                pass
 
         after_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
         freed_bytes = max(0, before_size - after_size)
@@ -1369,7 +1429,7 @@ class MetricsCollector:
                     continue
                 if uid not in self.circuit_breaker_throttled_users:
                     plan_name = udata.get('plan_name', 'default')
-                    limits = self.get_plan_limits(plan_name)
+                    limits = self.get_user_limits(uid, plan_name)
                     orig_quota = limits.get('cpuquota', 100)
                     if orig_quota <= 0:
                         orig_quota = 100
@@ -1419,7 +1479,7 @@ class MetricsCollector:
                         continue
                     slice_name = f'golden-{uid}.slice'
                     plan_name = udata.get('plan_name', 'default')
-                    limits = self.get_plan_limits(plan_name)
+                    limits = self.get_user_limits(uid, plan_name)
                     orig_quota = limits.get('cpuquota', 100)
                     if orig_quota <= 0:
                         orig_quota = 100

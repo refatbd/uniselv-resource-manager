@@ -151,6 +151,8 @@ def prepare_account(uid):
   values=dict(re.findall(r'^(CPUQuota|IOReadBandwidthMax|IOWriteBandwidthMax|IOReadIOPSMax|IOWriteIOPSMax|MemoryMax|MemoryHigh|TasksMax)=(.+)$',source,re.M))
   if len(values)!=8 or any(v.strip() in ['','infinity'] for v in values.values()):raise RuntimeError('Missing finite native plan limits for UID '+uid)
   values['MemorySwapMax']='0';unit='golden-'+uid+'.slice'
+  quota_val=values.get('CPUQuota','100%').rstrip('%')
+  values['CPUWeight']=str(max(10,min(10000,int(float(quota_val)))))
   text='[Unit]\nDescription=Golden Shield native-plan mirror '+uid+'\n[Slice]\n'+'\n'.join(k+'='+v for k,v in values.items())+'\n'
   path=UNITS/unit
   if not path.exists() or path.read_text()!=text:

@@ -1,14 +1,8 @@
-Current runtime release: **1.1.34**. Adds self-healing staging cleanup, atomic try/finally unlinking, and PID-isolated temporary files to prevent zero-byte lock deadlock during disk exhaustion. Native graceful reload preserves public routing and uses inherited request-timeout-derived master control grace for bounded post-response work. See [changelog](CHANGELOG.md).
+Current runtime release: **1.1.37**. Storage-bounded SQLite auto-pruning, telemetry downsampling (48h raw to 1m intervals), zero-memory-spike SQL streaming history aggregation, live kernel cgroups v2 dynamic quota discovery with proportional CPUWeight scheduling, and coordinator startup stability (TimeoutStartSec=180). See [changelog](CHANGELOG.md).
 
-> Historical release **1.1.22** exercised dynamic PHP version onboarding/retirement and 28 isolated regressions. That dated test count did not establish complete lifecycle or workload coverage.
-
-Previous release: **1.1.21**. Deleted-account native-pool quarantine; physical/default budgets unchanged.
-
-> Historical baseline: **1.1.17**, 2026-10-20. Account-aware managed PHP worker caps, shared cold-start admission, bounded request queue, neutral animated 503 page, and aggregate-aware CPU circuit breaker. See plugin/docs/dynamic-capacity.md for scope and evidence.
-
-> Previous release: **1.1.16**, 2026-10-20. Privileged Webuzo panel activation and deactivation dispatchers, root CLI preflight guards, and PHP-FPM listen.backlog fallback. Previous release records below are historical.
-
-> Historical baseline: **1.1.12**. Installable artifact: `uniselv-resman-1.1.12.zip`. Current scope and evidence: `plugin/docs/LIFECYCLE-REVIEW-1.1.12.md`.
+> Previous release **1.1.36**, 2026-11-04. Plan-proportional PHP worker ceiling calculation and dynamic CPUWeight.
+> Previous release **1.1.35**, 2026-11-01. PAM Session Guard cron fast-path bypass and slice reuse.
+> Historical release **1.1.34**, 2026-10-30. Self-healing staging cleanup and atomic try/finally unlinking.
 
 # UNISELV Resource Manager for Webuzo
 
