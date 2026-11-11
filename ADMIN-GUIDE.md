@@ -119,7 +119,7 @@ Administrators can fine-tune sliding-window retention days directly from the Adm
 
 ### Automated Hourly Maintenance & Storage Quota
 - **Background Daemon Hook:** Every 3600 seconds (1 hour), the collector daemon automatically executes a sliding-window prune based on the configured thresholds.
-- **Quota Safeguard:** A 100 MiB safety threshold is monitored. The UI renders a live storage utilization progress bar showing exact database footprint (e.g. `568.0 KiB of 100 MiB Quota [0.6%]`) along with individual table row counts.
+- **Storage target:** Older telemetry is compacted into one-minute summaries after 48 hours. If allocated data exceeds the default 100 MiB target, the oldest telemetry is pruned while preserving the newest hour. The database may remain above target if protected telemetry or other retained data exceeds the budget.
 
 ### On-Demand Pruning & VACUUM Optimization
 - Administrators can trigger an immediate manual purge and disk compaction by clicking **Prune & Optimize Database Now**.

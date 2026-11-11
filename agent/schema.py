@@ -180,6 +180,13 @@ def init_db(db_path: str):
         existing_cols = {row[1] for row in cur.fetchall()}
         
         migration_cols = [
+            ('sample_count', 'INTEGER NOT NULL DEFAULT 1'),
+            ('cpu_peak', 'REAL'),
+            ('mem_peak', 'INTEGER'),
+            ('read_peak', 'REAL'),
+            ('write_peak', 'REAL'),
+            ('iops_peak', 'REAL'),
+            ('tasks_peak', 'INTEGER'),
             ('limit_io_read_bps', 'INTEGER DEFAULT 0'),
             ('limit_io_write_bps', 'INTEGER DEFAULT 0'),
             ('limit_io_read_iops', 'INTEGER DEFAULT 0'),
@@ -187,10 +194,12 @@ def init_db(db_path: str):
         ]
         for col_name, col_def in migration_cols:
             if col_name not in existing_cols:
-                try:
-                    cur.execute(f"ALTER TABLE samples ADD COLUMN {col_name} {col_def}")
-                except Exception:
-                    pass
+                cur.execute(f"ALTER TABLE samples ADD COLUMN {col_name} {col_def}")
+
+        system_columns = {row[1] for row in cur.execute("PRAGMA table_info(system_metrics)")}
+        if 'sample_count' not in system_columns:
+            cur.execute("ALTER TABLE system_metrics ADD COLUMN sample_count INTEGER NOT NULL DEFAULT 1")
+        cur.execute("UPDATE scheduled_reports SET status = 'generated', dispatched_to = NULL WHERE status = 'dispatched'")
 
         import time
         now = int(time.time())
@@ -243,7 +252,6 @@ def init_db(db_path: str):
             ('circuit_breaker_load_threshold', def_load_thresh),
             ('circuit_breaker_recovery_threshold', def_rec_thresh),
             ('report_schedule', 'daily'),
-            ('report_recipient', 'system_admin'),
             ('brand_name', 'UNISELV Resource Manager'),
             ('brand_locale', 'en')
         ])

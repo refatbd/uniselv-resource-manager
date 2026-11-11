@@ -22,7 +22,7 @@ SOCKET_PATH = '/run/uniselv-resman/agent.sock'
 TOKEN_PATH = '/run/uniselv-resman/broker.token'
 DB_PATH = '/var/lib/uniselv-resource-manager/resman.sqlite'
 MAX_PAYLOAD_BYTES = 65536
-MAX_CONCURRENT_CLIENTS = 16
+MAX_CONCURRENT_CLIENTS = 24
 
 class AgentDaemon:
     def __init__(self, socket_path: str = SOCKET_PATH, db_path: str = DB_PATH):

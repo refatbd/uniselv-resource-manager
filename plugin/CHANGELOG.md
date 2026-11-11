@@ -1,3 +1,24 @@
+## 1.1.41 — 2026-11-10
+
+- Bound concurrent history scans, share identical in-flight results and briefly cache successful history responses. Accept up to 24 Agent IPC clients and return a retryable response when history capacity is busy.
+
+## 1.1.40 — 2026-11-10
+
+- Speed up concurrent history reads by aggregating bounded ranges through the existing SQLite index instead of sorting raw samples by computed bucket.
+
+## 1.1.39 — 2026-11-10
+
+- Fix in-place upgrades on servers with an existing PHP isolation runtime. Use the generator profile when provisioning a new runtime and verify the running isolation, PAM and Golden Shield configuration during upgrades.
+
+## 1.1.38 — 2026-11-10
+
+- Reconcile Golden Shield checksums for account slices changed by the proportional CPUWeight migration. Back up the registry and preserve the drift guard for unrelated changes.
+- Verify that a process has exited before reporting success. Report signal failures instead of recording a successful stop.
+- Roll up telemetry by account and minute after 48 hours while preserving weighted averages, peaks and event counts. Protect the newest hour under storage pressure and compact SQLite after measuring reusable pages.
+- Aggregate history in SQLite and limit charts to 300 points. Ignore stale responses when switching accounts or time ranges and display retry controls on read failures.
+- Show host CPU usage separately from hosting allocation and timestamp the Top Resource Consumers samples. Add keyboard-operated sample inspection and time labels to history charts.
+- Improve mobile navigation, Bengali locale handling, notification timestamps and status colors. Show scheduled reports as Generated and distinguish live telemetry from the last sample.
+
 ## 1.1.34 — 2026-10-30
 
 - Add self-healing staging cleanup and PID-isolated temporary files to atomic writer, preventing zero-byte lock deadlock when disk space is exhausted.

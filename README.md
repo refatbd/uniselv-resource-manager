@@ -1,4 +1,4 @@
-Current runtime release: **1.1.37**. Storage-bounded SQLite auto-pruning, telemetry downsampling (48h raw to 1m intervals), zero-memory-spike SQL streaming history aggregation, live kernel cgroups v2 dynamic quota discovery with proportional CPUWeight scheduling, and coordinator startup stability (TimeoutStartSec=180). See [changelog](CHANGELOG.md).
+Current runtime release: **1.1.41**. SQLite retention and storage targets, telemetry rollups by account and minute after 48 hours, bounded chart output with SQL history aggregation, live kernel cgroups v2 dynamic quota discovery with proportional CPUWeight scheduling, and coordinator startup stability (TimeoutStartSec=180). See [changelog](CHANGELOG.md).
 
 > Previous release **1.1.36**, 2026-11-04. Plan-proportional PHP worker ceiling calculation and dynamic CPUWeight.
 > Previous release **1.1.35**, 2026-11-01. PAM Session Guard cron fast-path bypass and slice reuse.

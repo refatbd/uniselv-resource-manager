@@ -422,7 +422,9 @@ const UniselvResMan = {
             if (!this.isAdmin) {
                 this.loadEnduserSnapshotsIndex();
             }
+            if (this.isAdmin) this.refreshLiveTelemetry();
         }
+        if (!this.isAdmin) this.refreshLiveTelemetry(true);
     },
 
     resolveTabAlias: function(hash) {
@@ -453,16 +455,19 @@ const UniselvResMan = {
         }
     },
 
+    translate: function(key, fallback) {
+        return window.UNISELV_TRANSLATIONS?.[key] || fallback;
+    },
+
     bindTabs: function() {
         const tabs = document.querySelector('.uniselv-tabs');
         if (tabs && !document.getElementById('uniselv-mobile-section')) {
             const label = document.createElement('label');
             label.className = 'uniselv-mobile-navigation';
-            label.textContent = 'Section';
+            label.textContent = this.translate('section', 'Section');
             const select = document.createElement('select');
             select.id = 'uniselv-mobile-section';
             select.className = 'uniselv-select';
-            select.setAttribute('aria-label', 'Section');
             tabs.querySelectorAll('.uniselv-tab-btn').forEach(button => {
                 const option = document.createElement('option');
                 option.value = button.dataset.tab;
@@ -473,7 +478,27 @@ const UniselvResMan = {
             label.appendChild(select);
             tabs.before(label);
         }
+        if (tabs && this.isAdmin && !document.getElementById('uniselv-more-sections')) {
+            const label = this.translate('more_sections', 'More sections');
+            const select = document.createElement('select');
+            select.id = 'uniselv-more-sections';
+            select.className = 'uniselv-section-overflow uniselv-cpanel-select';
+            select.setAttribute('aria-label', label);
+            select.add(new Option(label, ''));
+            const primary = new Set(['overview', 'accounts', 'analytics', 'health']);
+            tabs.querySelectorAll('.uniselv-tab-btn').forEach(button => {
+                if (primary.has(button.dataset.tab)) return;
+                button.classList.add('uniselv-secondary-tab');
+                select.add(new Option(button.textContent.trim(), button.dataset.tab));
+            });
+            select.addEventListener('change', () => {
+                if (select.value) this.switchTab(select.value);
+            });
+            tabs.appendChild(select);
+        }
         document.querySelectorAll('.uniselv-tab-btn').forEach(btn => {
+            btn.setAttribute('aria-controls', 'tab-' + btn.dataset.tab);
+            btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
             btn.addEventListener('click', (e) => {
                 const targetTab = btn.getAttribute('data-tab');
                 this.switchTab(targetTab, true);
@@ -493,13 +518,17 @@ const UniselvResMan = {
 
         if (!btn || !content) return;
 
-        document.querySelectorAll('.uniselv-tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.uniselv-tab-btn').forEach(b => {
+            b.classList.toggle('active', b === btn);
+            b.setAttribute('aria-pressed', String(b === btn));
+        });
         document.querySelectorAll('.uniselv-tab-content').forEach(c => c.classList.remove('active'));
 
-        btn.classList.add('active');
         content.classList.add('active');
         const mobileSelect = document.getElementById('uniselv-mobile-section');
         if (mobileSelect) mobileSelect.value = resolved;
+        const moreSections = document.getElementById('uniselv-more-sections');
+        if (moreSections) moreSections.value = btn.classList.contains('uniselv-secondary-tab') ? resolved : '';
 
         if (updateHash) {
             if (window.history && window.history.replaceState) {
@@ -643,8 +672,8 @@ const UniselvResMan = {
         return this.callApi(action, {}, callback); // Initial/static test contexts.
     },
 
-    refreshLiveTelemetry: function() {
-        if (!this.isLiveTelemetryVisible()) return;
+    refreshLiveTelemetry: function(initial = false) {
+        if (!initial && !this.isLiveTelemetryVisible()) return;
         if (this.isAdmin) { this.loadAdminOverview(); return; }
         this.requestLiveTelemetry('dashboard', (error, data) => {
             if (error || !data || data.error) { this.showTelemetryFreshness(null, true); return; }
@@ -692,13 +721,21 @@ const UniselvResMan = {
         if (!el) return;
         const age = epoch ? Math.max(0, Math.floor(Date.now() / 1000 - epoch)) : null;
         const stale = failed || age === null || age > 180;
-        const dotClass = stale ? 'dot-danger' : 'dot-normal';
+        const lastSample = !stale && !this.isAdmin && (!this.isLiveTelemetryVisible() || age > 30);
+        el.classList.toggle('badge-last-sample', lastSample);
+        const dotClass = stale ? 'dot-danger' : lastSample ? 'dot-neutral' : 'dot-normal';
         if (stale) el.classList.add('badge-stale');
         else el.classList.remove('badge-stale');
-        const msg = failed ? 'Telemetry Offline (values retained)' :
-            (age === null ? 'Waiting for telemetry sample...' : `${stale ? 'Stale Telemetry' : 'Live Telemetry'}: ${age}s ago (refresh: 10s)`);
-        el.innerHTML = `<span class="uniselv-live-dot ${dotClass}"></span> <span>${msg}</span>`;
-        el.setAttribute('role', stale ? 'alert' : 'status');
+        const msg = failed ? this.translate('telemetry_offline', 'Telemetry offline') :
+            (age === null ? this.translate('telemetry_waiting', 'Waiting for telemetry') :
+                this.translate(stale ? 'telemetry_stale' : lastSample ? 'telemetry_last_sample' : 'telemetry_live', stale ? 'Stale telemetry' : lastSample ? 'Last sample' : 'Live telemetry'));
+        if (el.dataset.status !== msg) {
+            el.dataset.status = msg;
+            el.innerHTML = '<span aria-hidden="true" class="uniselv-live-dot"></span> <span></span><span aria-hidden="true"></span>';
+            el.children[1].textContent = msg;
+        }
+        el.firstElementChild.className = 'uniselv-live-dot ' + dotClass;
+        el.lastElementChild.textContent = !failed && age !== null ? '· ' + age + 's' : '';
     },
 
     sparklineSamples: [],
@@ -741,7 +778,7 @@ const UniselvResMan = {
         const calc = shield.configured_policy || {};
         const cores = this.metricNumber(host.cpu_cores ?? host.cpu_count);
         const quota = this.metricNumber(shield.customer_cpu_percent ?? calc.customerCpuPercent);
-        const load = this.metricNumber(host.load1);
+        const load = host.telemetry_available === false ? null : this.metricNumber(host.load1);
         const used = this.metricNumber(shield.golden_mem_current_bytes);
         const maxBytes = this.metricNumber(shield.golden_mem_max_bytes);
         const percent = this.metricNumber(shield.golden_mem_percent);
@@ -1174,6 +1211,9 @@ const UniselvResMan = {
                         const delSnaps = (typeof det.deleted_snapshots !== 'undefined') ? det.deleted_snapshots : (res.deleted_snapshots || 0);
                         const freed = det.freed_formatted || res.freed_formatted || '0 B';
                         const footprint = det.current_size_formatted || res.current_size_formatted || 'Bounded';
+                        if (det.over_budget) {
+                            UniselvNotify.warning('Database remains above the target size. The newest hour of telemetry is protected.');
+                        }
                         UniselvNotify.success(
                             `Deleted ${delSamples} samples, ${delSnaps} snapshots. Reclaimed ${freed} space. Footprint: ${footprint}.`,
                             'Database Optimized'
@@ -1345,19 +1385,54 @@ const UniselvResMan = {
 
     },
 
+    latestRead: function(view, action, params, callback) {
+        this.pendingReads ??= new Map();
+        const previous = this.pendingReads.get(view);
+        const request = {};
+        this.pendingReads.set(view, request);
+        previous?.cancel?.();
+        request.cancel = this.callApi(action, params, (err, res) => {
+            if (this.pendingReads.get(view) !== request) return;
+            this.pendingReads.delete(view);
+            if (view.startsWith('admin-') && this.selectedAdminUser && params.username !== this.selectedAdminUser) return;
+            callback(err, res);
+        }, {timeoutMs: 17000});
+    },
+
+    showUsageError: function(grid, tables, message, retry) {
+        for (const [table, columns] of tables) {
+            if (!table) continue;
+            table.innerHTML = '<tr><td class="uniselv-request-error" colspan="' + columns + '"></td></tr>';
+            table.rows[0].cells[0].textContent = message;
+        }
+        if (!grid) return;
+        const notice = document.createElement('div');
+        notice.className = 'uniselv-request-error';
+        notice.style.gridColumn = '1 / -1';
+        notice.setAttribute('role', 'status');
+        notice.append(document.createTextNode(message + ' '));
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'uniselv-btn btn-outline';
+        button.textContent = this.translate('retry', 'Retry');
+        button.addEventListener('click', retry);
+        notice.appendChild(button);
+        grid.replaceChildren(notice);
+    },
+
     renderChartsToContainer: function(chartContainer, points) {
         chartContainer.innerHTML = '';
         const cpuData = points.map(p => ({ x: Number(p.t) || 0, y: Number(p.cpu) || 0, limit: Number(p.limit_cpu) || 0 }));
-        chartContainer.appendChild(this.renderSvgChart('CPU Usage (% Core Equivalent)', cpuData, '%', '#2563eb'));
+        chartContainer.appendChild(this.renderSvgChart(this.translate('chart_cpu', 'CPU usage') + ' (100% = 1 vCPU)', cpuData, '%', '#2563eb'));
 
         const memData = points.map(p => ({ x: Number(p.t) || 0, y: Math.round((Number(p.mem) || 0) / 1024 / 1024), limit: Math.round((Number(p.limit_mem) || 0) / 1024 / 1024) }));
-        chartContainer.appendChild(this.renderSvgChart('Memory Usage (MiB Accounted)', memData, 'MiB', '#059669'));
+        chartContainer.appendChild(this.renderSvgChart(this.translate('chart_mem', 'Memory usage'), memData, 'MiB', '#059669'));
 
         const taskData = points.map(p => ({ x: Number(p.t) || 0, y: Number(p.tasks) || 0, limit: Number(p.limit_tasks) || 0 }));
-        chartContainer.appendChild(this.renderSvgChart('Active Tasks & Threads', taskData, 'tasks', '#7c3aed'));
+        chartContainer.appendChild(this.renderSvgChart(this.translate('chart_tasks', 'Active tasks and threads'), taskData, 'tasks', '#7c3aed'));
 
         const ioData = points.map(p => ({ x: Number(p.t) || 0, y: Math.round(((Number(p.read_bw) || 0) + (Number(p.write_bw) || 0)) / 1024), limit: 0 }));
-        chartContainer.appendChild(this.renderSvgChart('Total Disk Throughput (KiB/s)', ioData, 'KiB/s', '#d97706'));
+        chartContainer.appendChild(this.renderSvgChart(this.translate('chart_io', 'Disk throughput'), ioData, 'KiB/s', '#d97706'));
     },
 
     // ==================== CPANEL CURRENT USAGE & 8 CHARTS ENGINE ====================
@@ -1371,14 +1446,17 @@ const UniselvResMan = {
         const totalTbody = document.getElementById('uniselv-account-total-tbody');
         const gridEl = document.getElementById('uniselv-usage-8charts-grid');
         const rollupTbody = document.getElementById('uniselv-usage-rollup-tbody');
+        this.hourlyUsageRecords = [];
+        document.getElementById('uniselv-usage-rollup-pagination')?.replaceChildren();
 
         if (totalTbody) totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">Loading account totals...</td></tr>';
         if (gridEl) gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:#64748b; padding:40px; background:#fff; border:1px solid var(--uniselv-border); border-radius:8px;">Loading resource charts...</div>';
         if (rollupTbody) rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">Loading hourly usage records...</td></tr>';
 
-        this.callApi('history', { range: timeframe, username: this.currentUser }, (err, res) => {
-            if (err || res.error) {
-                if (gridEl) gridEl.innerHTML = `<div style="grid-column: 1 / -1; color:#b91c1c; padding:20px; background:#fff; border-radius:8px;">Error loading telemetry: ${err || res.error}</div>`;
+        this.latestRead('enduser-usage', 'history', { range: timeframe, username: this.currentUser }, (err, res) => {
+            if (err || !res || res.error) {
+                const message = String(err?.message || res?.error || this.translate('telemetry_offline', 'Telemetry offline'));
+                this.showUsageError(gridEl, [[totalTbody, 4], [rollupTbody, 20]], message, () => this.loadCurrentUsage(timeframe));
                 return;
             }
 
@@ -1423,23 +1501,23 @@ const UniselvResMan = {
                     const cpuData = pts.map(p => ({ x: p.t, y: p.speed, limit: p.limit_speed }));
                     const cpuAvg = (cpuData.reduce((s, p) => s + p.y, 0) / cpuData.length).toFixed(1);
                     const cpuMax = Math.max(...cpuData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('CPU (SPEED)', cpuData, '%', '#2563eb', `Plotted avg: ${cpuAvg}% | max: ${cpuMax}%`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_cpu', 'CPU usage') + ' (100% = 1 vCPU)', cpuData, '%', '#2563eb', `Plotted avg: ${cpuAvg}% | max: ${cpuMax}%`));
 
                     // Chart 2: Virtual memory (RAM + Swap)
                     const vmemData = pts.map(p => ({ x: p.t, y: p.vmem, limit: p.limit_vmem }));
                     const vmemMax = Math.max(...vmemData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Virtual memory (RAM + Swap)', vmemData, 'MiB', '#6366f1', `Plotted max: ${vmemMax} MiB; historical limit unavailable`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_vmem', 'Virtual memory (RAM + Swap)'), vmemData, 'MiB', '#6366f1', `Plotted max: ${vmemMax} MiB; historical limit unavailable`));
 
                     // Chart 3: Physical memory
                     const pmemData = pts.map(p => ({ x: p.t, y: p.pmem, limit: p.limit_pmem }));
                     const pmemMax = Math.max(...pmemData.map(p => p.y)).toFixed(1);
                     const pmemAvg = (pmemData.reduce((s, p) => s + p.y, 0) / pmemData.length).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Physical memory', pmemData, 'MiB', '#059669', `Plotted avg: ${pmemAvg} MiB | max: ${pmemMax} MiB`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_mem', 'Memory usage'), pmemData, 'MiB', '#059669', `Plotted avg: ${pmemAvg} MiB | max: ${pmemMax} MiB`));
 
                     // Chart 4: IO
                     const ioData = pts.map(p => ({ x: p.t, y: p.io, limit: p.limit_io }));
                     const ioMax = Math.max(...ioData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('IO', ioData, 'KiB/s', '#d97706', `Plotted max: ${ioMax} KiB/s`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_io', 'Disk throughput'), ioData, 'KiB/s', '#d97706', `Plotted max: ${ioMax} KiB/s`));
 
                     // Chart 5: IOPS
                     const iopsData = pts.map(p => ({ x: p.t, y: p.iops, limit: p.limit_iops }));
@@ -1450,17 +1528,17 @@ const UniselvResMan = {
                     const epData = pts.map(p => ({ x: p.t, y: p.ep, limit: p.limit_ep }));
                     const hasEp = pts.some(p => p.ep !== null && p.ep !== undefined);
                     const epStat = hasEp ? `Max: ${Math.max(...epData.filter(p => p.y !== null).map(p => p.y)).toFixed(1)} EP` : 'N/A (Governed via NPROC)';
-                    gridEl.appendChild(this.renderUsage8Chart('Entry processes', epData, 'EP', '#7c3aed', epStat));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_ep', 'Entry processes'), epData, 'EP', '#7c3aed', epStat));
 
                     // Chart 7: Processes
                     const nprocData = pts.map(p => ({ x: p.t, y: p.nproc, limit: p.limit_nproc }));
                     const nprocMax = Math.max(...nprocData.map(p => p.y));
-                    gridEl.appendChild(this.renderUsage8Chart('Processes', nprocData, 'procs', '#4f46e5', `Max: ${nprocMax}`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_tasks', 'Active tasks and threads'), nprocData, 'procs', '#4f46e5', `Max: ${nprocMax}`));
 
                     // Chart 8: Faults
                     const faultData = pts.map(p => ({ x: p.t, y: p.faults, limit: 0 }));
                     const faultTot = faultData.reduce((s, p) => s + p.y, 0);
-                    gridEl.appendChild(this.renderUsage8Chart('Faults', faultData, 'events', '#dc2626', `Total: ${faultTot} events`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_faults', 'Faults'), faultData, 'events', '#dc2626', `Total: ${faultTot} events`));
                 }
             }
 
@@ -1724,9 +1802,10 @@ const UniselvResMan = {
         if (!chartContainer) return;
         chartContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: #64748b;">Loading historical telemetry data...</div>';
 
-        this.callApi('history', { range: range, username: this.currentUser }, (err, res) => {
-            if (err || res.error) {
-                chartContainer.innerHTML = `<div class="uniselv-card" style="color: #b91c1c;">Failed to load history: ${err || res.error}</div>`;
+        this.latestRead('enduser-history', 'history', { range: range, username: this.currentUser }, (err, res) => {
+            if (err || !res || res.error) {
+                const message = String(err?.message || res?.error || this.translate('telemetry_offline', 'Telemetry offline'));
+                this.showUsageError(chartContainer, [], message, () => this.loadHistory(range));
                 return;
             }
 
@@ -1815,14 +1894,17 @@ const UniselvResMan = {
         const totalTbody = document.getElementById('admin-account-total-tbody');
         const gridEl = document.getElementById('admin-usage-8charts-grid');
         const rollupTbody = document.getElementById('admin-usage-rollup-tbody');
+        this.adminHourlyUsageRecords = [];
+        document.getElementById('admin-usage-rollup-pagination')?.replaceChildren();
 
         if (totalTbody) totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">Loading account totals for ' + this.escapeHtml(targetUser) + '...</td></tr>';
         if (gridEl) gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:#64748b; padding:40px; background:#fff; border:1px solid var(--uniselv-border); border-radius:8px;">Loading 8 resource telemetry charts...</div>';
         if (rollupTbody) rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">Loading hourly usage records...</td></tr>';
 
-        this.callApi('history', { range: timeframe, username: targetUser }, (err, res) => {
-            if (err || res.error) {
-                if (gridEl) gridEl.innerHTML = `<div style="grid-column: 1 / -1; color:#b91c1c; padding:20px; background:#fff; border-radius:8px;">Error loading telemetry: ${err || res.error}</div>`;
+        this.latestRead('admin-usage', 'history', { range: timeframe, username: targetUser }, (err, res) => {
+            if (err || !res || res.error) {
+                const message = String(err?.message || res?.error || this.translate('telemetry_offline', 'Telemetry offline'));
+                this.showUsageError(gridEl, [[totalTbody, 4], [rollupTbody, 20]], message, () => this.loadAdminUserUsage(timeframe));
                 return;
             }
 
@@ -1867,23 +1949,23 @@ const UniselvResMan = {
                     const cpuData = pts.map(p => ({ x: p.t, y: p.speed, limit: p.limit_speed }));
                     const cpuAvg = (cpuData.reduce((s, p) => s + p.y, 0) / cpuData.length).toFixed(1);
                     const cpuMax = Math.max(...cpuData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('CPU (SPEED)', cpuData, '%', '#2563eb', `Plotted avg: ${cpuAvg}% | max: ${cpuMax}%`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_cpu', 'CPU usage') + ' (100% = 1 vCPU)', cpuData, '%', '#2563eb', `Plotted avg: ${cpuAvg}% | max: ${cpuMax}%`));
 
                     // Chart 2: Virtual memory (RAM + Swap)
                     const vmemData = pts.map(p => ({ x: p.t, y: p.vmem, limit: p.limit_vmem }));
                     const vmemMax = Math.max(...vmemData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Virtual memory (RAM + Swap)', vmemData, 'MiB', '#6366f1', `Plotted max: ${vmemMax} MiB; historical limit unavailable`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_vmem', 'Virtual memory (RAM + Swap)'), vmemData, 'MiB', '#6366f1', `Plotted max: ${vmemMax} MiB; historical limit unavailable`));
 
                     // Chart 3: Physical memory
                     const pmemData = pts.map(p => ({ x: p.t, y: p.pmem, limit: p.limit_pmem }));
                     const pmemMax = Math.max(...pmemData.map(p => p.y)).toFixed(1);
                     const pmemAvg = (pmemData.reduce((s, p) => s + p.y, 0) / pmemData.length).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('Physical memory', pmemData, 'MiB', '#059669', `Plotted avg: ${pmemAvg} MiB | max: ${pmemMax} MiB`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_mem', 'Memory usage'), pmemData, 'MiB', '#059669', `Plotted avg: ${pmemAvg} MiB | max: ${pmemMax} MiB`));
 
                     // Chart 4: IO
                     const ioData = pts.map(p => ({ x: p.t, y: p.io, limit: p.limit_io }));
                     const ioMax = Math.max(...ioData.map(p => p.y)).toFixed(1);
-                    gridEl.appendChild(this.renderUsage8Chart('IO', ioData, 'KiB/s', '#d97706', `Plotted max: ${ioMax} KiB/s`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_io', 'Disk throughput'), ioData, 'KiB/s', '#d97706', `Plotted max: ${ioMax} KiB/s`));
 
                     // Chart 5: IOPS
                     const iopsData = pts.map(p => ({ x: p.t, y: p.iops, limit: p.limit_iops }));
@@ -1894,17 +1976,17 @@ const UniselvResMan = {
                     const epData = pts.map(p => ({ x: p.t, y: p.ep, limit: p.limit_ep }));
                     const hasEp = pts.some(p => p.ep !== null && p.ep !== undefined);
                     const epStat = hasEp ? `Max: ${Math.max(...epData.filter(p => p.y !== null).map(p => p.y)).toFixed(1)} EP` : 'N/A (Governed via NPROC)';
-                    gridEl.appendChild(this.renderUsage8Chart('Entry processes', epData, 'EP', '#7c3aed', epStat));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_ep', 'Entry processes'), epData, 'EP', '#7c3aed', epStat));
 
                     // Chart 7: Processes
                     const nprocData = pts.map(p => ({ x: p.t, y: p.nproc, limit: p.limit_nproc }));
                     const nprocMax = Math.max(...nprocData.map(p => p.y));
-                    gridEl.appendChild(this.renderUsage8Chart('Processes', nprocData, 'procs', '#4f46e5', `Max: ${nprocMax}`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_tasks', 'Active tasks and threads'), nprocData, 'procs', '#4f46e5', `Max: ${nprocMax}`));
 
                     // Chart 8: Faults
                     const faultData = pts.map(p => ({ x: p.t, y: p.faults, limit: 0 }));
                     const faultTot = faultData.reduce((s, p) => s + p.y, 0);
-                    gridEl.appendChild(this.renderUsage8Chart('Faults', faultData, 'events', '#dc2626', `Total: ${faultTot} events`));
+                    gridEl.appendChild(this.renderUsage8Chart(this.translate('chart_faults', 'Faults'), faultData, 'events', '#dc2626', `Total: ${faultTot} events`));
                 }
             }
 
@@ -1985,7 +2067,7 @@ const UniselvResMan = {
 
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b; padding:20px;">Refreshing live process table for ' + this.escapeHtml(targetUser) + '...</td></tr>';
 
-        this.callApi('processes', { username: targetUser }, (err, res) => {
+        this.latestRead('admin-processes', 'processes', { username: targetUser }, (err, res) => {
             if (err || res.error || !res.processes) {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#b91c1c; padding:20px;">Failed to load processes: ${err || res.error}</td></tr>`;
                 return;
@@ -2110,9 +2192,25 @@ const UniselvResMan = {
             text.setAttribute('y', yPos + 4);
             text.setAttribute('text-anchor', 'end');
             text.setAttribute('font-size', '10');
-            text.setAttribute('fill', '#94a3b8');
+            text.setAttribute('fill', '#475569');
             text.textContent = gridVal;
             svg.appendChild(text);
+        }
+
+        // Time ticks use the same scale as the samples, including gaps in collection.
+        const tickFormat = new Intl.DateTimeFormat(undefined, rangeX >= 86400
+            ? {month: 'short', day: 'numeric'}
+            : {hour: '2-digit', minute: '2-digit', hourCycle: 'h23'});
+        for (let i = 0; i < 4; i++) {
+            const epoch = minX + rangeX * i / 3;
+            const tick = document.createElementNS(svg.namespaceURI, 'text');
+            tick.setAttribute('x', scaleX(epoch));
+            tick.setAttribute('y', height - 7);
+            tick.setAttribute('text-anchor', i === 0 ? 'start' : i === 3 ? 'end' : 'middle');
+            tick.setAttribute('font-size', '12');
+            tick.setAttribute('fill', '#475569');
+            tick.textContent = tickFormat.format(epoch * 1000);
+            svg.appendChild(tick);
         }
 
         // Draw Limit Line if present
@@ -2149,6 +2247,38 @@ const UniselvResMan = {
         svg.appendChild(path);
 
         card.appendChild(svg);
+        const detail = document.createElement('label');
+        detail.className = 'uniselv-chart-inspector';
+        const output = document.createElement('output');
+        output.setAttribute('aria-live', 'off');
+        const range = document.createElement('input');
+        range.type = 'range';
+        range.min = '0';
+        range.max = String(cleanPoints.length - 1);
+        range.value = range.max;
+        range.setAttribute('aria-label', title + ' · ' + this.translate('chart_sample', 'Inspect sample'));
+        const dateFormat = new Intl.DateTimeFormat(undefined, {
+            year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit',
+            minute: '2-digit', hourCycle: 'h23', timeZoneName: 'short'
+        });
+        const formatSample = point => dateFormat.format(point.x * 1000) + ' · ' + point.y + ' ' + unit;
+        const marker = document.createElementNS(svg.namespaceURI, 'circle');
+        marker.setAttribute('r', '4');
+        marker.setAttribute('fill', strokeColor);
+        marker.setAttribute('stroke', 'white');
+        marker.setAttribute('aria-hidden', 'true');
+        svg.appendChild(marker);
+        const showSample = () => {
+            const point = cleanPoints[Number(range.value)];
+            output.textContent = formatSample(point);
+            range.setAttribute('aria-valuetext', output.textContent);
+            marker.setAttribute('cx', scaleX(point.x));
+            marker.setAttribute('cy', scaleY(point.y));
+        };
+        range.addEventListener('input', showSample);
+        detail.append(this.translate('chart_sample', 'Inspect sample'), range, output);
+        card.appendChild(detail);
+        showSample();
         return card;
     },
 
@@ -2215,7 +2345,7 @@ const UniselvResMan = {
         const contentEl = document.getElementById(`${role}-snap-content`);
         if (contentEl) contentEl.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Loading snapshot records...</div>';
 
-        this.callApi('snapshots_index', params, (err, res) => {
+        this.latestRead(role + '-snapshots', 'snapshots_index', params, (err, res) => {
             const state = (role === 'admin') ? this.adminSnapshotsState : this.enduserSnapshotsState;
             if (err || res.error) {
                 if (contentEl) contentEl.innerHTML = `<div style="color:#b91c1c; padding:20px;">Failed to load snapshots: ${err || res.error}</div>`;
@@ -2333,7 +2463,7 @@ const UniselvResMan = {
         const contentEl = document.getElementById(`${role}-snap-content`);
         if (contentEl) contentEl.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Loading snapshot details...</div>';
 
-        this.callApi('snapshot_detail', { username: username, snapshot_id: snapId }, (err, res) => {
+        this.latestRead(role + '-snapshots', 'snapshot_detail', { username: username, snapshot_id: snapId }, (err, res) => {
             const state = (role === 'admin') ? this.adminSnapshotsState : this.enduserSnapshotsState;
             if (err || res.error || !res.snapshot) {
                 if (contentEl) contentEl.innerHTML = `<div style="color:#b91c1c; padding:20px;">Failed to load snapshot details: ${err || res.error}</div>`;
@@ -2609,12 +2739,16 @@ const UniselvResMan = {
         const pageItems = filtered.slice(startIdx, startIdx + this.notifPageSize);
 
         let html = '';
+        const eventTime = new Intl.DateTimeFormat('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+        });
         pageItems.forEach(e => {
             const badge = (e.severity === 'critical') ? 'badge-critical' : ((e.severity === 'warning') ? 'badge-warning' : 'badge-normal');
             const st = (e.status || 'unread').toLowerCase();
             const statusBadge = (st === 'unread')
-                ? '<span class="uniselv-badge badge-warning">UNREAD</span>'
-                : ((st === 'dismissed') ? '<span class="uniselv-badge badge-outline">DISMISSED</span>' : '<span class="uniselv-badge badge-normal">READ</span>');
+                ? '<span class="uniselv-badge badge-unread">UNREAD</span>'
+                : ((st === 'dismissed') ? '<span class="uniselv-badge badge-outline">DISMISSED</span>' : '<span class="uniselv-badge badge-outline">READ</span>');
 
             let actionsHtml = '';
             if (st === 'unread') {
@@ -2627,7 +2761,7 @@ const UniselvResMan = {
                 actionsHtml = '<span style="color:#94a3b8; font-size:0.8rem;">Dismissed</span>';
             }
 
-            const dt = new Date(e.timestamp * 1000).toLocaleString();
+            const dt = eventTime.format(e.timestamp * 1000);
             html += `
                 <tr class="uniselv-notif-row" data-status="${st}">
                     <td>${this.escapeHtml(dt)}</td>
@@ -3113,25 +3247,29 @@ const UniselvResMan = {
             const calc = shield.configured_policy || {};
 
             // 1. Hardware Detection
+            const cores = this.metricNumber(host.cpu_cores ?? host.cpu_count);
             const hwCpuEl = document.getElementById('admin-card-hw-cpu');
-            if (hwCpuEl && (host.cpu_cores || host.cpu_count)) {
-                hwCpuEl.textContent = (host.cpu_cores || host.cpu_count) + ' vCPUs';
-            }
-            const hwRamEl = document.getElementById('admin-card-hw-ram');
+            if (hwCpuEl && cores > 0) hwCpuEl.textContent = cores + ' vCPUs';
+            const hostCpu = host.telemetry_available === false ? null : this.metricNumber(host.cpu_percent);
+            const hostCpuEl = document.getElementById('admin-host-cpu-usage');
+            if (hostCpuEl) hostCpuEl.textContent = hostCpu === null ? '—' : hostCpu.toFixed(1) + '%';
+            const hwRamEl = document.getElementById('admin-host-ram-value');
             if (hwRamEl && (host.total_ram_formatted || host.mem_total_formatted)) {
-                hwRamEl.textContent = 'Physical RAM: ' + (host.total_ram_formatted || host.mem_total_formatted);
+                hwRamEl.textContent = host.total_ram_formatted || host.mem_total_formatted;
             }
 
             // 2. Shared CPU Headroom
             const cpuHeadroomEl = document.getElementById('admin-card-cpu-headroom');
             if (cpuHeadroomEl) {
-                const cCpu = shield.customer_cpu_percent ?? calc.customerCpuPercent ?? 'Unavailable';
-                cpuHeadroomEl.textContent = cCpu + '% Hosting';
+                const quota = this.metricNumber(shield.customer_cpu_percent ?? calc.customerCpuPercent);
+                cpuHeadroomEl.textContent = quota === null || !(cores > 0) ? '—' :
+                    (quota / 100).toFixed(2).replace(/\.?0+$/, '') + ' / ' + cores;
             }
             const cpuSubEl = document.getElementById('admin-card-cpu-sub');
             if (cpuSubEl) {
-                const rCpu = shield.reserved_cpu_percent ?? calc.reservedCpuPercent ?? 'Unavailable';
-                cpuSubEl.textContent = rCpu + '% System Headroom (No fixed core dedicated)';
+                const reserve = this.metricNumber(shield.reserved_cpu_percent ?? calc.reservedCpuPercent);
+                cpuSubEl.textContent = reserve === null ? 'System reserve unavailable' :
+                    'System reserve: ' + (reserve / 100).toFixed(2).replace(/\.?0+$/, '') + ' vCPU equivalent';
             }
 
             // 3. RAM Safety Budget
@@ -3147,19 +3285,27 @@ const UniselvResMan = {
             }
 
             // 4. System Load
+            const loadValue = key => {
+                const value = host.telemetry_available === false ? null : this.metricNumber(host[key]);
+                return value === null ? '—' : value.toFixed(2);
+            };
             const load1El = document.getElementById('admin-card-load-1');
-            if (load1El && host.load1 !== undefined && host.load1 !== null) {
-                load1El.textContent = Number(host.load1).toFixed(2);
-            }
-            const loadSubEl = document.getElementById('admin-card-load-sub');
-            if (loadSubEl && host.load5 !== undefined && host.load15 !== undefined) {
-                loadSubEl.textContent = '5m: ' + Number(host.load5).toFixed(2) + ' | 15m: ' + Number(host.load15).toFixed(2);
+            if (load1El) load1El.textContent = loadValue('load1');
+            const loadSubEl = document.getElementById('admin-card-load-sub-values');
+            if (loadSubEl) loadSubEl.textContent = '5m: ' + loadValue('load5') + ' | 15m: ' + loadValue('load15');
+            const loadStatus = document.getElementById('admin-load-status');
+            if (loadStatus) {
+                const {load} = this.adminGaugePercentages(host, shield);
+                loadStatus.classList.toggle('badge-warning', load !== null && load >= 100);
+                loadStatus.classList.toggle('badge-normal', load !== null && load < 100);
+                loadStatus.textContent = load === null ? this.translate('unavailable', 'Unavailable') :
+                    (load >= 100 ? this.translate('load_elevated', 'Elevated') : this.translate('load_below', 'Below capacity'));
             }
             // Update Admin Gauges & Dynamic Live Footers
             if (typeof this.updateGaugeCard === 'function') {
                 const metrics = this.adminGaugePercentages(host,shield);
                 const loadPct=metrics.load, cCpuPct=metrics.cpu, ramPct=metrics.ram;
-                this.updateGaugeCard('admin-hw',null);
+                this.updateGaugeCard('admin-hw', hostCpu);
                 this.updateGaugeCard('admin-cpu',cCpuPct);
                 this.updateGaugeCard('admin-ram',ramPct);
                 this.updateGaugeCard('admin-load',loadPct);
@@ -3169,7 +3315,7 @@ const UniselvResMan = {
                 if(loadGauge && loadPct!==null)loadGauge.title=`One-minute load divided by vCPU count: ${loadPct.toFixed(1)}%. Load is not CPU utilization; visual fill is capped at 100%.`;
                 // Update Dynamic Footers (Sparklines & Equalizers)
                 if (typeof this.updateAdminSparkline === 'function') {
-                    this.updateAdminSparkline('admin-sparkline-hw', loadPct,host.last_sample_epoch);
+                    this.updateAdminSparkline('admin-sparkline-hw', hostCpu, host.last_sample_epoch);
                     this.updateAdminSparkline('admin-sparkline-cpu', cCpuPct,host.last_sample_epoch);
                 }
                 if (typeof this.updateEqualizer === 'function') {
@@ -3262,7 +3408,7 @@ const UniselvResMan = {
 
             const reports = res.reports || [];
             if (reports.length === 0) {
-                body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 30px;">No scheduled reports stored yet. Click "Dispatch Report Now" to trigger immediate evaluation.</td></tr>';
+                body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 30px;">No scheduled reports stored yet. Click "Generate Report Now" to trigger immediate evaluation.</td></tr>';
                 return;
             }
 
@@ -3277,7 +3423,7 @@ const UniselvResMan = {
                     <td><span class="uniselv-badge badge-normal">${(r.report_type || 'daily').toUpperCase()}</span></td>
                     <td>${sum.total_accounts || 0}</td>
                     <td><code>load: ${sum.system_load || '0.00'}</code></td>
-                    <td><span class="uniselv-badge badge-normal">${r.status || 'stored'}</span></td>
+                    <td><span class="uniselv-badge badge-normal">${r.status === 'generated' ? 'Generated' : this.escapeHtml(r.status || 'Stored')}</span></td>
                     <td>
                         <button class="uniselv-btn btn-outline btn-sm" data-report-detail>
                             View Summary
@@ -3297,10 +3443,10 @@ const UniselvResMan = {
 
         this.callApi('dispatch_report', { report_type: reportType }, (err, res) => {
             if (err || res.error) {
-                UniselvNotify.error(`Dispatch failed: ${err || res.error}`);
+                UniselvNotify.error(`Report generation failed: ${err || res.error}`);
                 return;
             }
-            UniselvNotify.success(`Report #${res.report_id} generated and dispatched successfully.`);
+            UniselvNotify.success(`Report #${res.report_id} generated and stored.`);
             this.loadScheduledReports();
         });
     },
@@ -3327,16 +3473,12 @@ const UniselvResMan = {
     loadReportSchedule: function() {
         this.callApi('get_report_schedule', {}, (err, res) => {
             if (err || res.error) {
-                console.error("Failed to load report schedule:", err || res.error);
+                console.error('Failed to load report schedule:', err || res?.error);
                 return;
             }
             const cadenceSel = document.getElementById('report-schedule-cadence');
             if (cadenceSel && res.schedule) {
                 cadenceSel.value = res.schedule;
-            }
-            const recipInput = document.getElementById('report-schedule-recipient');
-            if (recipInput && res.recipient) {
-                recipInput.value = res.recipient;
             }
             const dueDiv = document.getElementById('report-schedule-next-due');
             if (dueDiv) {
@@ -3357,9 +3499,7 @@ const UniselvResMan = {
 
     saveReportSchedule: function() {
         const cadence = (document.getElementById('report-schedule-cadence') || {}).value || 'daily';
-        const recipient = (document.getElementById('report-schedule-recipient') || {}).value || 'system_admin';
-
-        this.callApi('save_report_schedule', { schedule: cadence, recipient: recipient }, (err, res) => {
+        this.callApi('save_report_schedule', { schedule: cadence }, (err, res) => {
             if (err || res.error) {
                 UniselvNotify.error(`Save failed: ${err || res.error}`);
                 return;

@@ -1,10 +1,12 @@
 import os
 import sys
 import json
+import math
 import time
 import socket
 import sqlite3
 import signal
+import select
 import pathlib
 import subprocess
 import glob
@@ -15,6 +17,8 @@ import secrets
 import uuid
 import stat
 import threading
+import zlib
+from concurrent.futures import Future, TimeoutError as FutureTimeout
 import runtime_governance as governance
 try:
     import fcntl
@@ -1206,269 +1210,259 @@ class IpcRequestHandler:
             'optimization_guidance': self.get_account_optimization_guidance(username)
         }
 
+    _history_changed = threading.Condition()
+    _history_parallelism = 2
+    _history_ttl = 10
+
     def action_enduser_history(self, username: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        time_range = params.get('range', 'today')
+        time_range = str(params.get('range', 'today'))
+        key = (username, time_range)
+        if time_range == 'custom':
+            key += (str(params.get('start')), str(params.get('end')))
+        deadline = time.monotonic() + 11
+        busy = {'error': 'History is busy. Please try again.', 'status_code': 503}
+
+        with self._history_changed:
+            pending = self.__dict__.setdefault('_history_pending', {})
+            cache = self.__dict__.setdefault('_history_cache', {})
+            queue = self.__dict__.setdefault('_history_queue', [])
+            cached = cache.get(key)
+            packed = cached[1] if cached and cached[0] > time.monotonic() else None
+            future = pending.get(key)
+            owner = packed is None and future is None
+            if owner:
+                pending[key] = future = Future()
+                queue.append(key)
+
+        if packed is not None:
+            return json.loads(zlib.decompress(packed))
+        if not owner:
+            try:
+                return future.result(timeout=max(0, deadline - time.monotonic()))
+            except FutureTimeout:
+                return busy
+
+        with self._history_changed:
+            while queue[0] != key or self.__dict__.get('_history_running', 0) >= self._history_parallelism:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    queue.remove(key)
+                    del pending[key]
+                    future.set_result(busy)
+                    self._history_changed.notify_all()
+                    return busy
+                self._history_changed.wait(remaining)
+            queue.pop(0)
+            self._history_running = self.__dict__.get('_history_running', 0) + 1
+            self._history_changed.notify_all()
+
+        try:
+            result = self._query_enduser_history(username, params)
+            if self._history_ttl and 'error' not in result:
+                packed = zlib.compress(json.dumps(result, separators=(',', ':')).encode(), level=1)
+                if len(packed) <= 65536:
+                    with self._history_changed:
+                        cache.pop(key, None)
+                        cache[key] = (time.monotonic() + self._history_ttl, packed)
+                        if len(cache) > 24:
+                            del cache[next(iter(cache))]
+            future.set_result(result)
+            return result
+        except Exception as error:
+            future.set_exception(error)
+            raise
+        finally:
+            with self._history_changed:
+                self._history_running -= 1
+                del pending[key]
+                self._history_changed.notify_all()
+
+    def _query_enduser_history(self, username: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        time_range = str(params.get('range', 'today'))
         now = int(time.time())
 
-        # Align 'today' and 'yesterday' to local midnight
         local_now = time.localtime(now)
-        midnight_today = int(time.mktime((local_now.tm_year, local_now.tm_mon, local_now.tm_mday, 0, 0, 0, 0, 0, -1)))
-
-        if time_range == 'today':
-            start_ts = midnight_today
-            end_ts = now
-        elif time_range == 'yesterday':
-            start_ts = midnight_today - 86400
-            end_ts = midnight_today - 1
-        elif time_range == '1h':
-            start_ts = now - 3600
-            end_ts = now
-        elif time_range == '24h':
-            start_ts = now - 86400
-            end_ts = now
-        elif time_range == '7d':
-            start_ts = now - (7 * 86400)
-            end_ts = now
-        elif time_range == '30d':
-            start_ts = now - (30 * 86400)
-            end_ts = now
-        elif time_range == 'custom':
-            start_ts = int(params.get('start', now - 86400))
-            end_ts = int(params.get('end', now))
-        else:
-            start_ts = midnight_today
-            end_ts = now
-
-        if 'end' in params and time_range == 'custom':
+        midnight = int(time.mktime((local_now.tm_year, local_now.tm_mon, local_now.tm_mday, 0, 0, 0, 0, 0, -1)))
+        durations = {'1h': 3600, '24h': 86400, '7d': 7 * 86400, '30d': 30 * 86400}
+        if time_range == 'custom':
             try:
-                end_ts = int(params['end'])
-            except Exception:
-                pass
+                start_ts = int(params.get('start') or now - 86400)
+                end_ts = int(params.get('end') or now)
+            except (ValueError, TypeError):
+                return {'error': 'Invalid history timestamps'}
+            if not 0 <= start_ts <= end_ts <= now or end_ts - start_ts > 90 * 86400:
+                return {'error': 'Select a valid history window of up to 90 days'}
+        elif time_range == 'yesterday':
+            start_ts = int(time.mktime((local_now.tm_year, local_now.tm_mon, local_now.tm_mday - 1, 0, 0, 0, 0, 0, -1)))
+            end_ts = midnight - 1
+        else:
+            start_ts = now - durations[time_range] if time_range in durations else midnight
+            end_ts = now
 
+        means = {
+            'cpu': 'cpu_percent', 'allowance': 'cpu_allowance_percent',
+            'mem': 'mem_current_bytes', 'swap': 'mem_swap_bytes', 'tasks': 'tasks_current',
+            'read_bw': 'read_bytes_sec', 'write_bw': 'write_bytes_sec',
+            'read_iops': 'read_iops_sec', 'write_iops': 'write_iops_sec',
+        }
+        peaks = {'cpu_peak': 'cpu_percent', 'mem_peak': 'mem_current_bytes',
+                 'read_peak': 'read_bytes_sec', 'write_peak': 'write_bytes_sec',
+                 'iops_peak': 'COALESCE(read_iops_sec, 0) + COALESCE(write_iops_sec, 0)',
+                 'tasks_peak': 'tasks_current'}
+        faults = {'cpu_faults': 'cpu_throttled_events', 'mem_faults': 'oom_kill_events',
+                  'task_faults': 'task_limit_events'}
+        projection = ['SUM(sample_count) AS total_samples', 'MIN(timestamp) AS earliest', 'MAX(timestamp) AS latest']
+        projection += [
+            f'SUM(1.0 * COALESCE({col}, 0) * sample_count) / SUM(sample_count) AS {alias}'
+            for alias, col in means.items()
+        ]
+        projection += [f'SUM(COALESCE({col}, 0)) AS {alias}' for alias, col in faults.items()]
+        peak_projection = [f'MAX(COALESCE({alias}, {expr}, 0)) AS {alias}' for alias, expr in peaks.items()]
+        limits = ('limit_cpu_quota', 'limit_mem_max_bytes', 'limit_tasks_max', 'limit_io_read_bps',
+                  'limit_io_write_bps', 'limit_io_read_iops', 'limit_io_write_iops')
+
+        # Each bucket is a disjoint range of idx_samples_user_time. Grouping the
+        # raw rows by a calculated bucket makes SQLite sort the full history.
+        def aggregate_query(fields):
+            return f"""
+            WITH aggregated AS (
+                SELECT {', '.join(fields)}
+                FROM samples WHERE username = ? AND timestamp BETWEEN ? AND ?
+            )
+            SELECT a.*, {', '.join(f's.{col}' for col in limits)}
+            FROM aggregated a JOIN samples s ON s.id = (
+                SELECT id FROM samples WHERE username = ? AND timestamp = a.latest
+                ORDER BY id DESC LIMIT 1
+            )
+        """
+
+        chart_query = aggregate_query(projection)
+        hourly_query = aggregate_query(projection + peak_projection)
+
+        def buckets(conn, query, width, origin, earliest, latest):
+            first_bucket = (earliest - origin) // width
+            last_bucket = (latest - origin) // width
+            for bucket in range(first_bucket, last_bucket + 1):
+                first = origin + bucket * width
+                row = conn.execute(query, (username, max(first, earliest),
+                                           min(first + width - 1, latest), username)).fetchone()
+                if row is not None:
+                    yield first, row
+
+        def limit(row, column):
+            value = row[column]
+            if not value or value == 'max':
+                return 0
+            if isinstance(value, (int, float)) or str(value).isdigit():
+                return int(value)
+            return parse_bw_to_bytes(str(value))[0]
+
+        def row_limits(row):
+            cpu, mem, tasks, rb, wb, ri, wi = (limit(row, col) for col in limits)
+            return cpu, mem, tasks, rb + wb, ri + wi
+
+        def limit_text(value, format_value=str):
+            return format_value(value) if value > 0 else 'Unlimited'
+
+        def stats(row):
+            cpu_limit, mem_limit, tasks_limit, io_limit, iops_limit = row_limits(row)
+            return {
+                'speed': {'a': f"{row['cpu']:.1f}%", 'l': limit_text(cpu_limit, lambda x: f'{x}%'), 'f': row['cpu_faults']},
+                'pmem': {'a': format_bytes(int(row['mem'])), 'l': limit_text(mem_limit, format_bytes), 'f': row['mem_faults']},
+                'io': {'a': f"{format_bytes(row['read_bw'] + row['write_bw'])}/s",
+                       'l': limit_text(io_limit, lambda x: f'{format_bytes(x)}/s'), 'f': 0},
+                'ep': {'a': 'N/A', 'l': 'N/A', 'f': 0, 'status': 'unavailable'},
+                'nproc': {'a': str(round(row['tasks'])), 'l': limit_text(tasks_limit), 'f': row['task_faults']},
+                'iops': {'a': str(round(row['read_iops'] + row['write_iops'])), 'l': limit_text(iops_limit), 'f': 0},
+            }
+
+        points, hourly_usage, account_total = [], [], []
+        summary = dict(cpu_avg=0, cpu_peak=0, mem_avg_bytes=0, mem_peak_bytes=0,
+                       read_bps_peak=0, write_bps_peak=0, iops_peak=0, tasks_peak=0)
+        total_len = 0
         conn = self.get_db()
         try:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT timestamp, cpu_percent, cpu_allowance_percent, cpu_throttled_events,
-                       mem_current_bytes, mem_anon_bytes, mem_swap_bytes, oom_kill_events,
-                       tasks_current, task_limit_events, read_bytes_sec, write_bytes_sec,
-                       read_iops_sec, write_iops_sec,
-                       limit_cpu_quota, limit_mem_max_bytes, limit_tasks_max,
-                       limit_io_read_bps, limit_io_write_bps, limit_io_read_iops, limit_io_write_iops
-                FROM samples
-                WHERE username = ? AND timestamp >= ? AND timestamp <= ?
-                ORDER BY timestamp ASC
-            """, (username, start_ts, end_ts))
-            rows = [dict(row) for row in cur.fetchall()]
+            conn.execute("PRAGMA temp_store = FILE")
+            conn.execute("BEGIN")  # All reads use the same snapshot.
+            # Index lookups get the observed span without aggregating the raw history.
+            bounds = conn.execute("""
+                SELECT (SELECT timestamp FROM samples
+                        WHERE username=? AND timestamp BETWEEN ? AND ?
+                        ORDER BY timestamp LIMIT 1),
+                       (SELECT timestamp FROM samples
+                        WHERE username=? AND timestamp BETWEEN ? AND ?
+                        ORDER BY timestamp DESC LIMIT 1)
+            """, (username, start_ts, end_ts) * 2).fetchone()
+            earliest, latest = bounds
+            if earliest is not None:
+                hour_origin = midnight % 3600
+                hourly = list(buckets(conn, hourly_query, 3600, hour_origin, earliest, latest))
+                total_len = sum(row['total_samples'] for _, row in hourly)
+                total = dict(hourly[-1][1])
+                for key in means:
+                    total[key] = math.fsum(row[key] * row['total_samples'] for _, row in hourly) / total_len
+                for key in peaks:
+                    total[key] = max(row[key] for _, row in hourly)
+                for key in faults:
+                    total[key] = sum(row[key] for _, row in hourly)
+                summary = {
+                    'cpu_avg': round(total['cpu'], 2), 'cpu_peak': round(total['cpu_peak'], 2),
+                    'mem_avg_bytes': int(total['mem']), 'mem_peak_bytes': total['mem_peak'],
+                    'read_bps_peak': round(total['read_peak'], 2), 'write_bps_peak': round(total['write_peak'], 2),
+                    'iops_peak': round(total['iops_peak'], 2), 'tasks_peak': total['tasks_peak'],
+                }
+                totals = stats(total)
+                for key, label in (('speed', 'SPEED'), ('io', 'I/O'), ('iops', 'IOPS'), ('nproc', 'NPROC'),
+                                   ('ep', 'Entry Processes'), ('pmem', 'Physical Memory')):
+                    row = totals[key]
+                    item = {'desc': label, 'usage': row['a'], 'limit': row['l'], 'fault': row['f']}
+                    if key == 'ep':
+                        item.update(status='unavailable', note='Unenforced under Linux cgroups v2; concurrency governed via NPROC')
+                    account_total.append(item)
+
+                for start_hour, row in hourly:
+                    end_hour = start_hour + 3600
+                    hourly_usage.append({
+                        'from_time': time.strftime('%m-%d %H:%M', time.localtime(start_hour)),
+                        'to_time': time.strftime('%m-%d %H:%M', time.localtime(end_hour)),
+                        'from_ts': start_hour, 'to_ts': end_hour, **stats(row),
+                    })
+                hourly_usage.reverse()
+
+                observed_span = latest - earliest + 1
+                for _, row in buckets(conn, chart_query, (observed_span + 299) // 300, earliest, earliest, latest):
+                    cpu_limit, mem_limit, tasks_limit, io_limit, iops_limit = row_limits(row)
+                    cpu = round(row['cpu'], 1)
+                    tasks = round(row['tasks'])
+                    read_bw, write_bw = row['read_bw'], row['write_bw']
+                    read_iops, write_iops = row['read_iops'], row['write_iops']
+                    points.append({
+                        't': row['latest'], 'cpu': cpu, 'speed': cpu,
+                        'limit_cpu': cpu_limit, 'limit_speed': cpu_limit,
+                        'cpu_allowance': row['allowance'], 'cpu_throttled': row['cpu_faults'],
+                        'mem': int(row['mem']), 'pmem': round(row['mem'] / 1048576, 1),
+                        'limit_mem': mem_limit, 'limit_pmem': round(mem_limit / 1048576, 1),
+                        'vmem': round((row['mem'] + row['swap']) / 1048576, 1), 'limit_vmem': None,
+                        'vmem_label': 'RAM + Swap (historical combined limit unavailable)',
+                        'read_bytes': round(read_bw, 1), 'write_bytes': round(write_bw, 1),
+                        'read_bw': round(read_bw, 1), 'write_bw': round(write_bw, 1),
+                        'io': round((read_bw + write_bw) / 1024, 1), 'limit_io': round(io_limit / 1024, 1),
+                        'read_iops': round(read_iops, 1), 'write_iops': round(write_iops, 1),
+                        'iops': round(read_iops + write_iops, 1), 'limit_iops': iops_limit,
+                        'tasks': tasks, 'nproc': tasks, 'limit_tasks': tasks_limit, 'limit_nproc': tasks_limit,
+                        'ep': None, 'limit_ep': None,
+                        'faults': row['cpu_faults'] + row['mem_faults'] + row['task_faults'],
+                    })
         finally:
             conn.close()
 
-        def _to_int(val):
-            if not val:
-                return 0
-            if isinstance(val, int):
-                return val
-            s = str(val).strip()
-            if s.isdigit():
-                return int(s)
-            dec, _ = parse_bw_to_bytes(s)
-            return dec
-
-        total_len = len(rows)
-        cpu_sum = 0.0
-        cpu_peak = 0.0
-        mem_sum = 0
-        mem_peak = 0
-        read_sum = 0.0
-        write_sum = 0.0
-        read_peak = 0.0
-        write_peak = 0.0
-        iops_sum = 0.0
-        iops_peak = 0.0
-        tasks_sum = 0
-        tasks_peak = 0
-
-        # Hourly grouping for Usage rollup table
-        hourly_buckets: Dict[int, List[Any]] = {}
-
-        for r in rows:
-            ts = r['timestamp']
-            h_start = (ts // 3600) * 3600
-            if h_start not in hourly_buckets:
-                hourly_buckets[h_start] = []
-            hourly_buckets[h_start].append(r)
-
-            c_val = float(r['cpu_percent'] or 0.0)
-            m_val = int(r['mem_current_bytes'] or 0)
-            rb_val = float(r['read_bytes_sec'] or 0.0)
-            wb_val = float(r['write_bytes_sec'] or 0.0)
-            ri_val = float(r['read_iops_sec'] or 0.0)
-            wi_val = float(r['write_iops_sec'] or 0.0)
-            tot_iops = ri_val + wi_val
-            t_val = int(r['tasks_current'] or 0)
-
-            cpu_sum += c_val
-            if c_val > cpu_peak: cpu_peak = c_val
-            mem_sum += m_val
-            if m_val > mem_peak: mem_peak = m_val
-            read_sum += rb_val
-            write_sum += wb_val
-            if rb_val > read_peak: read_peak = rb_val
-            if wb_val > write_peak: write_peak = wb_val
-            iops_sum += tot_iops
-            if tot_iops > iops_peak: iops_peak = tot_iops
-            tasks_sum += t_val
-            if t_val > tasks_peak: tasks_peak = t_val
-
-        # Construct Hourly Rollup Table (cPanel parity)
-        hourly_usage = []
-        for h_start in sorted(hourly_buckets.keys(), reverse=True):
-            h_rows = hourly_buckets[h_start]
-            c = len(h_rows)
-            h_last = h_rows[-1]
-            avg_cpu = sum(float(r['cpu_percent'] or 0) for r in h_rows) / c
-            fault_cpu = sum(int(r['cpu_throttled_events'] or 0) for r in h_rows)
-            lim_cpu = _to_int(h_last['limit_cpu_quota']) or 100
-
-            avg_mem = sum(int(r['mem_current_bytes'] or 0) for r in h_rows) / c
-            fault_mem = sum(int(r['oom_kill_events'] or 0) for r in h_rows)
-            lim_mem = _to_int(h_last['limit_mem_max_bytes']) or (1024 * 1024 * 1024)
-
-            avg_io = sum(float(r['read_bytes_sec'] or 0) + float(r['write_bytes_sec'] or 0) for r in h_rows) / c
-            lim_io = _to_int(h_last['limit_io_read_bps']) + _to_int(h_last['limit_io_write_bps'])
-
-            avg_nproc = sum(int(r['tasks_current'] or 0) for r in h_rows) / c
-            fault_nproc = sum(int(r['task_limit_events'] or 0) for r in h_rows)
-            lim_nproc = _to_int(h_last['limit_tasks_max']) or 64
-
-            avg_iops = sum(float(r['read_iops_sec'] or 0) + float(r['write_iops_sec'] or 0) for r in h_rows) / c
-            lim_iops = _to_int(h_last['limit_io_read_iops']) + _to_int(h_last['limit_io_write_iops'])
-
-            hourly_usage.append({
-                'from_time': time.strftime('%m-%d %H:00', time.localtime(h_start)),
-                'to_time': time.strftime('%m-%d %H:00', time.localtime(h_start + 3600)),
-                'from_ts': h_start,
-                'to_ts': h_start + 3600,
-                'speed': {'a': f"{avg_cpu:.1f}%", 'l': f"{lim_cpu}%", 'f': fault_cpu},
-                'pmem': {'a': format_bytes(avg_mem), 'l': format_bytes(lim_mem), 'f': fault_mem},
-                'io': {'a': f"{format_bytes(avg_io)}/s", 'l': f"{format_bytes(lim_io)}/s" if lim_io > 0 else 'Unlimited', 'f': 0},
-                'ep': {'a': 'N/A', 'l': 'N/A', 'f': 0, 'status': 'unavailable'},
-                'nproc': {'a': str(int(round(avg_nproc))), 'l': str(lim_nproc), 'f': fault_nproc},
-                'iops': {'a': str(int(round(avg_iops))), 'l': str(lim_iops) if lim_iops > 0 else 'Unlimited', 'f': 0}
-            })
-
-        # Construct Account Total Summary Table
-        last_sample = rows[-1] if rows else None
-        cur_limit_cpu = _to_int(last_sample['limit_cpu_quota']) if last_sample else 100
-        cur_limit_mem = _to_int(last_sample['limit_mem_max_bytes']) if last_sample else (1024 * 1024 * 1024)
-        cur_limit_tasks = _to_int(last_sample['limit_tasks_max']) if last_sample else 64
-        cur_limit_io = (_to_int(last_sample['limit_io_read_bps']) + _to_int(last_sample['limit_io_write_bps'])) if last_sample else 0
-        cur_limit_iops = (_to_int(last_sample['limit_io_read_iops']) + _to_int(last_sample['limit_io_write_iops'])) if last_sample else 0
-
-        tot_cpu_faults = sum(int(r['cpu_throttled_events'] or 0) for r in rows)
-        tot_oom_faults = sum(int(r['oom_kill_events'] or 0) for r in rows)
-        tot_task_faults = sum(int(r['task_limit_events'] or 0) for r in rows)
-
-        avg_cpu_tot = cpu_sum / max(1, total_len)
-        avg_mem_tot = mem_sum / max(1, total_len)
-        avg_io_tot = (read_sum + write_sum) / max(1, total_len)
-        avg_iops_tot = iops_sum / max(1, total_len)
-        avg_tasks_tot = tasks_sum / max(1, total_len)
-
-        account_total = [
-            {'desc': 'SPEED', 'usage': f"{round(avg_cpu_tot, 1)}%", 'limit': f"{cur_limit_cpu}%", 'fault': tot_cpu_faults},
-            {'desc': 'I/O', 'usage': f"{format_bytes(avg_io_tot)}/s", 'limit': f"{format_bytes(cur_limit_io)}/s" if cur_limit_io > 0 else 'Unlimited', 'fault': 0},
-            {'desc': 'IOPS', 'usage': str(int(round(avg_iops_tot))), 'limit': str(cur_limit_iops) if cur_limit_iops > 0 else 'Unlimited', 'fault': 0},
-            {'desc': 'NPROC', 'usage': str(int(round(avg_tasks_tot))), 'limit': str(cur_limit_tasks), 'fault': tot_task_faults},
-            {'desc': 'Entry Processes', 'usage': 'N/A', 'limit': 'N/A', 'fault': 0, 'status': 'unavailable', 'note': 'Unenforced under Linux cgroups v2; concurrency governed via NPROC'},
-            {'desc': 'Physical Memory', 'usage': format_bytes(int(avg_mem_tot)), 'limit': format_bytes(cur_limit_mem), 'fault': tot_oom_faults}
-        ]
-
-        # Downsample points for smooth browser chart rendering (target ~300 points)
-        target_points = 300
-        step = max(1, total_len // target_points)
-        points = []
-
-        for i in range(0, total_len, step):
-            chunk = rows[i:i+step]
-            if not chunk: continue
-            cl = len(chunk)
-            last_c = chunk[-1]
-            mid_c = chunk[cl // 2]
-
-            c_cpu = sum(float(r['cpu_percent'] or 0) for r in chunk) / cl
-            c_mem = sum(int(r['mem_current_bytes'] or 0) for r in chunk) / cl
-            c_swap = sum(int(r['mem_swap_bytes'] or 0) for r in chunk) / cl
-            c_rb = sum(float(r['read_bytes_sec'] or 0) for r in chunk) / cl
-            c_wb = sum(float(r['write_bytes_sec'] or 0) for r in chunk) / cl
-            c_ri = sum(float(r['read_iops_sec'] or 0) for r in chunk) / cl
-            c_wi = sum(float(r['write_iops_sec'] or 0) for r in chunk) / cl
-            c_tasks = sum(int(r['tasks_current'] or 0) for r in chunk) / cl
-            c_faults = sum(int(r['cpu_throttled_events'] or 0) + int(r['oom_kill_events'] or 0) + int(r['task_limit_events'] or 0) for r in chunk)
-
-            lim_c_cpu = _to_int(last_c['limit_cpu_quota']) or 100
-            lim_c_mem = _to_int(last_c['limit_mem_max_bytes']) or (1024 * 1024 * 1024)
-            lim_c_swap = None  # Historical swap ceilings were not stored in this schema.
-            lim_c_tasks = _to_int(last_c['limit_tasks_max']) or 64
-            lim_c_io = _to_int(last_c['limit_io_read_bps']) + _to_int(last_c['limit_io_write_bps'])
-            lim_c_iops = _to_int(last_c['limit_io_read_iops']) + _to_int(last_c['limit_io_write_iops'])
-
-            points.append({
-                't': mid_c['timestamp'],
-                'cpu': round(c_cpu, 1),
-                'speed': round(c_cpu, 1),
-                'limit_cpu': lim_c_cpu,
-                'limit_speed': lim_c_cpu,
-                'cpu_allowance': float(mid_c['cpu_allowance_percent'] or 0.0),
-                'cpu_throttled': int(mid_c['cpu_throttled_events'] or 0),
-                'mem': int(c_mem),
-                'pmem': round(c_mem / (1024 * 1024), 1),
-                'limit_mem': lim_c_mem,
-                'limit_pmem': round(lim_c_mem / (1024 * 1024), 1),
-                'vmem': round((c_mem + c_swap) / (1024 * 1024), 1),
-                'limit_vmem': None,
-                'vmem_label': 'RAM + Swap (historical combined limit unavailable)',
-                'read_bytes': round(c_rb, 1),
-                'write_bytes': round(c_wb, 1),
-                'io': round((c_rb + c_wb) / 1024, 1),  # KiB/s
-                'limit_io': round(lim_c_io / 1024, 1) if lim_c_io > 0 else 0,
-                'read_iops': round(c_ri, 1),
-                'write_iops': round(c_wi, 1),
-                'iops': round(c_ri + c_wi, 1),
-                'limit_iops': lim_c_iops,
-                'tasks': int(round(c_tasks)),
-                'nproc': int(round(c_tasks)),
-                'limit_tasks': lim_c_tasks,
-                'limit_nproc': lim_c_tasks,
-                'ep': None,
-                'limit_ep': None,
-                'faults': c_faults
-            })
-
-        summary = {
-            'cpu_avg': round(avg_cpu_tot, 2),
-            'cpu_peak': round(cpu_peak, 2),
-            'mem_avg_bytes': int(avg_mem_tot),
-            'mem_peak_bytes': mem_peak,
-            'read_bps_peak': round(read_peak, 2),
-            'write_bps_peak': round(write_peak, 2),
-            'iops_peak': round(iops_peak, 2),
-            'tasks_peak': tasks_peak
-        }
-
         return {
-            'username': username,
-            'range': time_range,
-            'start_timestamp': start_ts,
-            'end_timestamp': end_ts,
-            'start_ts': start_ts,
-            'end_ts': end_ts,
-            'points_count': len(points),
-            'total_samples': total_len,
-            'summary': summary,
-            'account_total': account_total,
-            'hourly_usage': hourly_usage,
-            'points': points
+            'username': username, 'range': time_range,
+            'start_timestamp': start_ts, 'end_timestamp': end_ts,
+            'start_ts': start_ts, 'end_ts': end_ts,
+            'points_count': len(points), 'total_samples': total_len,
+            'summary': summary, 'account_total': account_total,
+            'hourly_usage': hourly_usage, 'points': points,
         }
 
     def action_enduser_processes(self, username: str) -> Dict[str, Any]:
@@ -1542,22 +1536,23 @@ class IpcRequestHandler:
             except (FileNotFoundError, ProcessLookupError):
                 return {'error': 'Process terminated during identity verification'}
 
-            # 3. Send SIGTERM via stable pinned handle
-            try:
-                signal.pidfd_send_signal(pfd, signal.SIGTERM)
-                time.sleep(0.4)
-                if os.path.exists(proc_stat_path):
-                    # Re-verify stat before sending SIGKILL through the SAME pinned handle
-                    try:
-                        with open(proc_stat_path, 'r', encoding='utf-8', errors='replace') as f2:
-                            c2 = f2.read()
-                            p2 = c2[c2.rfind(')') + 2:].split()
-                            if int(p2[19]) == expected_start_time:
-                                signal.pidfd_send_signal(pfd, signal.SIGKILL)
-                    except Exception:
-                        pass
-            except Exception:
-                pass
+            # Wait for the pinned process to exit before reporting success.
+            poller = select.poll()
+            poller.register(pfd, select.POLLIN)
+            signal.pidfd_send_signal(pfd, signal.SIGTERM)
+            if not poller.poll(400):
+                try:
+                    if os.stat(f'/proc/{pid}').st_uid != uid:
+                        return {'error': 'Process ownership changed during termination'}
+                    with open(proc_stat_path, 'r', encoding='utf-8', errors='replace') as f:
+                        current = f.read()
+                    if int(current[current.rfind(')') + 2:].split()[19]) != expected_start_time:
+                        return {'error': 'Process identity changed during termination'}
+                except FileNotFoundError:
+                    return {'success': True, 'message': f'Process {pid} already stopped'}
+                signal.pidfd_send_signal(pfd, signal.SIGKILL)
+                if not poller.poll(1000):
+                    return {'error': f'Process {pid} has not exited after termination signals'}
             conn = self.get_db()
             try:
                 conn.execute("""
@@ -1862,6 +1857,8 @@ class IpcRequestHandler:
             'start': params.get('start'),
             'end': params.get('end')
         })
+        if 'error' in history:
+            return history
         notifs = self.action_enduser_notifications(username)
         snaps = self.action_enduser_snapshots(username, {'limit': 10})
         procs = self.action_enduser_processes(username)
@@ -3050,7 +3047,7 @@ class IpcRequestHandler:
             'used_percent': round(health['total_storage_bytes'] / (settings['max_storage_mib'] * 1024 * 1024) * 100, 2),
             'samples_count': counts['samples'], 'snapshots_count': counts['snapshots'],
             'events_count': counts['events'], 'audit_count': counts['audit_log'],
-            'size_limit_kind': 'enforced_quota_with_auto_downsample'}}
+            'size_limit_kind': 'retention_target_with_minute_rollups'}}
 
     def action_save_storage_settings(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
         bounds = {'samples_days': (1, 90), 'snapshots_days': (1, 90),
@@ -3898,8 +3895,10 @@ class IpcRequestHandler:
             conn.close()
 
     def action_dispatch_scheduled_report(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """A16: Generate and dispatch daily/weekly capacity & security report."""
+        """A16: Generate and store a daily or weekly capacity and security report."""
         report_type = str(params.get('report_type', 'daily')).lower()
+        if report_type not in ('daily', 'weekly'):
+            return {'error': 'Select a daily or weekly report'}
         users = self.collector.get_webuzo_users()
         overview = self.action_admin_overview()
         capacity = self.action_get_capacity_planning()
@@ -3942,8 +3941,8 @@ class IpcRequestHandler:
 
             cur.execute("""
                 INSERT INTO scheduled_reports (timestamp, report_type, summary_json, dispatched_to, status)
-                VALUES (?, ?, ?, ?, 'dispatched')
-            """, (int(time.time()), report_type, json.dumps(summary), 'system_admin'))
+                VALUES (?, ?, ?, NULL, 'generated')
+            """, (int(time.time()), report_type, json.dumps(summary)))
             report_id = cur.lastrowid
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('last_scheduled_report_ts', ?)", (str(int(time.time())),))
             conn.execute("""
@@ -3961,14 +3960,13 @@ class IpcRequestHandler:
         conn = self.get_db()
         try:
             cur = conn.cursor()
-            cur.execute("SELECT key, value FROM settings WHERE key IN ('report_schedule', 'last_scheduled_report_ts', 'report_recipient')")
+            cur.execute("SELECT key, value FROM settings WHERE key IN ('report_schedule', 'last_scheduled_report_ts')")
             rows = dict(cur.fetchall())
         finally:
             conn.close()
 
         schedule = rows.get('report_schedule', 'daily').lower()
         last_ts = int(rows.get('last_scheduled_report_ts', 0))
-        recipient = rows.get('report_recipient', 'system_admin')
         now = int(time.time())
 
         interval = 86400 if schedule == 'daily' else (7 * 86400 if schedule == 'weekly' else 0)
@@ -3984,7 +3982,6 @@ class IpcRequestHandler:
         return {
             'success': True,
             'schedule': schedule,
-            'recipient': recipient,
             'last_run_timestamp': last_ts,
             'last_run_formatted': time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(last_ts)) if last_ts > 0 else 'Never',
             'next_due_timestamp': next_due,
@@ -3999,18 +3996,15 @@ class IpcRequestHandler:
         cadence = str(params.get('schedule', 'daily')).strip().lower()
         if cadence not in ('daily', 'weekly', 'disabled'):
             return {'error': "Invalid schedule cadence. Must be 'daily', 'weekly', or 'disabled'."}
-        recipient = str(params.get('recipient', 'system_admin')).strip()
 
         conn = self.get_db()
         try:
             now = int(time.time())
             conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('report_schedule', ?)", (cadence,))
-            if recipient:
-                conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('report_recipient', ?)", (recipient,))
             conn.execute("""
                 INSERT INTO audit_log (timestamp, actor, action, target_account, details_json)
                 VALUES (?, ?, 'save_report_schedule', 'system', ?)
-            """, (now, admin_user, json.dumps({'schedule': cadence, 'recipient': recipient})))
+            """, (now, admin_user, json.dumps({'schedule': cadence})))
             conn.commit()
         finally:
             conn.close()

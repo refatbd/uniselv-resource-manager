@@ -38,6 +38,41 @@ def managed(path,text,mode=0o600):
    raise RuntimeError('Managed file changed; review before overwriting: '+key)
   atomic(path,text,mode);os.chown(path,data[key].get('uid',0),data[key].get('gid',0));data[key]['hash']=hashlib.sha256(path.read_bytes()).hexdigest();atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
 
+def reconcile_cpu_weight_registry():
+ """Record the previously shipped proportional CPUWeight migration."""
+ registry=STATE/'shared-files.json'
+ if not registry.exists():return (0,0)
+ with open(STATE/'shared.lock','a') as lock, open(STATE/'managed-files.lock','a') as registry_lock:
+  fcntl.flock(lock,fcntl.LOCK_EX)
+  fcntl.flock(registry_lock,fcntl.LOCK_EX)
+  data=files()
+  reconciled=unresolved=0
+  for name,row in data.items():
+   path=pathlib.Path(name)
+   if path.parent!=UNITS or not re.fullmatch(r'golden-\d+\.slice',path.name):continue
+   if path.is_symlink() or not path.is_file():
+    unresolved+=1
+    continue
+   current=path.read_bytes()
+   digest=hashlib.sha256(current).hexdigest()
+   if digest==row.get('hash'):continue
+
+   # The old checksum must match the entire unit minus its final, generated weight line.
+   quota=re.findall(rb'^CPUQuota=(\d+(?:\.\d+)?)%$',current,re.M)
+   weight=re.search(rb'^CPUWeight=(\d+)\n\Z',current,re.M)
+   if (len(quota)!=1 or not weight or current.count(b'\nCPUWeight=')!=1 or
+       not current.startswith(f'[Unit]\nDescription=Golden Shield native-plan mirror {path.stem[7:]}\n[Slice]\n'.encode()) or
+       int(weight[1])!=max(10,min(10000,int(float(quota[0])))) or
+       hashlib.sha256(current[:weight.start()]).hexdigest()!=row.get('hash')):
+    unresolved+=1
+    continue
+   row['hash']=digest
+   reconciled+=1
+  if reconciled:
+   atomic(STATE/('shared-files.before-cpu-weight-'+str(time.time_ns())+'.json'),registry.read_text())
+   atomic(registry,json.dumps(data,indent=2))
+  return reconciled,unresolved
+
 def derive_auto_policy(cpus, total_ram):
  if total_ram < 1024:
   raise RuntimeError(f"Unsupported Hardware: >= 1024 MiB RAM required (detected {total_ram} MiB)")
@@ -494,7 +529,7 @@ def uninstall():
 
 def main():
  if os.geteuid()!=0:raise RuntimeError('Run through sudo.')
- parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','reconcile-cpu-weight','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()
  if args.action=='install':install()
  elif args.action=='resume':resume_install()
  elif args.action=='preflight':p=effective_memory_cap(policy());prerequisites(p);print('New policy preflight passed.')
@@ -504,6 +539,9 @@ def main():
  elif args.action=='apply-memory-cap':apply_memory_cap()
  elif args.action=='apply-shared-redis':apply_shared_redis(args.uid,args.cache_only)
  elif args.action=='repair-native-ownership':repair_native_ownership()
+ elif args.action=='reconcile-cpu-weight':
+  reconciled,unresolved=reconcile_cpu_weight_registry()
+  print(f'Golden Shield registry: reconciled {reconciled} account slices; {unresolved} require review.')
  else:sys.exit(0 if check() else 1)
 if __name__=='__main__':
  try:main()

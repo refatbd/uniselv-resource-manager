@@ -124,15 +124,12 @@ def lifecycle(action):
         owned['pam'] = False; data['recovered_adopted_pam_registry'] = True; save(data)
     from golden_shield_manager import GoldenShieldManager
     manager = GoldenShieldManager()
-    hw = manager.detect_hardware()
-    policy = manager.calculate_auto_policy(hw)
-    reviewed = reviewed_admission_policy(hw)
-    if reviewed and STATES['isolation'].exists():
-        current=json.loads(pathlib.Path('/etc/webuzo-isolation/policy.json').read_text())
-        if any(current.get(key)!=value for key,value in reviewed.items()):
-            raise RuntimeError('Installed admission policy differs from the reviewed generator export; reconcile before proceeding')
-    # Journal intent before each mutation; adopted implementations remain external.
+    # The generator export is the input for provisioning a new isolation runtime.
+    # Upgrades validate the existing runtime below through its native verifier.
     if not STATES['isolation'].exists():
+        hw = manager.detect_hardware()
+        policy = manager.calculate_auto_policy(hw)
+        reviewed = reviewed_admission_policy(hw)
         owned['isolation'] = True; data['state'] = 'installing-isolation'; save(data)
         # Physical budget only. PHP gets half the hosting pool; reserve the rest
         # for Apache, database, cache and accounting overhead.

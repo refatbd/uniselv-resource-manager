@@ -90,7 +90,7 @@
     gap: 8px;
     background: #ecfdf5;
     border: 1px solid #d1fae5;
-    color: #059669;
+    color: #047857;
     padding: 6px 14px;
     border-radius: 9999px;
     font-size: 0.78rem;
@@ -390,9 +390,9 @@
 .bar-io { background: linear-gradient(90deg, #10b981, #059669); }
 .bar-tasks { background: linear-gradient(90deg, #f59e0b, #d97706); }
 
-.bg-danger { background: var(--uniselv-danger) !important; }
-.bg-warning { background: var(--uniselv-warning) !important; }
-.bg-success { background: var(--uniselv-success); }
+.uniselv-container .bg-danger { background: var(--uniselv-danger) !important; }
+.uniselv-container .bg-warning { background: var(--uniselv-warning) !important; }
+.uniselv-container .bg-success { background: var(--uniselv-success); }
 
 .uniselv-card-sub {
     font-size: 0.8rem;
@@ -437,33 +437,33 @@
     text-decoration: none;
 }
 
-.btn-primary {
+.uniselv-btn.btn-primary {
     background: var(--uniselv-primary);
     color: #ffffff;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
 }
-.btn-primary:hover {
+.uniselv-btn.btn-primary:hover {
     background: var(--uniselv-primary-hover);
     box-shadow: 0 4px 10px rgba(37, 99, 235, 0.35);
 }
 
-.btn-outline {
+.uniselv-btn.btn-outline {
     background: #ffffff;
     border: 1px solid #e2e8f0;
     color: #1e293b;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
-.btn-outline:hover {
+.uniselv-btn.btn-outline:hover {
     background: #f8fafc;
     border-color: #cbd5e1;
 }
 
-.btn-danger {
+.uniselv-btn.btn-danger {
     background: #dc2626;
     color: #fff;
     box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
 }
-.btn-danger:hover {
+.uniselv-btn.btn-danger:hover {
     background: #b91c1c;
 }
 
@@ -1874,7 +1874,7 @@
     gap: 8px;
     background: #ecfdf5;
     border: 1px solid #d1fae5;
-    color: #059669;
+    color: #047857;
     padding: 6px 14px;
     border-radius: 9999px;
     font-size: 0.78rem;
@@ -1933,3 +1933,47 @@
 .theme-mem .uniselv-wave-container{background:rgba(139,92,246,.18)}
 .theme-io .uniselv-wave-container{background:rgba(16,185,129,.18)}
 .theme-tasks .uniselv-wave-container{background:rgba(245,158,11,.18)}
+
+.uniselv-header-tools, .uniselv-header-menu-items {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.uniselv-header-menu { position: relative; }
+.uniselv-header-menu summary {
+    cursor: pointer;
+    padding: 8px 12px;
+    border: 1px solid var(--uniselv-border-strong);
+    border-radius: var(--uniselv-radius-btn);
+}
+.uniselv-header-menu-items {
+    position: absolute;
+    z-index: 3;
+    inset-inline-end: 0;
+    min-width: 210px;
+    padding: 12px;
+    background: var(--uniselv-bg-card);
+    border: 1px solid var(--uniselv-border-strong);
+    border-radius: var(--uniselv-radius-btn);
+    box-shadow: var(--uniselv-shadow-hover);
+}
+.uniselv-section-overflow { margin-inline-start: auto; max-width: 100%; }
+.uniselv-section-overflow select { max-width: 100%; padding: 7px 10px; }
+.uniselv-tabs .uniselv-secondary-tab { display: none; }
+.uniselv-request-error { color: #991b1b; text-align: center; padding: 16px; }
+.uniselv-status-row { flex-wrap: wrap; gap: 8px; }
+@media (max-width: 760px) {
+    .uniselv-header-menu-items { inset-inline-start: 0; inset-inline-end: auto; }
+    .uniselv-header-tools .uniselv-btn { flex: 1; justify-content: center; }
+}
+
+.uniselv-live-badge.badge-last-sample { color: #334155; background: #f1f5f9; border-color: #cbd5e1; }
+.uniselv-live-dot.dot-neutral { background: #64748b; animation: none; }
+.uniselv-badge.badge-unread { color: #1e40af; background: #dbeafe; border-color: #bfdbfe; }
+.uniselv-chart-inspector { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: #334155; font-size: .85rem; }
+.uniselv-chart-inspector input { flex: 1 1 180px; min-width: 0; }
+.uniselv-chart-inspector output { color: #1e293b; font-variant-numeric: tabular-nums; }
+.uniselv-sample-note { color: #475569; font-size: .85rem; }
+#admin-host-cpu-usage { font-size: 2rem; }
+#admin-card-cpu-headroom { font-size: 1.35rem; }

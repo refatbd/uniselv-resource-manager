@@ -15,6 +15,7 @@ baseline/
 
 # Test harnesses, load stress, & investigation scripts
 test_*
+!/test_telemetry_history.py
 load_stress.php
 cgroup_*.php
 run_*.py

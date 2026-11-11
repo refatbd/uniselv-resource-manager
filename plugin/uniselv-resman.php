@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.37
+Version: 1.1.41
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -16,8 +16,33 @@ require_once(__DIR__ . '/api_client.php');
 function uniselv_get_i18n_dict() {
     return [
         'en' => [
+            'dashboard' => 'Dashboard',
+            'current_usage' => 'Current usage',
+            'historical_charts' => 'Historical charts',
+            'snapshots_tab' => 'Snapshots',
+            'notifications_tab' => 'Notifications and events',
+            'retry' => 'Retry',
+            'chart_vmem' => 'Virtual memory (RAM + Swap)',
+            'chart_ep' => 'Entry processes',
+            'chart_faults' => 'Faults',
+            'section' => 'Section',
+            'more_sections' => 'More sections',
+            'help_language' => 'Help and language',
+            'telemetry_live' => 'Live telemetry',
+            'telemetry_stale' => 'Stale telemetry',
+            'telemetry_offline' => 'Telemetry offline',
+            'telemetry_waiting' => 'Waiting for telemetry',
+            'telemetry_last_sample' => 'Last sample',
+            'chart_sample' => 'Inspect sample',
+            'chart_cpu' => 'CPU usage',
+            'chart_mem' => 'Memory usage',
+            'chart_tasks' => 'Active tasks and threads',
+            'chart_io' => 'Disk throughput',
+            'load_elevated' => 'Elevated',
+            'load_below' => 'Below capacity',
+            'unavailable' => 'Unavailable',
             'brand_title' => 'UNISELV Resource Manager',
-            'brand_subtitle' => 'Server-Wide Telemetry, Cgroups v2 & Golden Shield Governance',
+            'brand_subtitle' => 'Server telemetry and resource limits',
             'server_overview' => 'Server Overview',
             'all_accounts' => 'All Accounts',
             'user_analytics' => 'User Analytics & Snapshots',
@@ -80,8 +105,33 @@ function uniselv_get_i18n_dict() {
             'save_permission' => 'Save Permission'
         ],
         'bn' => [
+            'dashboard' => 'ড্যাশবোর্ড',
+            'current_usage' => 'বর্তমান ব্যবহার',
+            'historical_charts' => 'ব্যবহারের ইতিহাস',
+            'snapshots_tab' => 'স্ন্যাপশট',
+            'notifications_tab' => 'নোটিফিকেশন ও ইভেন্ট',
+            'retry' => 'আবার চেষ্টা করুন',
+            'chart_vmem' => 'ভার্চুয়াল মেমরি (RAM + Swap)',
+            'chart_ep' => 'এন্ট্রি প্রসেস',
+            'chart_faults' => 'ত্রুটি',
+            'section' => 'বিভাগ',
+            'more_sections' => 'আরও বিভাগ',
+            'help_language' => 'সহায়তা ও ভাষা',
+            'telemetry_live' => 'লাইভ টেলিমেট্রি',
+            'telemetry_stale' => 'পুরোনো টেলিমেট্রি',
+            'telemetry_offline' => 'টেলিমেট্রি অফলাইন',
+            'telemetry_waiting' => 'টেলিমেট্রির অপেক্ষায়',
+            'telemetry_last_sample' => 'শেষ নমুনা',
+            'chart_sample' => 'নমুনা দেখুন',
+            'chart_cpu' => 'CPU ব্যবহার',
+            'chart_mem' => 'মেমরি ব্যবহার',
+            'chart_tasks' => 'সক্রিয় টাস্ক ও থ্রেড',
+            'chart_io' => 'ডিস্ক থ্রুপুট',
+            'load_elevated' => 'বেশি লোড',
+            'load_below' => 'ক্ষমতার নিচে',
+            'unavailable' => 'তথ্য নেই',
             'brand_title' => 'ইউনিসেলভ রিসোর্স ম্যানেজার',
-            'brand_subtitle' => 'সার্ভার টেলিমেট্রি, সিগ্রুপস ভি২ ও গোল্ডেন শিল্ড গভর্নেন্স',
+            'brand_subtitle' => 'সার্ভারের ব্যবহার ও রিসোর্স সীমা',
             'server_overview' => 'সার্ভার ওভারভিউ',
             'all_accounts' => 'সকল একাউন্ট',
             'user_analytics' => 'ইউজার অ্যানালিটিক্স ও স্ন্যাপশট',
@@ -439,6 +489,10 @@ function uniselv_resman_admin() {
     }
 }
 
+function uniselv_brand_locale(array $branding): string {
+    return ($branding['locale'] ?? 'en') === 'bn' ? 'bn' : 'en';
+}
+
 function uniselv_resman_admin_theme() {
     global $globals, $SESS;
 
@@ -459,7 +513,7 @@ function uniselv_resman_admin_theme() {
     $golden = UniselvApiClient::call('get_golden_shield_status', [], $SESS['user'], true);
 
     $branding = UniselvApiClient::call('get_branding_settings', [], $SESS['user'], true);
-    $locale = !empty($branding['locale']) ? $branding['locale'] : 'en';
+    $locale = uniselv_brand_locale($branding);
     $brand_name = !empty($branding['brand_name']) ? htmlspecialchars($branding['brand_name']) : __u('brand_title', $locale);
     $brand_logo = !empty($branding['brand_logo_url']) ? uniselv_safe_brand_url($branding['brand_logo_url']) : '';
     $brand_color = !empty($branding['brand_primary_color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $branding['brand_primary_color']) ? $branding['brand_primary_color'] : '#2563eb';
@@ -470,13 +524,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.37r1' . '">';
-    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.41r1' . '">';
+    echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.37r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.41r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -491,8 +545,11 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <p class="uniselv-brand-subtitle">' . __u('brand_subtitle', $locale) . '</p>
             </div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <select id="uniselv-locale-selector" class="uniselv-select" style="padding: 4px 8px; font-size: 0.82rem; border-radius: 6px; background: #fff; border: 1px solid var(--uniselv-border);" onchange="UniselvResMan.setLocale(this.value)">
+        <div class="uniselv-header-tools">
+            <details class="uniselv-header-menu">
+                <summary>' . __u('help_language', $locale) . '</summary>
+                <div class="uniselv-header-menu-items">
+            <select aria-label="Language" id="uniselv-locale-selector" class="uniselv-select" style="padding: 4px 8px; font-size: 0.82rem; border-radius: 6px; background: #fff; border: 1px solid var(--uniselv-border);" onchange="UniselvResMan.setLocale(this.value)">
                 <option value="en"' . ($locale === 'en' ? ' selected' : '') . '>English (US)</option>
                 <option value="bn"' . ($locale === 'bn' ? ' selected' : '') . '>বাংলা (Bengali)</option>
             </select>
@@ -502,6 +559,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <button class="uniselv-help-pill" onclick="UniselvResMan.openHelpTopic(\'quickstart\')">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('help_about', $locale) . '
             </button>
+                </div>
+            </details>
             <button class="uniselv-btn btn-primary" onclick="UniselvResMan.syncNativePlans()">
                 <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ' . __u('bulk_sync', $locale) . '
             </button>
@@ -559,15 +618,15 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     $golden_mem_cap = isset($shield['golden_mem_max_formatted']) ? $shield['golden_mem_max_formatted'] : (isset($calc_policy['hostingMemoryMaxMiB']) ? round($calc_policy['hostingMemoryMaxMiB']/1024, 2) . ' GiB' : 'Unavailable');
     $headroom_mib = isset($shield['headroom_mib']) ? $shield['headroom_mib'] : (isset($calc_policy['headroomMiB']) ? $calc_policy['headroomMiB'] : 'Unavailable');
 
-    $l1 = isset($host['load1']) ? number_format((float)$host['load1'], 2) : '0.00';
-    $l5 = isset($host['load5']) ? number_format((float)$host['load5'], 2) : '0.00';
-    $l15 = isset($host['load15']) ? number_format((float)$host['load15'], 2) : '0.00';
+    $l1 = isset($host['load1']) && !empty($host['telemetry_available']) ? number_format((float)$host['load1'], 2) : '—';
+    $l5 = isset($host['load5']) && !empty($host['telemetry_available']) ? number_format((float)$host['load5'], 2) : '—';
+    $l15 = isset($host['load15']) && !empty($host['telemetry_available']) ? number_format((float)$host['load15'], 2) : '—';
 
     echo '<div id="tab-overview" class="uniselv-tab-content active">
         <div class="uniselv-status-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
-            <div class="uniselv-live-badge" id="admin-telemetry-freshness">
+            <div class="uniselv-live-badge" id="admin-telemetry-freshness" role="status">
                 <span class="uniselv-live-dot"></span>
-                <span>Live Telemetry: reading sample...</span>
+                <span>' . __u('telemetry_waiting', $locale) . '</span>
             </div>
             <button class="uniselv-btn btn-sm btn-outline" onclick="UniselvResMan.loadAdminOverview()" title="Refresh telemetry immediately" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; padding:5px 12px; border-radius:9999px;">
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Now
@@ -582,8 +641,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><rect x="9" y="9" width="6" height="6" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3"/></svg>
                     </div>
                     <div>
-                        <span class="uniselv-card-title">HARDWARE DETECTION</span>
-                        <div class="uniselv-card-desc">Physical server resources</div>
+                        <span class="uniselv-card-title">HOST CPU USAGE</span>
+                        <div class="uniselv-card-desc">Live usage across all vCPUs</div>
                     </div>
                 </div>
                 <span class="uniselv-badge badge-normal">ACTIVE</span>
@@ -610,20 +669,20 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <div class="uniselv-wave wave-front"></div>
                     </div>
                     <div class="uniselv-gauge-center">
-                        <span class="uniselv-metric-big" id="admin-card-hw-cpu">' . $cpu_cores . ' vCPUs</span>
-                        <span class="uniselv-metric-core">Virtual CPUs · inventory</span>
+                        <span class="uniselv-metric-big" id="admin-host-cpu-usage">' . (!empty($host['telemetry_available']) ? number_format((float)($host['cpu_percent'] ?? 0), 1) . '%' : '—') . '</span>
+                        <span class="uniselv-metric-core">Host CPU usage</span>
                     </div>
                 </div>
             </div>
             <div class="uniselv-card-footer">
-                <div class="uniselv-sparkline-wrap" id="admin-sparkline-hw" aria-hidden="true" title="Dynamic CPU load history">
+                <div class="uniselv-sparkline-wrap" id="admin-sparkline-hw" aria-hidden="true" title="Live host CPU utilization history">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs><linearGradient id="spark-grad-admin-hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/></linearGradient></defs>
                         <path d="M0,25 Q25,12 50,22 T100,16 L100,40 L0,40 Z" fill="url(#spark-grad-admin-hw)"/>
                         <path d="M0,25 Q25,12 50,22 T100,16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <div class="uniselv-card-sub" id="admin-card-hw-ram">Physical RAM: <strong>' . $total_ram . '</strong><br><span class="sub-muted">Kernel: ' . php_uname('r') . '</span></div>
+                <div class="uniselv-card-sub" id="admin-card-hw-ram"><span id="admin-card-hw-cpu">' . (is_numeric($cpu_cores) ? $cpu_cores . ' vCPUs' : 'vCPU count unavailable') . '</span><br>Physical RAM: <strong id="admin-host-ram-value">' . $total_ram . '</strong><br><span class="sub-muted">Kernel: ' . php_uname('r') . '</span></div>
             </div>
         </div>
 
@@ -635,7 +694,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <svg viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                     </div>
                     <div>
-                        <span class="uniselv-card-title">SHARED CPU HEADROOM</span>
+                        <span class="uniselv-card-title">HOSTING CPU ALLOCATION</span>
                         <div class="uniselv-card-desc">Dynamic aggregate quota</div>
                     </div>
                 </div>
@@ -663,8 +722,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <div class="uniselv-wave wave-front"></div>
                     </div>
                     <div class="uniselv-gauge-center">
-                        <span class="uniselv-metric-big" id="admin-card-cpu-headroom">' . $customer_cpu . '%</span>
-                        <span class="uniselv-metric-core">Hosting Share</span>
+                        <span class="uniselv-metric-big" id="admin-card-cpu-headroom">' . (is_numeric($customer_cpu) && is_numeric($cpu_cores) && $cpu_cores > 0 ? rtrim(rtrim(number_format($customer_cpu / 100, 2, '.', ''), '0'), '.') . ' / ' . $cpu_cores : '—') . '</span>
+                        <span class="uniselv-metric-core">vCPU equivalent</span>
                     </div>
                 </div>
             </div>
@@ -676,7 +735,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <path d="M0,22 Q25,14 50,26 T100,18" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <div class="uniselv-card-sub" id="admin-card-cpu-sub">System Reserve: <strong>' . $reserved_cpu . '%</strong><br><span class="sub-muted">No fixed core dedicated</span></div>
+                <div class="uniselv-card-sub" id="admin-card-cpu-sub">' . (is_numeric($reserved_cpu) ? 'System reserve: ' . rtrim(rtrim(number_format($reserved_cpu / 100, 2, '.', ''), '0'), '.') . ' vCPU equivalent' : 'System reserve unavailable') . '</div>
             </div>
         </div>
 
@@ -749,7 +808,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <div class="uniselv-card-desc">1m, 5m, 15m load average</div>
                     </div>
                 </div>
-                <span class="uniselv-badge badge-normal">NORMAL</span>
+                <span id="admin-load-status" class="uniselv-badge">' . __u('telemetry_waiting', $locale) . '</span>
             </div>
             <div class="uniselv-gauge-wrap">
                 <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
@@ -790,14 +849,15 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <span class="eq-bar bar-7"></span>
                     </div>
                 </div>
-                <div class="uniselv-card-sub" id="admin-card-load-sub">5m: <strong>' . $l5 . '</strong> | 15m: <strong>' . $l15 . '</strong><br><span class="sub-muted">4 Cores Baseline (Normal)</span></div>
+                <div class="uniselv-card-sub" id="admin-card-load-sub"><span id="admin-card-load-sub-values">5m: ' . $l5 . ' | 15m: ' . $l15 . '</span><br><span class="sub-muted">Runnable tasks and uninterruptible waits</span></div>
             </div>
         </div>
     </div>';
 
     // Top consumers
     echo '<div class="uniselv-card mb-4">
-        <h5 style="margin-bottom: 14px; font-weight: 700;">Top Resource Consumers (Latest Sample at Page Load)</h5>
+        <h5 style="margin-bottom: 14px; font-weight: 700;">Top Resource Consumers</h5>
+        <p class="uniselv-sample-note">Account samples captured at page load. Refresh Now updates the overview cards. Reload the page to update this table.</p>
         <div class="uniselv-table-wrap">
             <table class="uniselv-table">
                 <thead>
@@ -809,6 +869,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <th>Memory Used</th>
                         <th>Active Tasks</th>
                         <th>Throttling Events</th>
+                        <th>Sample time</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -827,6 +888,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <td>' . $acc['mem_formatted'] . '</td>
                 <td>' . $acc['tasks_current'] . ' / ' . $acc['tasks_max'] . '</td>
                 <td>' . $acc['throttled_events'] . '</td>
+                <td>' . (!empty($acc['last_sample_epoch']) ? date('j M H:i:s T', (int)$acc['last_sample_epoch']) : 'Unavailable') . '</td>
                 <td>
                     <button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.openOverrideModal(\'' . htmlspecialchars($acc['username']) . '\', \'' . htmlspecialchars($acc['plan_name']) . '\')">Grant Boost</button>
                 </td>
@@ -1001,20 +1063,13 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div class="uniselv-cpanel-header" style="margin-bottom: 20px;">
                 <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <label style="font-size: 0.88rem; font-weight: 600; color: #475569;">Timeframe:</label>
+                        <label for="admin-usage-timeframe" class="uniselv-form-label">Timeframe</label>
                         <select id="admin-usage-timeframe" class="uniselv-cpanel-select" onchange="UniselvResMan.loadAdminUserUsage(this.value)">
                             <option value="today" selected>Today</option>
                             <option value="yesterday">Yesterday</option>
                             <option value="24h">Last 24 Hours</option>
                             <option value="7d">Last 7 Days</option>
                             <option value="30d">Last 30 Days</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label style="font-size: 0.88rem; font-weight: 600; color: #475569;">Time unit:</label>
-                        <select id="admin-usage-timeunit" class="uniselv-cpanel-select">
-                            <option value="hour" selected>Hour</option>
-                            <option value="minute">Minute</option>
                         </select>
                     </div>
                     <button class="uniselv-cpanel-btn" onclick="UniselvResMan.refreshAdminUserUsage()" title="Refresh Telemetry">
@@ -1496,7 +1551,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <option value="weekly">Weekly Report</option>
                     </select>
                     <button class="uniselv-btn btn-primary" onclick="UniselvResMan.dispatchReportNow()">
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Dispatch Report Now
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Generate Report Now
                     </button>
                     <button class="uniselv-btn btn-outline" onclick="UniselvResMan.loadScheduledReports()">
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh
@@ -1513,7 +1568,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </h6>
                     <span id="report-schedule-status-badge" class="uniselv-badge badge-normal">Schedule: Daily Active</span>
                 </div>
-                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">Configure recurring background report generation cadence, target admin recipient, and monitor next scheduled dispatch epoch.</p>
+                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">Reports are generated on the selected schedule and stored here.</p>
                 <div class="uniselv-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end;">
                     <div class="uniselv-form-group" style="margin-bottom: 0;">
                         <label class="uniselv-form-label">Recurrence Cadence</label>
@@ -1524,11 +1579,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         </select>
                     </div>
                     <div class="uniselv-form-group" style="margin-bottom: 0;">
-                        <label class="uniselv-form-label">Recipient / Target</label>
-                        <input type="text" id="report-schedule-recipient" class="uniselv-form-input" style="width: 100%;" value="system_admin" placeholder="system_admin or email">
-                    </div>
-                    <div class="uniselv-form-group" style="margin-bottom: 0;">
-                        <label class="uniselv-form-label">Next Due Dispatch</label>
+                        <label class="uniselv-form-label">Next Scheduled Report</label>
                         <div id="report-schedule-next-due" style="font-weight: 600; font-size: 0.88rem; color: #1e293b; padding: 7px 0;">Calculating...</div>
                     </div>
                     <div style="margin-bottom: 0;">
@@ -1961,7 +2012,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                 
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;">
-                        <span>Current Database Footprint: <strong id="storage-total-display">Loading...</strong> of <span id="storage-limit-display">100 MiB</span> warning threshold</span>
+                        <span>Current Database Footprint: <strong id="storage-total-display">Loading...</strong> of <span id="storage-limit-display">100 MiB</span> storage target</span>
                         <span id="storage-used-pct" class="uniselv-badge badge-normal">0%</span>
                     </div>
                     <div class="uniselv-storage-bar-bg">
@@ -2203,7 +2254,8 @@ function uniselv_resman_enduser_theme() {
     $snaps = UniselvApiClient::call('get_enduser_snapshots', ['limit' => 10], $current_user, false);
     $branding = UniselvApiClient::call('get_branding_settings', [], $current_user, false);
 
-    $brand_name = !empty($branding['brand_name']) ? htmlspecialchars($branding['brand_name']) : 'UNISELV Resource Manager';
+    $locale = uniselv_brand_locale($branding);
+    $brand_name = !empty($branding['brand_name']) ? htmlspecialchars($branding['brand_name']) : __u('brand_title', $locale);
     $brand_logo = !empty($branding['brand_logo_url']) ? uniselv_safe_brand_url($branding['brand_logo_url']) : '';
     $brand_color = !empty($branding['brand_primary_color']) && preg_match('/^#[0-9a-fA-F]{6}$/', $branding['brand_primary_color']) ? $branding['brand_primary_color'] : '#2563eb';
     $brand_support = !empty($branding['brand_support_url']) ? uniselv_safe_brand_url($branding['brand_support_url']) : 'https://uniselv.com/support';
@@ -2216,13 +2268,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.37r1' . '">';
-    echo '<style>:root { --uniselv-primary: ' . $brand_color . '; --primary-color: ' . $brand_color . '; }</style>';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.41r1' . '">';
+    echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.37r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.41r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2244,7 +2296,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <button class="uniselv-help-pill" onclick="UniselvResMan.openHelpTopic(\'quickstart\')">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Help Guide
             </button>
-            <div class="uniselv-live-badge" id="uniselv-telemetry-freshness">Reading latest telemetry sample...</div>
+            <div class="uniselv-live-badge" id="uniselv-telemetry-freshness" role="status">' . __u('telemetry_waiting', $locale) . '</div>
             <button class="uniselv-btn btn-outline" id="uniselv-export-btn" onclick="UniselvResMan.exportReport()">
                 <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Export Support Report
             </button>
@@ -2254,22 +2306,22 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     // Tabs
     echo '<div class="uniselv-tabs">
         <button class="uniselv-tab-btn active" data-tab="dashboard" id="tab-btn-dashboard">
-            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> Dashboard
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> ' . __u('dashboard', $locale) . '
         </button>
         <button class="uniselv-tab-btn" data-tab="processes" id="tab-btn-processes">
-            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> Current Usage
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> ' . __u('current_usage', $locale) . '
         </button>
         <button class="uniselv-tab-btn" data-tab="history" id="tab-btn-history">
-            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg> Historical Charts
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg> ' . __u('historical_charts', $locale) . '
         </button>
         <button class="uniselv-tab-btn" data-tab="snapshots" id="tab-btn-snapshots">
-            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> Snapshots (<span id="uniselv-snaps-count-badge">' . (isset($snaps['count']) ? $snaps['count'] : 0) . '</span>)
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ' . __u('snapshots_tab', $locale) . ' (<span id="uniselv-snaps-count-badge">' . (isset($snaps['count']) ? $snaps['count'] : 0) . '</span>)
         </button>
         <button class="uniselv-tab-btn" data-tab="notifications" id="tab-btn-notifications">
-            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> Notifications & Events (<span id="uniselv-notif-count-badge">' . count(isset($notifs['events']) ? $notifs['events'] : []) . '</span>)
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> ' . __u('notifications_tab', $locale) . ' (<span id="uniselv-notif-count-badge">' . count(isset($notifs['events']) ? $notifs['events'] : []) . '</span>)
         </button>
         <button class="uniselv-tab-btn" data-tab="help" id="tab-btn-help">
-            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Help & About
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('help_about', $locale) . '
         </button>
     </div>';
 
@@ -2559,10 +2611,10 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     </div>';
 
     // Summary alert if pressure
-    if ($cur['cpu_throttled_events'] > 0 || $cur['oom_kill_events'] > 0) {
+    if (($cur['cpu_throttled_events'] ?? 0) > 0 || ($cur['oom_kill_events'] ?? 0) > 0) {
         echo '<div class="uniselv-card mb-4" style="border-left: 4px solid var(--uniselv-danger); background: var(--uniselv-danger-bg); margin-top: 20px;">';
         echo '<h6 style="color: var(--uniselv-danger); font-weight: 700; margin-bottom: 4px;">Recent Resource Pressure Detected</h6>';
-        echo '<p style="color: #7f1d1d; font-size: 0.9rem; margin: 0;">Your account recently hit resource ceilings (' . $cur['cpu_throttled_events'] . ' CPU throttling periods, ' . $cur['oom_kill_events'] . ' OOM terminations). Review the Notifications and Snapshots tabs for diagnostic traces.</p>';
+        echo '<p style="color: #7f1d1d; font-size: 0.9rem; margin: 0;">Your account recently hit resource ceilings ('  . ($cur['cpu_throttled_events'] ?? 0) . ' CPU throttling periods, '  . ($cur['oom_kill_events'] ?? 0) . ' OOM terminations). Review the Notifications and Snapshots tabs for diagnostic traces.</p>';
         echo '</div>';
     }
 
@@ -2651,20 +2703,13 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <div class="uniselv-cpanel-header" style="margin-bottom: 20px;">
             <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 0.88rem; font-weight: 600; color: #475569;">Timeframe:</label>
+                    <label for="uniselv-usage-timeframe" class="uniselv-form-label">Timeframe</label>
                     <select id="uniselv-usage-timeframe" class="uniselv-cpanel-select" onchange="UniselvResMan.loadCurrentUsage(this.value)">
                         <option value="today" selected>Today</option>
                         <option value="yesterday">Yesterday</option>
                         <option value="24h">Last 24 Hours</option>
                         <option value="7d">Last 7 Days</option>
                         <option value="30d">Last 30 Days</option>
-                    </select>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 0.88rem; font-weight: 600; color: #475569;">Time unit:</label>
-                    <select id="uniselv-usage-timeunit" class="uniselv-cpanel-select">
-                        <option value="hour" selected>Hour</option>
-                        <option value="minute">Minute</option>
                     </select>
                 </div>
                 <button class="uniselv-cpanel-btn" onclick="UniselvResMan.refreshCurrentUsage()" title="Refresh Telemetry">
@@ -2877,7 +2922,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         foreach ($notifs['events'] as $e) {
             $badge = ($e['severity'] === 'critical') ? 'badge-critical' : (($e['severity'] === 'warning') ? 'badge-warning' : 'badge-normal');
             $st = isset($e['status']) ? $e['status'] : 'unread';
-            $status_badge = ($st === 'unread') ? '<span class="uniselv-badge badge-warning">UNREAD</span>' : (($st === 'dismissed') ? '<span class="uniselv-badge badge-outline">DISMISSED</span>' : '<span class="uniselv-badge badge-normal">READ</span>');
+            $status_badge = ($st === 'unread') ? '<span class="uniselv-badge badge-unread">UNREAD</span>' : (($st === 'dismissed') ? '<span class="uniselv-badge badge-outline">DISMISSED</span>' : '<span class="uniselv-badge badge-outline">READ</span>');
             
             $actions_html = '';
             if ($st === 'unread') {
@@ -2891,7 +2936,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             }
 
             echo '<tr class="uniselv-notif-row" data-status="' . htmlspecialchars($st) . '">
-                <td>' . date('Y-m-d H:i:s', $e['timestamp']) . '</td>
+                <td>' . date('j M Y, H:i:s T', $e['timestamp']) . '</td>
                 <td>' . htmlspecialchars($e['event_type']) . '</td>
                 <td><span class="uniselv-badge ' . $badge . '">' . htmlspecialchars(strtoupper($e['severity'])) . '</span></td>
                 <td>' . $status_badge . '</td>

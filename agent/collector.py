@@ -937,6 +937,59 @@ class MetricsCollector:
         finally:
             conn.close()
 
+    def _rollup_minutes(self, conn, cutoff):
+        """Keep the last row's timestamp and limits, with weighted minute statistics."""
+        specs = {
+            'samples': (
+                'id', 'username, uid, timestamp / 60',
+                ('cpu_percent', 'cpu_allowance_percent', 'mem_current_bytes', 'mem_anon_bytes',
+                 'mem_file_bytes', 'mem_swap_bytes', 'tasks_current', 'read_bytes_sec',
+                 'write_bytes_sec', 'read_iops_sec', 'write_iops_sec'),
+                ('cpu_throttled_events', 'cpu_throttled_usec', 'oom_kill_events', 'task_limit_events'),
+                {'cpu_peak': 'cpu_percent', 'mem_peak': 'mem_current_bytes',
+                 'read_peak': 'read_bytes_sec', 'write_peak': 'write_bytes_sec',
+                 'iops_peak': 'COALESCE(read_iops_sec, 0) + COALESCE(write_iops_sec, 0)',
+                 'tasks_peak': 'tasks_current'},
+            ),
+            'system_metrics': (
+                'timestamp', 'timestamp / 60',
+                ('cpu_percent', 'mem_used_bytes', 'mem_available_bytes', 'swap_used_bytes',
+                 'golden_slice_cpu_percent', 'golden_slice_mem_bytes', 'load1', 'load5', 'load15'),
+                (), {},
+            ),
+        }
+        for table, (key, group, means, counters, peaks) in specs.items():
+            aggregates = {'sample_count': 'SUM(sample_count)'}
+            aggregates.update({
+                col: f'SUM(1.0 * COALESCE({col}, 0) * sample_count) / SUM(sample_count)'
+                for col in means
+            })
+            aggregates.update({col: f'SUM(COALESCE({col}, 0))' for col in counters})
+            aggregates.update({
+                col: f'MAX(COALESCE({col}, {expr}, 0))' for col, expr in peaks.items()
+            })
+            projection = ', '.join(f'{expr} AS {col}' for col, expr in aggregates.items())
+            columns = ', '.join(aggregates)
+            conn.execute(f"""
+                CREATE TEMP TABLE minute_rollup AS
+                SELECT MAX({key}) AS keep_key, COUNT(*) AS bucket_rows, {projection}
+                FROM {table} WHERE timestamp < ? GROUP BY {group}
+            """, (cutoff,))
+            conn.execute("CREATE UNIQUE INDEX temp.idx_minute_keep ON minute_rollup(keep_key)")
+            conn.execute(f"""
+                UPDATE {table} SET ({columns}) =
+                    (SELECT {columns} FROM minute_rollup WHERE keep_key = {table}.{key})
+                WHERE {key} IN (SELECT keep_key FROM minute_rollup WHERE bucket_rows > 1)
+            """)
+            deleted = conn.execute(f"""
+                DELETE FROM {table} WHERE timestamp < ?
+                AND {key} NOT IN (SELECT keep_key FROM minute_rollup)
+            """, (cutoff,)).rowcount
+            conn.execute("DROP TABLE minute_rollup")
+            if table == 'samples':
+                deleted_samples = deleted
+        return deleted_samples
+
     def prune_retention(self, samples_days: int = None, snapshots_days: int = None,
                         events_days: int = None, audit_days: int = None, vacuum: bool = False) -> Dict[str, Any]:
         """Purge stale telemetry, snapshots, and logs according to retention policy and enforce max storage quota."""
@@ -962,6 +1015,7 @@ class MetricsCollector:
 
         conn = self.get_db_connection()
         try:
+            conn.execute("PRAGMA temp_store = FILE")
             cur = conn.cursor()
             cur.execute("DELETE FROM samples WHERE timestamp < ?", (cutoff_samples,))
             deleted_samples += max(0, cur.rowcount)
@@ -974,42 +1028,56 @@ class MetricsCollector:
             deleted_audit = max(0, cur.rowcount)
             conn.commit()
 
-            # Downsample older telemetry: samples older than 48 hours keep 1 sample per minute
-            two_days_ago = now - (2 * 86400)
-            cur.execute("DELETE FROM samples WHERE timestamp < ? AND (id % 12) != 0", (two_days_ago,))
-            deleted_samples += max(0, cur.rowcount)
-            cur.execute("DELETE FROM system_metrics WHERE timestamp < ? AND (timestamp % 60) != 0", (two_days_ago,))
+            # Only aggregate complete minutes and commit updates and deletions together.
+            conn.execute("BEGIN IMMEDIATE")
+            deleted_samples += self._rollup_minutes(conn, ((now - 2 * 86400) // 60) * 60)
             conn.commit()
 
-            # Storage Quota Enforcement
-            cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-            cur_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
+            page_size = cur.execute("PRAGMA page_size").fetchone()[0]
 
-            if cur_size > max_storage_bytes:
-                vacuum = True
-                while cur_size > max_storage_bytes:
-                    cur.execute("DELETE FROM samples WHERE id IN (SELECT id FROM samples ORDER BY timestamp ASC LIMIT 50000)")
-                    chunk_deleted = cur.rowcount
-                    deleted_samples += chunk_deleted
-                    cur.execute("DELETE FROM system_metrics WHERE timestamp IN (SELECT timestamp FROM system_metrics ORDER BY timestamp ASC LIMIT 5000)")
-                    conn.commit()
-                    cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                    cur_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
-                    if chunk_deleted < 50000:
-                        break
+            def live_bytes():
+                pages = cur.execute("PRAGMA page_count").fetchone()[0]
+                free = cur.execute("PRAGMA freelist_count").fetchone()[0]
+                return (pages - free) * page_size
+
+            # SQLite reuses freed pages before VACUUM physically shrinks the file.
+            # Preserve the most recent hour even when the configured budget is too small.
+            conn.execute('BEGIN IMMEDIATE')
+            while live_bytes() > max_storage_bytes:
+                candidates = []
+                for table in ('samples', 'system_metrics'):
+                    oldest = cur.execute(f"SELECT MIN(timestamp) FROM {table}").fetchone()[0]
+                    if oldest is not None and oldest < now - 3600:
+                        candidates.append((oldest, table))
+                if not candidates:
+                    break
+                _, table = min(candidates)
+                key = 'id' if table == 'samples' else 'timestamp'
+                cur.execute(f"""
+                    DELETE FROM {table} WHERE {key} IN
+                    (SELECT {key} FROM {table} WHERE timestamp < ? ORDER BY timestamp, {key} LIMIT 500)
+                """, (now - 3600,))
+                if table == 'samples':
+                    deleted_samples += cur.rowcount
+            used_bytes = live_bytes()
+            conn.commit()
+            cur.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            file_size = os.path.getsize(self.db_path)
+            vacuum = vacuum or file_size > max_storage_bytes and used_bytes < file_size
         finally:
             conn.close()
 
         # Dedicated autocommit connection for VACUUM (SQLite strictly requires no active transaction)
         if vacuum:
+            vac_conn = sqlite3.connect(self.db_path, timeout=60, isolation_level=None)
             try:
-                vac_conn = sqlite3.connect(self.db_path, timeout=60, isolation_level=None)
                 vac_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
                 vac_conn.execute("VACUUM")
                 vac_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            except sqlite3.Error as exc:
+                print(f"[Retention] Database compaction failed: {exc}", file=sys.stderr)
+            finally:
                 vac_conn.close()
-            except Exception:
-                pass
 
         after_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
         freed_bytes = max(0, before_size - after_size)
@@ -1021,6 +1089,7 @@ class MetricsCollector:
             'deleted_audit': max(0, deleted_audit),
             'before_bytes': before_size,
             'after_bytes': after_size,
+            'over_budget': after_size > max_storage_bytes,
             'freed_bytes': freed_bytes,
             'freed_formatted': format_bytes(freed_bytes),
             'current_size_formatted': format_bytes(after_size)

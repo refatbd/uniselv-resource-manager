@@ -142,6 +142,11 @@ if (file_exists($installed_isolation) && file_exists($bundled_isolation) &&
     exit(1);
 }
 
+// Reconcile the 1.1.36 CPUWeight migration before any account slice is prepared.
+if (file_exists('/var/lib/golden-shield/shared-files.json')) {
+    uniselv_checked_command('/usr/bin/python3 ' . escapeshellarg($agent_dir . '/core/golden-shield.py') . ' reconcile-cpu-weight');
+}
+
 // Global PHP-FPM Request Tracker Injection (cPanel CloudLinux Parity) with Reversible Manifest
 $tracker_script = $agent_dir . '/core/fpm_worker_tracker.php';
 $env_tracker = getenv('UNISELV_TRACKER_SCRIPT');
