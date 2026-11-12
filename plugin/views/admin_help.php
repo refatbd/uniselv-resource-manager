@@ -8,6 +8,17 @@ $uniselvHelpOs = @parse_ini_file('/etc/os-release', false, INI_SCANNER_RAW) ?: [
 $uniselvHelpEscape = static function($value) { return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8'); };
 $uniselvHelpVersion = $uniselvHelpInfo['version'] ?? 'Unavailable';
 $uniselvHelpPanel = isset($globals['version']) && is_scalar($globals['version']) ? $globals['version'] : 'Read the current Webuzo panel header';
+$uniselvPhpBranches = [];
+foreach ((array)@glob('/usr/local/apps/php*/bin/php') as $_uPhpBin) {
+    if (preg_match('#/apps/(php\d{2,3})/bin/php$#', (string)$_uPhpBin, $_uM) && @is_executable($_uPhpBin)) {
+        $_uBr = $_uM[1];
+        $_uHasOsw = @file_exists("/usr/local/apps/{$_uBr}/ext/openswoole.so") || @file_exists("/usr/local/apps/{$_uBr}/etc/php.d/openswoole.ini");
+        $uniselvPhpBranches[] = strtoupper($_uBr) . ($_uHasOsw ? ' (OpenSwoole)' : '');
+    }
+}
+sort($uniselvPhpBranches);
+$uniselvComposerPath = @is_executable('/usr/local/bin/composer') ? '/usr/local/bin/composer' : (@is_executable('/usr/bin/composer') ? '/usr/bin/composer' : 'Not installed globally');
+$uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable('/bin/systemd-run');
 ?>
 <div id="tab-help" class="uniselv-tab-content">
     <!-- Help Header & Real-time Search -->
@@ -32,15 +43,48 @@ $uniselvHelpPanel = isset($globals['version']) && is_scalar($globals['version'])
         <button class="uniselv-cat-btn active" data-cat="all" onclick="UniselvResMan.setHelpCategory('all')">All Documentation</button>
         <button class="uniselv-cat-btn" data-cat="quickstart" onclick="UniselvResMan.setHelpCategory('quickstart')">Quick Start</button>
         <button class="uniselv-cat-btn" data-cat="features" onclick="UniselvResMan.setHelpCategory('features')">Feature Guide</button>
+        <button class="uniselv-cat-btn" data-cat="platform" onclick="UniselvResMan.setHelpCategory('platform')">OpenSwoole &amp; Platform</button>
         <button class="uniselv-cat-btn" data-cat="metrics" onclick="UniselvResMan.setHelpCategory('metrics')">Resource Metrics</button>
         <button class="uniselv-cat-btn" data-cat="golden" onclick="UniselvResMan.setHelpCategory('golden')">Golden Shield Governor</button>
         <button class="uniselv-cat-btn" data-cat="scenarios" onclick="UniselvResMan.setHelpCategory('scenarios')">Practical Scenarios</button>
-        <button class="uniselv-cat-btn" data-cat="trouble" onclick="UniselvResMan.setHelpCategory('trouble')">Troubleshooting & Runbook</button>
-        <button class="uniselv-cat-btn" data-cat="about" onclick="UniselvResMan.setHelpCategory('about')">About & Architecture</button>
+        <button class="uniselv-cat-btn" data-cat="trouble" onclick="UniselvResMan.setHelpCategory('trouble')">Troubleshooting &amp; Runbook</button>
+        <button class="uniselv-cat-btn" data-cat="about" onclick="UniselvResMan.setHelpCategory('about')">About &amp; Architecture</button>
     </div>
 
     <!-- Documentation Articles Grid -->
     <div class="uniselv-help-grid">
+        <!-- OPENSWOOLE GOVERNANCE (v1.2.0) -->
+        <div class="uniselv-help-card" data-cat="platform" id="help-topic-openswoole">
+            <span class="uniselv-help-badge badge-cat-features">OpenSwoole Governance</span>
+            <h4 class="uniselv-help-card-title">Multi-PHP OpenSwoole Installer &amp; Plan-Proportional Runtime Governance</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Menu:</strong> <em>OpenSwoole</em> tab.<br>
+                <strong>What it does:</strong> Automates OpenSwoole extension provisioning across all Webuzo PHP branches (<code>php74</code>–<code>php84+</code>) and enforces account resource fairness on long-lived coroutine/Octane servers so one tenant cannot bypass cgroups or exhaust host RAM.
+                <ol style="margin: 6px 0 10px 20px; padding: 0; line-height: 1.6;">
+                    <li><strong>One-Click Build &amp; Extension Wiring:</strong> Installs version-compatible OpenSwoole builds, wires <code>ext/openswoole.so</code> + <code>php.d/openswoole.ini</code> automatically, and automatically provisions newly installed Webuzo PHP branches.</li>
+                    <li><strong>Plan-Proportional Limits:</strong> Derives <code>max_workers</code>, <code>max_task_workers</code>, memory caps, and idle timeouts strictly from each plan's assigned vCPU &amp; RAM budget (plus optional per-plan overrides).</li>
+                    <li><strong>Process Containment &amp; Self-Test:</strong> Keeps OpenSwoole masters and workers confined inside <code>golden-&lt;uid&gt;.slice</code> without misclassifying ordinary PHP CLI crons, provides live <strong>Admin OpenSwoole Governance Self-Test</strong>, and logs all actions in <em>Audit Events</em>.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- PLATFORM OPERATIONS & LARAVEL (v1.2.0) -->
+        <div class="uniselv-help-card" data-cat="platform" id="help-topic-platform">
+            <span class="uniselv-help-badge badge-cat-features">Platform &amp; Laravel</span>
+            <h4 class="uniselv-help-card-title">OS Preflight, Managed Laravel Services, Redis ACL, Ports &amp; Policy Migration</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Menu:</strong> <em>Platform &amp; Laravel</em> tab (Admin) &amp; <em>App Services &amp; Tools</em> tab (Enduser).
+                <ol style="margin: 6px 0 10px 20px; padding: 0; line-height: 1.6;">
+                    <li><strong>1-Click OS Preflight &amp; Verified Composer:</strong> Audits C/C++ build headers (<code>libssl-dev</code>, <code>libcurl4-openssl-dev</code>, <code>zlib1g-dev</code>, compilers) and Composer. Missing dependencies install asynchronously via isolated transient <code>systemd-run</code> units (<code>MemoryMax=1G</code>, APT post-hooks bypassed) without straining the agent daemon.</li>
+                    <li><strong>Managed Laravel Services (Global Policy + Fleet Monitor):</strong> Use <strong>Global Feature Policy</strong> checkboxes to enable/disable Managed Laravel Services and restrict allowed service types (<strong>Queue Workers</strong>, <strong>Laravel Horizon</strong>, <strong>Laravel Reverb</strong>, <strong>Scheduler</strong>) plus the global worker cap. Monitor every customer's units across the server and run 3-step self-tests; customers configure their own project paths directly inside <em>Enduser &rarr; App Services &amp; Tools</em> (with an optional collapsed Admin Support Override accordion for hands-on troubleshooting).</li>
+                    <li><strong>Redis ACL Tenant Isolation:</strong> Toggle enduser self-service Redis ACL creation globally, enforce optional <code>default</code> user lockdown, audit all provisioned ACL users in the fleet table with inline <strong>Test ACL</strong> / <strong>Revoke</strong> actions, and keep secrets masked in logs/exports.</li>
+                    <li><strong>Dedicated Port Registry &amp; Socket Dir:</strong> Assigns persistent conflict-free ports per account for Octane (<code>--port</code>), Reverb, Horizon, Node, and Python alongside <code>/run/uniselv-apps/&lt;account&gt;</code>.</li>
+                    <li><strong>Heavy Runtime Containment &amp; Log/Inode Watchdog:</strong> Confines or terminates out-of-slice heavy runtimes, toggles whether customers can run self-trim inside <em>Enduser &rarr; App Services &amp; Tools</em>, flags bloated <code>laravel.log</code> / debug logs, and truncates safely while keeping the newest 1,000 lines (rejecting symlinks).</li>
+                    <li><strong>Cluster Policy JSON Migration:</strong> Exports plans, overrides, and platform settings (with all ACL secrets stripped) and supports <strong>Dry-Run Preview</strong> before importing on another server.</li>
+                </ol>
+            </div>
+        </div>
+
         <div class="uniselv-help-card" data-cat="features" id="help-topic-runtime">
             <span class="uniselv-help-badge badge-cat-features">Runtime Governance</span>
             <h4 class="uniselv-help-card-title">PHP Lifecycle, Configuration Drift &amp; Recovery</h4>
@@ -58,9 +102,9 @@ $uniselvHelpPanel = isset($globals['version']) && is_scalar($globals['version'])
             </div>
         </div>
         <div class="uniselv-help-card" data-cat="trouble" id="help-topic-runtime-advanced">
-            <span class="uniselv-help-badge">Advanced Runbook</span>
-            <h4 class="uniselv-help-card-title">Runtime Operations, Exact Source Placement &amp; Validation Scope</h4>
-            <div class="uniselv-help-card-desc">Release <?php echo $uniselvHelpEscape($uniselvHelpVersion); ?>. These technical guides describe already-applied changes; they are not additional post-install paste steps.</div>
+            <span class="uniselv-help-badge">Baseline Reference</span>
+            <h4 class="uniselv-help-card-title">Native PHP-FPM Baseline Architecture &amp; Historical Specs (v1.1.33)</h4>
+            <div class="uniselv-help-card-desc">Active Plugin Release: <strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong>. The collapsible notes below preserve the reviewed v1.1.33 native PHP-FPM relay &amp; cgroup baseline for architectural reference (already applied; not manual install steps).</div>
             <details><summary>Operations, expected profile and verification scope</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.33.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
             <details><summary>Exact source replacement and insertion guide</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.33.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
             <details><summary>Measured resource allocation and current-host tests</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/server-policy-report-1.1.33.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
@@ -284,6 +328,18 @@ $uniselvHelpPanel = isset($globals['version']) && is_scalar($globals['version'])
                 <code>sudo python3 -c "import json,socket; s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); s.settimeout(10); s.connect('/run/uniselv-resman/agent.sock'); s.sendall((json.dumps({'action':'get_agent_health','auth':{'user':'root','is_admin':True}})+'\n').encode()); print(s.makefile().readline()); s.close()"</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
             </div>
+
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">6. Verify OpenSwoole Loaded Across All Webuzo PHP Branches:</p>
+            <div class="uniselv-code-block">
+                <code>for p in /usr/local/apps/php*/bin/php; do echo "=== $p ==="; "$p" -m | grep -i swoole; done</code>
+                <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
+            </div>
+
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">7. Inspect Managed Laravel Services &amp; Platform Dependency Job:</p>
+            <div class="uniselv-code-block">
+                <code>systemctl list-units 'uniselv-app-*' --no-pager && cat /var/lib/uniselv-resource-manager/platform/dep_job.json</code>
+                <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
+            </div>
         </div>
 
         <!-- 10. ABOUT & COMPATIBILITY -->
@@ -292,13 +348,16 @@ $uniselvHelpPanel = isset($globals['version']) && is_scalar($globals['version'])
             <h4 class="uniselv-help-card-title">About UNISELV Resource Manager & System Compatibility</h4>
             <div class="uniselv-help-card-desc">
                 <table style="width:100%; border-collapse:collapse; font-size:0.88rem; color:#334155;">
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?> — see PHP Lifecycle, Configuration Drift &amp; Recovery and the Advanced Runbook.</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong> — OpenSwoole Runtime Governance &amp; Managed Laravel Platform Edition.</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td><?php echo $uniselvHelpEscape($uniselvHelpOs['PRETTY_NAME'] ?? 'Unavailable'); ?></td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td><?php echo $uniselvHelpEscape(php_uname('r') . ' (' . php_uname('m') . ')'); ?></td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo <?php echo $uniselvHelpEscape($uniselvHelpPanel); ?></td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Detected PHP Stack:</td><td><?php echo $uniselvHelpEscape($uniselvPhpBranches ? implode(', ', $uniselvPhpBranches) : 'None detected'); ?></td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Platform Tooling:</td><td>Composer: <code><?php echo $uniselvHelpEscape($uniselvComposerPath); ?></code> &bull; Transient Sandbox: <code><?php echo $uniselvSystemdRunOk ? 'systemd-run OK' : 'Unavailable'; ?></code></td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Cgroups Implementation:</td><td>Cgroups v2 Unified Hierarchy (<code>/sys/fs/cgroup</code>)</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Process identity checks with <code>pidfd</code> where supported; inspect the result of each process action.</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Process identity checks with <code>pidfd</code> where supported; strict account slice containment.</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Ownership Manifest:</td><td><code>/var/lib/uniselv-resource-manager/ownership_manifest.json</code></td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Source Repository:</td><td><a href="https://github.com/refatbd/uniselv-resource-manager" target="_blank" rel="noopener noreferrer" style="color:var(--uniselv-primary); text-decoration:none; font-weight:600;">github.com/refatbd/uniselv-resource-manager</a></td></tr>
                     <tr><td style="padding:6px 0; font-weight:600;">Developer:</td><td><strong>Refat Rahman</strong> (<a href="https://refat.ovh" target="_blank" style="color:var(--uniselv-primary); text-decoration:none; font-weight:600;">refat.ovh</a>)</td></tr>
                 </table>
             </div>

@@ -485,7 +485,7 @@ const UniselvResMan = {
             select.className = 'uniselv-section-overflow uniselv-cpanel-select';
             select.setAttribute('aria-label', label);
             select.add(new Option(label, ''));
-            const primary = new Set(['overview', 'accounts', 'analytics', 'health']);
+            const primary = new Set(['overview', 'accounts', 'analytics', 'openswoole', 'platform', 'health']);
             tabs.querySelectorAll('.uniselv-tab-btn').forEach(button => {
                 if (primary.has(button.dataset.tab)) return;
                 button.classList.add('uniselv-secondary-tab');
@@ -542,6 +542,10 @@ const UniselvResMan = {
         if (this.isAdmin) {
             if (resolved === 'overview') {
                 this.loadAdminOverview();
+            } else if (resolved === 'openswoole') {
+                this.loadOpenSwooleGovernance();
+            } else if (resolved === 'platform') {
+                this.loadPlatformAdmin();
             } else if (resolved === 'health') {
                 this.loadPhpLifecycle();
                 this.loadRuntimeGovernance();
@@ -574,10 +578,13 @@ const UniselvResMan = {
                 const tf = document.getElementById('uniselv-usage-timeframe')?.value || 'today';
                 this.loadCurrentUsage(tf);
                 this.loadLiveProcesses();
+                this.loadEnduserOpenSwoole();
             } else if (resolved === 'snapshots') {
                 this.loadEnduserSnapshotsIndex();
             } else if (resolved === 'notifications') {
                 this.loadEnduserNotifications();
+            } else if (resolved === 'services') {
+                this.loadEnduserServices();
             } else if (resolved === 'history') {
                 const range = this.activeEnduserRange || '1h';
                 this.loadHistory(range);
@@ -3362,7 +3369,8 @@ const UniselvResMan = {
             const cpuCommit = document.getElementById('cap-cpu-commit');
             if (cpuCommit) cpuCommit.textContent = (sum.cpu_commit_ratio ?? 'Unavailable') + ' : 1';
             const cpuSoldSub = document.getElementById('cap-cpu-sold-sub');
-            if (cpuSoldSub) cpuSoldSub.textContent = `Sold: ${sold.total_sold_cpu_pct || 0}% across ${res.total_accounts || 0} accounts`;
+            const acctCount = sum.total_accounts ?? res.capacity?.total_accounts ?? res.total_accounts ?? 0;
+            if (cpuSoldSub) cpuSoldSub.textContent = `Sold: ${sold.total_sold_cpu_pct || 0}% across ${acctCount} accounts`;
 
             const memCommit = document.getElementById('cap-mem-commit');
             if (memCommit) memCommit.textContent = (sum.mem_commit_ratio ?? 'Unavailable') + ' : 1';
@@ -3827,6 +3835,1835 @@ const UniselvResMan = {
             if (uInput) uInput.value = '';
             this.loadPermissions();
         });
+    },
+
+    // ==================== OPENSWOOLE GOVERNANCE & MULTI-PHP AUTOMATION ====================
+
+    loadOpenSwooleGovernance: function() {
+        const host = document.getElementById('uniselv-openswoole-admin-body');
+        if (!this.isAdmin || !host) return;
+        host.textContent = 'Loading OpenSwoole multi-PHP & resource governance status...';
+        this.callApi('openswoole_status', {}, (err, response) => {
+            const data = response?.data || response;
+            if (err || !data?.success) {
+                host.textContent = `OpenSwoole governance unavailable: ${err || data?.error || 'Check agent status'}`;
+                return;
+            }
+            const jobEl = document.getElementById('uniselv-openswoole-job');
+            if (jobEl && !this.oswPolling) {
+                const j = data.job;
+                jobEl.textContent = j ? `Last OpenSwoole job: ${j.operation} (${j.version || 'all'}) — ${j.state}${j.error ? ': ' + j.error : ''}` : '';
+            }
+            host.replaceChildren();
+            const settings = data.settings || {};
+
+            const mk = (tag, attrs = {}, text = null) => {
+                const el = document.createElement(tag);
+                for (const [k, v] of Object.entries(attrs)) {
+                    if (k === 'class') el.className = v;
+                    else if (k === 'style') el.style.cssText = v;
+                    else if (v !== undefined && v !== null) el.setAttribute(k, String(v));
+                }
+                if (text !== null) el.textContent = String(text);
+                return el;
+            };
+
+            // 1. Global Automation & Resource Directives Form
+            const cfgBox = mk('div', { style: 'background:var(--uniselv-bg-subtle,#f8fafc);border:1px solid var(--uniselv-border,#e2e8f0);border-radius:10px;padding:14px;margin-bottom:16px;' });
+            cfgBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 10px 0;' }, '1. Automation, Isolation & PHP Extension Directives'));
+            const grid = mk('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;align-items:end;' });
+
+            const makeCheck = (id, label, checked) => {
+                const wrap = mk('label', { style: 'display:flex;align-items:center;gap:8px;font-size:0.86rem;font-weight:600;cursor:pointer;padding:6px 0;' });
+                const inp = mk('input', { type: 'checkbox', id });
+                inp.checked = Boolean(checked);
+                wrap.append(inp, document.createTextNode(label));
+                return wrap;
+            };
+            const makeField = (id, label, type, value, opts = {}) => {
+                const wrap = mk('div');
+                wrap.append(mk('label', { for: id, style: 'display:block;font-size:0.78rem;font-weight:600;color:#475569;margin-bottom:4px;' }, label));
+                if (type === 'select') {
+                    const sel = mk('select', { id, class: 'uniselv-form-input', style: 'width:100%;' });
+                    (opts.options || []).forEach(([val, txt]) => {
+                        const o = mk('option', { value: val }, txt);
+                        if (String(value) === String(val)) o.selected = true;
+                        sel.append(o);
+                    });
+                    wrap.append(sel);
+                } else {
+                    const inp = mk('input', { id, type, class: 'uniselv-form-input', style: 'width:100%;', value: String(value ?? ''), ...(opts.min ? { min: opts.min } : {}), ...(opts.max ? { max: opts.max } : {}) });
+                    wrap.append(inp);
+                }
+                return wrap;
+            };
+
+            grid.append(
+                makeCheck('osw-auto-new-php', 'Auto-enable on new PHP versions', settings.openswoole_auto_install_new_php === '1'),
+                makeCheck('osw-strict-cgroup', 'Strict cgroups v2 slice containment', settings.openswoole_strict_cgroup === '1'),
+                makeCheck('osw-enable-coroutine', 'Enable OpenSwoole coroutines', settings.openswoole_enable_coroutine !== '0'),
+                makeCheck('osw-preemptive', 'Preemptive coroutine scheduler', settings.openswoole_preemptive_scheduler === '1'),
+                makeField('osw-enforce-mode', 'Resource enforcement mode', 'select', settings.openswoole_enforcement_mode || 'enforce', {
+                    options: [['enforce', 'Enforce (Cap workers & block disabled)'], ['monitor', 'Monitor & alert only']]
+                }),
+                makeField('osw-worker-rss', 'Estimated RAM per worker (MiB)', 'number', settings.openswoole_worker_rss_mib || '128', { min: 64, max: 512 }),
+                makeField('osw-global-max', 'Global max workers cap', 'number', settings.openswoole_global_max_workers || '4', { min: 1, max: 64 }),
+                makeField('osw-sock-buf', 'Unix socket buffer (bytes)', 'number', settings.openswoole_unixsock_buffer_size || '8388608', { min: 1048576, max: 67108864 })
+            );
+            const saveBtn = mk('button', { class: 'uniselv-btn btn-primary', type: 'button' }, 'Save OpenSwoole Settings');
+            saveBtn.onclick = () => this.saveOpenSwooleSettings();
+            const btnWrap = mk('div');
+            btnWrap.append(saveBtn);
+            grid.append(btnWrap);
+            cfgBox.append(grid);
+            host.append(cfgBox);
+
+            // helper table builder
+            const buildTable = (title, cols, rows) => {
+                const sec = mk('div', { style: 'margin-bottom:16px;' });
+                sec.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, title));
+                const wrap = mk('div', { class: 'uniselv-table-wrap' });
+                const tbl = mk('table', { class: 'uniselv-table' });
+                const trHead = tbl.createTHead().insertRow();
+                cols.forEach(c => trHead.append(mk('th', { scope: 'col' }, c)));
+                const tbody = tbl.createTBody();
+                if (!rows.length) {
+                    const td = tbody.insertRow().insertCell();
+                    td.colSpan = cols.length;
+                    td.style.color = '#64748b';
+                    td.textContent = 'No entries found.';
+                } else {
+                    rows.forEach(cells => {
+                        const r = tbody.insertRow();
+                        cells.forEach(c => {
+                            const td = r.insertCell();
+                            if (c instanceof Node) td.append(c);
+                            else td.textContent = String(c ?? '');
+                        });
+                    });
+                }
+                wrap.append(tbl);
+                sec.append(wrap);
+                host.append(sec);
+            };
+
+            // 2. Live Verification, Diagnostics & Launch Command Console
+            const accountsList = data.accounts || [];
+            const phpEntries = Object.entries(data.php_versions || {});
+            const testBox = mk('div', { id: 'osw-console-box', style: 'background:var(--uniselv-bg-subtle,#f8fafc);border:1px solid var(--uniselv-border,#e2e8f0);border-radius:10px;padding:14px;margin-bottom:16px;' });
+            testBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '2. Verification, Readiness Diagnostics & Launch Command Console'));
+            testBox.append(mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0 0 12px 0;' }, 'Verify PHP/INI startup & compiler toolchain readiness, run an isolated ephemeral OpenSwoole loopback test inside an account slice, or generate plan-aligned Octane launch commands.'));
+
+            const ctrlRow = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;' });
+            const accWrap = mk('div', { style: 'min-width:210px;flex:1;' });
+            accWrap.append(mk('label', { for: 'osw-test-account', style: 'display:block;font-size:0.78rem;font-weight:600;color:#475569;margin-bottom:4px;' }, 'Target Account (for Self-Test & Command)'));
+            const accSel = mk('select', { id: 'osw-test-account', class: 'uniselv-form-input', style: 'width:100%;' });
+            const preferredAcc = this._oswSelectedAccount
+                || (accountsList.find(a => a.allowed) || accountsList[0] || {}).username
+                || '';
+            accountsList.forEach(a => {
+                const label = `${a.username} (${a.plan_name}: ${a.allowed ? `${a.max_workers}w / ${a.max_task_workers}t` : 'Blocked'})`;
+                const o = mk('option', { value: a.username }, label);
+                if (a.username === preferredAcc) o.selected = true;
+                accSel.append(o);
+            });
+            if (!accountsList.length) {
+                accSel.append(mk('option', { value: '' }, 'No hosted accounts found'));
+            }
+            accWrap.append(accSel);
+
+            const phpWrap = mk('div', { style: 'min-width:170px;' });
+            phpWrap.append(mk('label', { for: 'osw-test-php', style: 'display:block;font-size:0.78rem;font-weight:600;color:#475569;margin-bottom:4px;' }, 'PHP Branch'));
+            const phpSel = mk('select', { id: 'osw-test-php', class: 'uniselv-form-input', style: 'width:100%;' });
+            const loadedPhp = phpEntries.filter(([, m]) => m.loaded).map(([v]) => v);
+            const preferredPhp = (this._oswSelectedPhp && (data.php_versions || {})[this._oswSelectedPhp])
+                ? this._oswSelectedPhp
+                : (loadedPhp[loadedPhp.length - 1] || (phpEntries[0] && phpEntries[0][0]) || 'php84');
+            phpEntries.forEach(([v, m]) => {
+                const o = mk('option', { value: v }, `${v} (${m.loaded ? 'Loaded' : m.status})`);
+                if (v === preferredPhp) o.selected = true;
+                phpSel.append(o);
+            });
+            if (!phpEntries.length) {
+                phpSel.append(mk('option', { value: 'php84' }, 'php84'));
+            }
+            phpWrap.append(phpSel);
+
+            const diagInlineBtn = mk('button', { id: 'osw-inline-diag-btn', class: 'uniselv-btn btn-outline', type: 'button' }, 'Check PHP & Build Readiness');
+            diagInlineBtn.onclick = () => this.runOpenSwooleDiagnostics();
+            const selfTestBtn = mk('button', { id: 'osw-selftest-btn', class: 'uniselv-btn btn-primary', type: 'button' }, 'Run Live Self-Test');
+            selfTestBtn.onclick = () => this.runOpenSwooleSelfTest();
+
+            ctrlRow.append(accWrap, phpWrap, diagInlineBtn, selfTestBtn);
+            testBox.append(ctrlRow);
+
+            const cmdCard = mk('div', { style: 'background:#0f172a;color:#e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;' });
+            const cmdHeader = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;' });
+            cmdHeader.append(mk('span', { style: 'font-size:0.76rem;font-weight:700;color:#94a3b8;text-transform:uppercase;' }, 'Account-Aligned Launch Command & Server->set() Snippet'));
+            const copyCmdBtn = mk('button', { class: 'uniselv-btn btn-sm', type: 'button', style: 'background:#1e293b;color:#f8fafc;border:1px solid #475569;padding:4px 10px;border-radius:6px;cursor:pointer;' }, 'Copy Command');
+            cmdHeader.append(copyCmdBtn);
+            const cmdPre = mk('pre', { id: 'osw-cmd-preview', style: 'margin:0;white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:0.8rem;line-height:1.45;color:#f8fafc;' });
+            cmdCard.append(cmdHeader, cmdPre);
+            testBox.append(cmdCard);
+
+            const updateLaunchPreview = () => {
+                const chosenAcc = accountsList.find(a => a.username === accSel.value) || accountsList[0];
+                const chosenPhp = phpSel.value || 'php84';
+                this._oswSelectedAccount = chosenAcc ? chosenAcc.username : '';
+                this._oswSelectedPhp = chosenPhp;
+                if (!chosenAcc) {
+                    cmdPre.textContent = 'No account selected.';
+                    return;
+                }
+                const phpBin = `/usr/local/apps/${chosenPhp}/bin/php`;
+                const w = chosenAcc.allowed ? chosenAcc.max_workers : 0;
+                const tw = chosenAcc.allowed ? chosenAcc.max_task_workers : 0;
+                const maxReq = chosenAcc.max_requests || 1000;
+                const memMb = chosenAcc.mem_max_mib || 512;
+                const slice = chosenAcc.expected_slice || `golden-${chosenAcc.uid}.slice`;
+                if (!chosenAcc.allowed || w < 1) {
+                    cmdPre.textContent = `# OpenSwoole is currently BLOCKED for ${chosenAcc.username} (${chosenAcc.plan_name}).\n# Enable Access via Account Override or Plan Policy above to generate an active launch command.`;
+                } else {
+                    cmdPre.textContent =
+                        `# Slice: ${slice} | Plan: ${chosenAcc.plan_name} | Memory Cap: ${memMb} MiB\n` +
+                        `${phpBin} artisan octane:start --server=openswoole --host=127.0.0.1 --port=8000 --workers=${w} --task-workers=${tw} --max-requests=${maxReq}\n` +
+                        `# Raw OpenSwoole\\HTTP\\Server->set([...]):\n` +
+                        `$server->set(['worker_num' => ${w}, 'task_worker_num' => ${tw}, 'max_request' => ${maxReq}]);`;
+                }
+            };
+            accSel.onchange = updateLaunchPreview;
+            phpSel.onchange = updateLaunchPreview;
+            copyCmdBtn.onclick = () => {
+                const txt = cmdPre.textContent || '';
+                if (!txt) return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(txt).then(
+                        () => UniselvNotify.success('Launch command copied to clipboard.'),
+                        () => UniselvNotify.info('Copy selected command manually from preview box.')
+                    );
+                } else {
+                    UniselvNotify.info('Clipboard API unavailable; copy command from preview box.');
+                }
+            };
+            updateLaunchPreview();
+
+            const diagOut = mk('div', { id: 'osw-diag-output', style: 'margin-bottom:10px;' });
+            const selfOut = mk('div', { id: 'osw-selftest-output' });
+            testBox.append(diagOut, selfOut);
+            host.append(testBox);
+            if (this._lastOswDiagnostics) this._renderOpenSwooleDiagnostics(this._lastOswDiagnostics);
+            if (this._lastOswSelfTest) this._renderOpenSwooleSelfTest(this._lastOswSelfTest);
+
+            // 3. Installed PHP Versions Matrix
+            buildTable(
+                '3. Installed Webuzo PHP Versions & OpenSwoole Extensions',
+                ['PHP Branch', 'PHP Version', 'Target PECL', 'Status / Loaded', 'Real extension_dir', 'Actions'],
+                phpEntries.map(([ver, m]) => {
+                    const badge = mk('span', { class: `uniselv-badge ${m.status === 'active' || m.status === 'active_manual' ? 'badge-normal' : (m.status === 'disabled' ? 'badge-warning' : 'badge-critical')}` },
+                        m.loaded ? `Active (${m.openswoole_version || 'loaded'})` : m.status);
+                    if (m.last_error && !m.loaded) {
+                        badge.title = m.last_error;
+                    }
+                    const actWrap = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;' });
+                    if (m.compatible_versions && m.compatible_versions.length) {
+                        if (m.status === 'active' || m.status === 'active_manual') {
+                            const bDis = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Disable');
+                            bDis.onclick = () => this.triggerOpenSwoolePhpAction('disable', ver);
+                            const bReb = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Rebuild');
+                            bReb.onclick = () => this.triggerOpenSwoolePhpAction('rebuild', ver);
+                            actWrap.append(bDis, bReb);
+                        } else {
+                            const bEn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, m.so_exists ? 'Enable' : 'Compile & Enable');
+                            bEn.onclick = () => this.triggerOpenSwoolePhpAction(m.so_exists ? 'enable' : 'install', ver);
+                            actWrap.append(bEn);
+                        }
+                    } else {
+                        actWrap.textContent = 'Unsupported PHP';
+                    }
+                    return [ver, m.php_version || '-', m.recommended_release || '-', badge, m.extension_dir || '-', actWrap];
+                })
+            );
+
+            // 4. Per-Plan OpenSwoole Resource Policies
+            buildTable(
+                '4. Plan-Level OpenSwoole Resource Budgets',
+                ['Plan', 'Plan Limits (CPU / RAM / Tasks)', 'Auto Workers', 'Allow OpenSwoole', 'Overrides (Workers / Tasks)', 'Save'],
+                (data.plans || []).map(pl => {
+                    const allowSel = mk('select', { class: 'uniselv-form-input', style: 'min-width:105px;' });
+                    [['1', 'Allowed'], ['0', 'Disabled']].forEach(([v, t]) => {
+                        const o = mk('option', { value: v }, t);
+                        if ((pl.allowed ? '1' : '0') === v) o.selected = true;
+                        allowSel.append(o);
+                    });
+                    const ovInp = mk('input', { type: 'number', min: '0', max: '64', class: 'uniselv-form-input', style: 'width:68px;', value: String(pl.max_workers_override || 0), title: 'Max Workers (0 = Auto)' });
+                    const taskOvInp = mk('input', { type: 'number', min: '-1', max: '64', class: 'uniselv-form-input', style: 'width:68px;', value: String(pl.max_task_workers_override ?? -1), title: 'Max Task Workers (-1 = Auto)' });
+                    const ovWrap = mk('div', { style: 'display:flex;gap:6px;align-items:center;' });
+                    ovWrap.append(ovInp, taskOvInp);
+                    const savePl = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Apply');
+                    savePl.onclick = () => this.saveOpenSwoolePolicy('plan', pl.plan_name, allowSel.value, ovInp.value, taskOvInp.value);
+                    return [
+                        pl.plan_name,
+                        `${pl.cpuquota}% / ${pl.mem_max_mib} MiB / ${pl.maxtask}`,
+                        `${pl.auto_calculated_workers} (task: ${pl.max_task_workers})`,
+                        allowSel,
+                        ovWrap,
+                        savePl
+                    ];
+                })
+            );
+
+            // 5. Per-Account Effective Limits & Active Processes
+            buildTable(
+                '5. Account OpenSwoole Enforcement & Live Activity',
+                ['Account (Plan)', 'Assigned Slice', 'Budget (Workers / Tasks)', 'Live (Workers / RSS)', 'Account Override (Access / W / T)', 'Actions'],
+                (data.accounts || []).map(acc => {
+                    const allowSel = mk('select', { class: 'uniselv-form-input', style: 'min-width:115px;' });
+                    [['-1', 'Inherit Plan'], ['1', 'Force Allow'], ['0', 'Block']].forEach(([v, t]) => {
+                        const o = mk('option', { value: v }, t);
+                        if (String(acc.override_allowed) === v) o.selected = true;
+                        allowSel.append(o);
+                    });
+                    const ovInp = mk('input', { type: 'number', min: '0', max: '64', class: 'uniselv-form-input', style: 'width:64px;', value: String(acc.override_max_workers || 0), title: 'Workers Override (0 = Inherit/Auto)' });
+                    const taskOvInp = mk('input', { type: 'number', min: '-1', max: '64', class: 'uniselv-form-input', style: 'width:64px;', value: String(acc.override_max_task_workers ?? -1), title: 'Task Workers Override (-1 = Inherit/Auto)' });
+                    const ovWrap = mk('div', { style: 'display:flex;gap:6px;align-items:center;' });
+                    ovWrap.append(allowSel, ovInp, taskOvInp);
+                    const actWrap = mk('div', { style: 'display:flex;gap:6px;align-items:center;' });
+                    const saveAcc = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Save');
+                    saveAcc.onclick = () => this.saveOpenSwoolePolicy('account', acc.username, allowSel.value, ovInp.value, taskOvInp.value);
+                    const testUseBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', title: 'Select this account in Test & Launch Command console' }, 'Test/Cmd');
+                    testUseBtn.onclick = () => {
+                        this._oswSelectedAccount = acc.username;
+                        accSel.value = acc.username;
+                        updateLaunchPreview();
+                        testBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    };
+                    actWrap.append(saveAcc, testUseBtn);
+                    const liveText = acc.active_process_count
+                        ? `${acc.active_worker_count}w / ${acc.active_rss_mib} MiB` + (acc.escaped_count ? ` (${acc.escaped_count} escaped!)` : '')
+                        : 'Idle';
+                    return [
+                        `${acc.username} (${acc.plan_name})`,
+                        acc.expected_slice,
+                        acc.allowed ? `${acc.max_workers}w / ${acc.max_task_workers}t (${acc.policy_source})` : `Blocked (${acc.policy_source})`,
+                        liveText,
+                        ovWrap,
+                        actWrap
+                    ];
+                })
+            );
+
+            // 6. Running OpenSwoole Processes
+            buildTable(
+                '6. Live OpenSwoole / Octane Processes',
+                ['PID', 'Account', 'PHP', 'Role', 'RSS', 'Cgroup Containment', 'Command', 'Action'],
+                (data.live_processes || []).map(p => {
+                    const cgBadge = mk('span', { class: `uniselv-badge ${p.contained ? 'badge-normal' : 'badge-critical'}` }, p.contained ? 'Contained' : 'Outside Slice!');
+                    const stopBtn = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Stop');
+                    stopBtn.onclick = () => this.stopOpenSwoolePid(p.uid, p.pid);
+                    return [
+                        String(p.pid),
+                        p.username,
+                        p.php_version || '-',
+                        p.role,
+                        `${Math.round((p.rss_bytes || 0) / (1024 * 1024))} MiB`,
+                        cgBadge,
+                        p.cmdline || p.comm,
+                        stopBtn
+                    ];
+                })
+            );
+
+            // 7. Recent OpenSwoole Audit & Enforcement Events
+            const fmtTs = (ts) => {
+                const n = Number(ts);
+                return Number.isFinite(n) && n > 1000000000 ? new Date(n * 1000).toLocaleString() : String(ts || '-');
+            };
+            const fmtDetails = (det) => {
+                if (!det) return '-';
+                if (typeof det === 'string') return det;
+                if (typeof det === 'object') {
+                    const parts = Object.entries(det).map(([k, v]) => `${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : v}`);
+                    return parts.length ? parts.join(' · ') : '-';
+                }
+                return String(det);
+            };
+            buildTable(
+                '7. Recent OpenSwoole Audit & Enforcement Events',
+                ['Time', 'Event', 'Account', 'Details'],
+                (data.audit_logs || []).map(ev => [
+                    fmtTs(ev.timestamp),
+                    ev.action || '-',
+                    ev.target_account || ev.username || '-',
+                    fmtDetails(ev.details)
+                ])
+            );
+        }, { timeoutMs: 20000 });
+    },
+
+    saveOpenSwooleSettings: function() {
+        const payload = {
+            openswoole_auto_install_new_php: document.getElementById('osw-auto-new-php')?.checked ? '1' : '0',
+            openswoole_strict_cgroup: document.getElementById('osw-strict-cgroup')?.checked ? '1' : '0',
+            openswoole_enable_coroutine: document.getElementById('osw-enable-coroutine')?.checked ? '1' : '0',
+            openswoole_preemptive_scheduler: document.getElementById('osw-preemptive')?.checked ? '1' : '0',
+            openswoole_enforcement_mode: document.getElementById('osw-enforce-mode')?.value || 'enforce',
+            openswoole_worker_rss_mib: document.getElementById('osw-worker-rss')?.value || '128',
+            openswoole_global_max_workers: document.getElementById('osw-global-max')?.value || '4',
+            openswoole_unixsock_buffer_size: document.getElementById('osw-sock-buf')?.value || '8388608'
+        };
+        this.callApi('openswoole_save_settings', payload, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(`Failed saving OpenSwoole settings: ${err || d?.error || 'Unknown error'}`);
+                return;
+            }
+            const synced = (d.ini_sync?.updated || []).join(', ');
+            UniselvNotify.success(synced ? `OpenSwoole settings saved & synced to: ${synced}` : 'OpenSwoole settings saved.');
+            this.loadOpenSwooleGovernance();
+        }, { timeoutMs: 25000 });
+    },
+
+    triggerOpenSwoolePhpAction: function(operation, version = '') {
+        if (this.oswPolling) {
+            UniselvNotify.warning('An OpenSwoole build/provisioning job is already in progress.');
+            return;
+        }
+        this.callApi('openswoole_php_action', { operation, version }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(d?.error || err || 'Failed triggering OpenSwoole operation');
+                return;
+            }
+            if (!d.queued) {
+                UniselvNotify.success(`OpenSwoole ${operation} applied to ${version}.`);
+                this.loadOpenSwooleGovernance();
+                return;
+            }
+            this.oswPolling = true;
+            const jobEl = document.getElementById('uniselv-openswoole-job');
+            if (jobEl) jobEl.textContent = `Running: ${operation} (${version || 'all PHP versions'})... compiling in isolated build slice.`;
+            let attempts = 160;
+            const poll = () => {
+                this.callApi('openswoole_status', {}, (pErr, pRes) => {
+                    const st = pRes?.data || pRes;
+                    const job = st?.job;
+                    if (!pErr && job && job.id === d.jobId && job.state !== 'running') {
+                        this.oswPolling = false;
+                        if (job.state === 'completed') {
+                            UniselvNotify.success(`OpenSwoole ${operation} (${version || 'all'}) completed.`);
+                        } else {
+                            UniselvNotify.error(job.error || `OpenSwoole ${operation} failed.`);
+                        }
+                        this.loadOpenSwooleGovernance();
+                        return;
+                    }
+                    if (--attempts > 0) {
+                        setTimeout(poll, 3000);
+                    } else {
+                        this.oswPolling = false;
+                        if (jobEl) jobEl.textContent = 'OpenSwoole job is still compiling in background; click Refresh shortly.';
+                    }
+                }, { timeoutMs: 15000 });
+            };
+            setTimeout(poll, 2000);
+        }, { timeoutMs: 20000 });
+    },
+
+    saveOpenSwoolePolicy: function(scope, target, allowed, maxWorkersOverride, maxTaskWorkersOverride) {
+        this.callApi('openswoole_save_policy', {
+            scope,
+            target,
+            allowed,
+            max_workers_override: maxWorkersOverride || '0',
+            max_task_workers_override: maxTaskWorkersOverride ?? '-1'
+        }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(`Failed saving OpenSwoole policy: ${err || d?.error}`);
+                return;
+            }
+            UniselvNotify.success(`Updated OpenSwoole ${scope} policy for ${target}.`);
+            this.loadOpenSwooleGovernance();
+        });
+    },
+
+    runOpenSwooleDiagnostics: function() {
+        const out = document.getElementById('osw-diag-output');
+        if (out) {
+            out.textContent = 'Running multi-PHP OpenSwoole readiness & compiler toolchain check...';
+        }
+        this.callApi('openswoole_diagnostics', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                const msg = err || d?.error || 'Diagnostics failed';
+                if (out) out.textContent = `Diagnostics error: ${msg}`;
+                UniselvNotify.error(msg);
+                return;
+            }
+            this._lastOswDiagnostics = d;
+            this._renderOpenSwooleDiagnostics(d);
+            if (d.all_passed) {
+                UniselvNotify.success('All PHP branches, INI directives, and build toolchain checks passed.');
+            } else {
+                UniselvNotify.warning('Some PHP branches or readiness checks require attention.');
+            }
+        }, { timeoutMs: 25000 });
+    },
+
+    _renderOpenSwooleDiagnostics: function(d) {
+        const out = document.getElementById('osw-diag-output');
+        if (!out || !d) return;
+        out.replaceChildren();
+        const mk = (tag, attrs = {}, text = null) => {
+            const el = document.createElement(tag);
+            for (const [k, v] of Object.entries(attrs)) {
+                if (k === 'class') el.className = v;
+                else if (k === 'style') el.style.cssText = v;
+                else if (v !== undefined && v !== null) el.setAttribute(k, String(v));
+            }
+            if (text !== null) el.textContent = String(text);
+            return el;
+        };
+
+        const box = mk('div', { style: `border:1px solid ${d.all_passed ? '#86efac' : '#fcd34d'};background:${d.all_passed ? '#f0fdf4' : '#fffbeb'};border-radius:8px;padding:12px;` });
+        const head = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
+        const checkedN = Number(d.checked_at);
+        const checkedLabel = Number.isFinite(checkedN) && checkedN > 1000000000 ? new Date(checkedN * 1000).toLocaleString() : (d.checked_at || '');
+        head.append(
+            mk('strong', { style: 'color:#0f172a;font-size:0.9rem;' }, `PHP & Build Readiness Check${checkedLabel ? ` (${checkedLabel})` : ''}`),
+            mk('span', { class: `uniselv-badge ${d.all_passed ? 'badge-normal' : 'badge-warning'}` }, d.all_passed ? 'ALL CHECKS PASSED' : 'ATTENTION NEEDED')
+        );
+        box.append(head);
+
+        const tools = d.toolchain || {};
+        const toolLine = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:0.78rem;' });
+        toolLine.append(mk('span', { style: 'font-weight:600;color:#475569;align-self:center;' }, 'Toolchain & Policy:'));
+        Object.entries(tools).forEach(([name, ok]) => {
+            toolLine.append(mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-critical'}` }, `${name}: ${ok ? 'OK' : 'Missing'}`));
+        });
+        toolLine.append(mk('span', { class: `uniselv-badge ${d.policy_manifest_ok ? 'badge-normal' : 'badge-critical'}`, title: d.policy_manifest_path || '' }, `Policy JSON: ${d.policy_manifest_ok ? 'OK' : 'Missing'}`));
+        box.append(toolLine);
+
+        const wrap = mk('div', { class: 'uniselv-table-wrap' });
+        const tbl = mk('table', { class: 'uniselv-table' });
+        const thRow = tbl.createTHead().insertRow();
+        ['Branch', 'PHP / Ext', '.so Present', 'openswoole.ini', 'CLI Startup', 'FPM Guard', 'Result'].forEach(c => thRow.append(mk('th', { scope: 'col' }, c)));
+        const tbody = tbl.createTBody();
+        (d.php_checks || []).forEach(c => {
+            const tr = tbody.insertRow();
+            [
+                c.version,
+                `${c.php_version || '-'} (${c.openswoole_version || c.status})`,
+                c.so_exists ? 'Yes' : 'No',
+                c.ini_exists ? (c.ini_synced ? 'Synced' : 'Out-of-sync') : 'Missing',
+                c.startup_ok ? 'OK' : (c.error || 'Fail'),
+                c.fpm_isolated_active ? 'Yes' : 'No',
+                mk('span', { class: `uniselv-badge ${c.passed ? 'badge-normal' : (c.status === 'unsupported' ? 'badge-warning' : 'badge-critical')}` }, c.passed ? 'PASS' : c.status)
+            ].forEach(val => {
+                const td = tr.insertCell();
+                if (val instanceof Node) td.append(val);
+                else td.textContent = String(val ?? '-');
+            });
+        });
+        wrap.append(tbl);
+        box.append(wrap);
+        out.append(box);
+    },
+
+    runOpenSwooleSelfTest: function() {
+        const username = document.getElementById('osw-test-account')?.value || this._oswSelectedAccount || '';
+        const phpVersion = document.getElementById('osw-test-php')?.value || this._oswSelectedPhp || 'php84';
+        if (!username) {
+            UniselvNotify.warning('Select a target hosted account before running the live self-test.');
+            return;
+        }
+        const btn = document.getElementById('osw-selftest-btn');
+        const out = document.getElementById('osw-selftest-output');
+        if (btn) btn.disabled = true;
+        if (out) {
+            out.textContent = `Running live OpenSwoole cgroup v2 & worker-cap self-test for ${username} (${phpVersion})...`;
+        }
+        this.callApi('openswoole_selftest', { username, php_version: phpVersion }, (err, res) => {
+            if (btn) btn.disabled = false;
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                const msg = err || d?.error || 'Live self-test failed';
+                if (out) out.textContent = `Live self-test error: ${msg}`;
+                UniselvNotify.error(msg);
+                return;
+            }
+            this._lastOswSelfTest = d;
+            if (d.all_passed) {
+                UniselvNotify.success(`OpenSwoole live self-test PASSED for ${d.username} (${d.elapsed_ms || 0} ms).`);
+            } else {
+                UniselvNotify.error(`OpenSwoole live self-test detected failures for ${d.username}.`);
+            }
+            this.loadOpenSwooleGovernance();
+        }, { timeoutMs: 40000 });
+    },
+
+    _renderOpenSwooleSelfTest: function(d) {
+        const out = document.getElementById('osw-selftest-output');
+        if (!out || !d) return;
+        out.replaceChildren();
+        const mk = (tag, attrs = {}, text = null) => {
+            const el = document.createElement(tag);
+            for (const [k, v] of Object.entries(attrs)) {
+                if (k === 'class') el.className = v;
+                else if (k === 'style') el.style.cssText = v;
+                else if (v !== undefined && v !== null) el.setAttribute(k, String(v));
+            }
+            if (text !== null) el.textContent = String(text);
+            return el;
+        };
+
+        const box = mk('div', { style: `border:1px solid ${d.all_passed ? '#86efac' : '#fca5a5'};background:${d.all_passed ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:12px;` });
+        const head = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
+        head.append(
+            mk('strong', { style: 'color:#0f172a;font-size:0.9rem;' }, `Live E2E Self-Test: ${d.username} (UID ${d.uid}, ${d.plan_name}, ${d.php_version}) · ${d.elapsed_ms || 0} ms`),
+            mk('span', { class: `uniselv-badge ${d.all_passed ? 'badge-normal' : 'badge-critical'}` }, d.all_passed ? 'PASSED' : 'FAILED')
+        );
+        box.append(head);
+
+        const list = mk('div', { style: 'display:flex;flex-direction:column;gap:6px;' });
+        (d.steps || []).forEach(st => {
+            const row = mk('div', { style: 'display:flex;gap:8px;align-items:flex-start;font-size:0.83rem;background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;' });
+            row.append(
+                mk('span', { class: `uniselv-badge ${st.passed ? 'badge-normal' : 'badge-critical'}`, style: 'flex-shrink:0;' }, st.passed ? 'PASS' : 'FAIL'),
+                mk('div', {}, `${st.label}: ${st.detail || ''}`)
+            );
+            list.append(row);
+        });
+        box.append(list);
+        out.append(box);
+    },
+
+    enforceOpenSwooleNow: function() {
+        this.callApi('openswoole_enforce', { mode: 'reconcile' }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(`Enforcement pass failed: ${err || d?.error}`);
+                return;
+            }
+            UniselvNotify.success(`Checked ${d.scanned || 0} OpenSwoole processes (${d.contained_moves || 0} contained, ${(d.terminated_pids || []).length} stopped).`);
+            this.loadOpenSwooleGovernance();
+        });
+    },
+
+    stopOpenSwoolePid: function(uid, pid) {
+        this.callApi('openswoole_enforce', { mode: 'stop_pid', uid, pid }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(d?.error || d?.message || 'Failed stopping PID');
+                return;
+            }
+            UniselvNotify.success(`Stopped OpenSwoole PID ${pid}.`);
+            this.loadOpenSwooleGovernance();
+        });
+    },
+
+    loadEnduserOpenSwoole: function() {
+        const host = document.getElementById('uniselv-enduser-openswoole-body');
+        if (!host) return;
+        host.textContent = 'Loading your OpenSwoole resource limits...';
+        this.callApi('openswoole_status', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                host.textContent = 'OpenSwoole budget information unavailable.';
+                return;
+            }
+            const pol = d.policy || {};
+            const g = d.guidance || {};
+            host.replaceChildren();
+
+            const summary = document.createElement('div');
+            summary.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px;';
+            const card = (lbl, val) => {
+                const box = document.createElement('div');
+                box.style.cssText = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;';
+                const l = document.createElement('div');
+                l.style.cssText = 'font-size:0.75rem;color:#64748b;text-transform:uppercase;font-weight:600;';
+                l.textContent = lbl;
+                const v = document.createElement('div');
+                v.style.cssText = 'font-size:1rem;font-weight:700;color:#1e293b;margin-top:2px;';
+                v.textContent = val;
+                box.append(l, v);
+                return box;
+            };
+            summary.append(
+                card('OpenSwoole Access', pol.allowed ? 'Enabled' : 'Disabled on Plan'),
+                card('Max Workers', pol.allowed ? `${pol.max_workers} Workers` : '0'),
+                card('Max Task Workers', pol.allowed ? `${pol.max_task_workers} Tasks` : '0'),
+                card('Account Slice', pol.expected_slice || '-'),
+                card('Active PHP Builds', (g.active_php_versions || []).join(', ') || 'None')
+            );
+            host.append(summary);
+
+            if (pol.allowed && g.recommended_octane_command) {
+                const cmdRow = this._mkCodeCopyBox(g.recommended_octane_command, 'Copy Octane Command');
+                if (g.assigned_octane_port) {
+                    const pBadge = document.createElement('div');
+                    pBadge.style.cssText = 'font-size:0.78rem;color:#475569;margin-bottom:6px;';
+                    pBadge.textContent = `Assigned Dedicated Octane Port: ${g.assigned_octane_port}`;
+                    host.append(pBadge);
+                }
+                host.append(cmdRow);
+            }
+
+            const procs = d.live_processes || [];
+            const note = document.createElement('div');
+            note.style.cssText = 'font-size:0.84rem;color:#475569;';
+            note.textContent = procs.length
+                ? `Currently running ${procs.length} OpenSwoole processes inside ${pol.expected_slice}.`
+                : 'No active OpenSwoole server processes running for this account.';
+            host.append(note);
+        }, { timeoutMs: 15000 });
+    },
+
+    // ==================== PLATFORM OPS & MANAGED LARAVEL SERVICES (ADMIN) ====================
+
+    _mkCodeCopyBox: function(codeText, copyLabel = 'Copy') {
+        const wrap = this._mkEl('div', { style: 'position:relative;margin-bottom:10px;' });
+        const pre = this._mkEl('pre', { style: 'background:#0f172a;color:#e2e8f0;padding:10px 84px 10px 12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0;white-space:pre-wrap;word-break:break-word;' }, String(codeText || ''));
+        const btn = this._mkEl('button', {
+            class: 'uniselv-btn btn-outline btn-sm',
+            type: 'button',
+            style: 'position:absolute;top:8px;right:8px;background:#1e293b;color:#f8fafc;border-color:#475569;font-size:0.74rem;padding:4px 9px;'
+        }, copyLabel);
+        btn.onclick = () => this.copyToClipboard(String(codeText || ''), btn);
+        wrap.append(pre, btn);
+        return wrap;
+    },
+
+    _mkEl: function(tag, attrs = {}, ...children) {
+        const el = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs || {})) {
+            if (k === 'class') el.className = v;
+            else if (k === 'style') el.style.cssText = v;
+            else if (v !== undefined && v !== null) el.setAttribute(k, String(v));
+        }
+        children.forEach(c => {
+            if (c === null || c === undefined) return;
+            if (c instanceof Node) el.appendChild(c);
+            else el.appendChild(document.createTextNode(String(c)));
+        });
+        return el;
+    },
+
+    loadPlatformAdmin: function() {
+        const host = document.getElementById('uniselv-platform-admin-body');
+        if (!this.isAdmin || !host) return;
+        host.textContent = 'Loading platform preflight, Laravel services, Redis isolation, ports & logs...';
+        const selectedUser = this._pltSelectedUser || '';
+        this.callApi('platform_status', selectedUser ? { username: selectedUser } : {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                host.textContent = `Platform console unavailable: ${err || d?.error || 'Check agent status'}`;
+                return;
+            }
+            const mk = this._mkEl.bind(this);
+            const pre = d.preflight || {};
+            const settings = d.settings || {};
+            const lrv = d.laravel || {};
+            const redis = d.redis || {};
+            const ports = d.port_allocations || [];
+            const runtimes = d.runtimes || [];
+            const logsData = d.logs || this._pltLogResult || {};
+            const accounts = lrv.accounts || [];
+            const curUser = this._pltSelectedUser || '';
+
+            const jobEl = document.getElementById('uniselv-platform-job');
+            if (jobEl && pre.job) {
+                const j = pre.job;
+                jobEl.textContent = `Last dependency job (${j.target || 'toolchain'}): ${j.state || ''}${j.error ? ' — ' + j.error : ''}`;
+                if (j.state === 'running' && !this._pltPolling) {
+                    this._startDepPolling();
+                }
+            }
+
+            host.replaceChildren();
+
+            // 1. OS Preflight & Build Toolchain
+            const preBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const preHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;' });
+            preHead.append(
+                mk('h6', { style: 'font-weight:700;margin:0;' }, `1. OS Build Preflight, Native Headers & Composer (${(pre.distro?.pretty_name || pre.distro?.id || 'Linux')})`),
+                mk('span', { class: `uniselv-badge ${pre.ready_for_openswoole_build ? 'badge-normal' : 'badge-warning'}` }, pre.ready_for_openswoole_build ? 'BUILD READY' : 'MISSING BUILD PACKAGES')
+            );
+            preBox.append(preHead);
+
+            const chipWrap = mk('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;' });
+            Object.entries(pre.binaries || {}).forEach(([name, ok]) => {
+                chipWrap.append(mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-outline'}`, style: 'font-size:0.75rem;' }, `${name}: ${ok ? 'OK' : 'Missing'}`));
+            });
+            Object.entries(pre.headers || {}).forEach(([name, ok]) => {
+                chipWrap.append(mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-critical'}`, style: 'font-size:0.75rem;' }, `${name}: ${ok ? 'OK' : 'Missing'}`));
+            });
+            preBox.append(chipWrap);
+
+            const depActions = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;' });
+            const b1 = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'One-Click Install OS Build Deps');
+            b1.onclick = () => this.installPlatformDeps('toolchain');
+            const b2 = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, pre.binaries?.composer ? 'Reinstall/Verify Composer' : 'Install Verified Composer');
+            b2.onclick = () => this.installPlatformDeps('composer');
+            const b3 = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Install Full Toolchain + Composer');
+            b3.onclick = () => this.installPlatformDeps('all');
+            depActions.append(b1, b2, b3, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, pre.composer_path ? `Composer: ${pre.composer_path}` : 'Composer not installed globally'));
+            preBox.append(depActions);
+            host.append(preBox);
+
+            // 2. Laravel Stack & Supervisor — Install, Activate/Deactivate & User Permissions
+            const sup = d.supervisor || pre.supervisor || {};
+            const stack = d.stack_readiness || {};
+            const lrvBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const lrvHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;' });
+            const lrvEnabled = settings.platform_laravel_services_enabled !== '0';
+            const supGlobalEn = settings.platform_supervisor_enabled !== '0';
+            const allowedList = String(settings.platform_laravel_allowed_types || 'queue,horizon,reverb,scheduler').split(',').map(x => x.trim()).filter(Boolean);
+            lrvHead.append(
+                mk('h6', { style: 'font-weight:700;margin:0;' }, '2. Laravel Stack & Supervisor — Install, Activate/Deactivate & User Permissions'),
+                mk('span', { class: `uniselv-badge ${lrvEnabled ? 'badge-normal' : 'badge-warning'}` }, lrvEnabled ? 'SERVER CAPABILITIES ACTIVE' : 'GLOBALLY PAUSED BY ADMIN')
+            );
+            lrvBox.append(lrvHead);
+            lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+                'Admin installs missing server packages, activates or deactivates capabilities globally, and grants per-user permissions. Users configure Queue, Horizon, Reverb, and Scheduler strictly from their own project settings — zero .env editing here.'
+            ));
+
+            // 2A. Server Capabilities Matrix (Supervisor, Queue, Horizon, Reverb, Scheduler)
+            const capWrap = mk('div', { class: 'uniselv-table-wrap', style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
+            const capTbl = mk('table', { class: 'uniselv-table' });
+            const capHr = capTbl.createTHead().insertRow();
+            ['Server Capability', 'Server Installation & Prerequisites', 'Status', 'Admin Controls'].forEach(c => capHr.append(mk('th', {}, c)));
+            const capTb = capTbl.createTBody();
+            const capRows = [
+                { key: 'supervisor', info: stack.supervisor || {}, installed: Boolean(sup.installed), active: Boolean(sup.runtime_active) && supGlobalEn, summary: (stack.supervisor?.summary) || (sup.installed ? `${sup.unit_name || 'supervisor.service'}` : 'Supervisor binaries not installed'), installTarget: sup.installed ? '' : 'supervisor' },
+                { key: 'queue', info: stack.queue || {}, installed: stack.queue ? Boolean(stack.queue.installed) : true, active: lrvEnabled && allowedList.includes('queue'), summary: stack.queue?.summary || 'PHP CLI + Supervisor/systemd worker ready', installTarget: stack.queue?.install_target || '' },
+                { key: 'horizon', info: stack.horizon || {}, installed: stack.horizon ? Boolean(stack.horizon.installed) : Boolean(pre.binaries?.['redis-cli']), active: lrvEnabled && allowedList.includes('horizon'), summary: stack.horizon?.summary || 'Redis + PHP pcntl/posix/redis', installTarget: stack.horizon?.install_target || '' },
+                { key: 'reverb', info: stack.reverb || {}, installed: stack.reverb ? Boolean(stack.reverb.installed) : true, active: lrvEnabled && allowedList.includes('reverb'), summary: stack.reverb?.summary || 'Dedicated WS port pool (20000-59990) + PHP sockets/pcntl', installTarget: stack.reverb?.install_target || '' },
+                { key: 'scheduler', info: stack.scheduler || {}, installed: stack.scheduler ? Boolean(stack.scheduler.installed) : true, active: lrvEnabled && allowedList.includes('scheduler'), summary: stack.scheduler?.summary || 'Cron daemon + PHP CLI', installTarget: stack.scheduler?.install_target || '' },
+            ];
+            capRows.forEach(row => {
+                const tr = capTb.insertRow();
+                const labels = { supervisor: 'Supervisor Daemon', queue: 'Laravel Queue Workers', horizon: 'Laravel Horizon', reverb: 'Laravel Reverb / WebSocket', scheduler: 'Laravel Scheduler' };
+                const instBadge = mk('span', { class: `uniselv-badge ${row.installed ? 'badge-normal' : 'badge-warning'}`, style: 'margin-right:6px;' }, row.installed ? 'Installed / Ready' : 'Missing Package');
+                const instCell = mk('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;' });
+                instCell.append(instBadge, mk('span', { style: 'font-size:0.78rem;color:#475569;' }, row.summary));
+                const stBadge = mk('span', { class: `uniselv-badge ${row.active ? 'badge-normal' : 'badge-critical'}` }, row.active ? 'ACTIVE' : 'DEACTIVATED');
+                const actTd = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;' });
+                if (row.key === 'supervisor') {
+                    if (!sup.installed) {
+                        const sbInst = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button', id: 'plt-sup-install-btn' }, 'Install Supervisor');
+                        sbInst.onclick = () => this.runSupervisorAction('install');
+                        actTd.append(sbInst);
+                    } else {
+                        const sbToggle = mk('button', { class: `uniselv-btn btn-sm ${sup.runtime_active ? 'btn-danger' : 'btn-primary'}`, type: 'button', id: sup.runtime_active ? 'plt-sup-stop-btn' : 'plt-sup-start-btn' }, sup.runtime_active ? 'Deactivate' : 'Activate');
+                        sbToggle.onclick = () => this.runSupervisorAction(sup.runtime_active ? 'disable' : 'enable');
+                        const sbRest = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', id: 'plt-sup-start-btn-restart' }, 'Restart');
+                        sbRest.onclick = () => this.runSupervisorAction('restart');
+                        const sbTest = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', id: 'plt-sup-test-btn' }, 'Test');
+                        sbTest.onclick = () => this.runSupervisorAction('test');
+                        actTd.append(sbToggle, sbRest, sbTest);
+                    }
+                } else {
+                    if (row.installTarget) {
+                        const ib = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, `Install ${row.installTarget.toUpperCase()}`);
+                        ib.onclick = () => this.installPlatformDeps(row.installTarget);
+                        actTd.append(ib);
+                    }
+                    const tb = mk('button', { class: `uniselv-btn btn-sm ${row.active ? 'btn-danger' : 'btn-primary'}`, type: 'button', id: `plt-cap-toggle-${row.key}` }, row.active ? 'Deactivate' : 'Activate');
+                    tb.onclick = () => this.toggleGlobalCapability(row.key, !row.active, allowedList, settings);
+                    actTd.append(tb);
+                }
+                [mk('strong', {}, labels[row.key]), instCell, stBadge, actTd].forEach(v => {
+                    const td = tr.insertCell();
+                    if (v instanceof Node) td.append(v);
+                    else td.textContent = String(v ?? '-');
+                });
+            });
+            capWrap.append(capTbl);
+            lrvBox.append(capWrap);
+            const supOut = mk('div', { id: 'plt-sup-output', style: 'margin-bottom:10px;' });
+            lrvBox.append(supOut);
+            if (this._pltSupResult) this._renderPlatformStepBox(supOut, this._pltSupResult, 'Supervisor Verification');
+
+            const mkCheck = (id, label, checked) => {
+                const w = mk('label', { style: 'display:flex;align-items:center;gap:7px;font-size:0.83rem;font-weight:600;cursor:pointer;' });
+                const i = mk('input', { type: 'checkbox', id });
+                i.checked = Boolean(checked);
+                w.append(i, document.createTextNode(label));
+                return w;
+            };
+            const mkInput = (id, label, type, val, opts = {}) => {
+                const w = mk('div');
+                w.append(mk('label', { for: id, style: 'display:block;font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:4px;' }, label));
+                if (type === 'select') {
+                    const s = mk('select', { id, class: 'uniselv-form-input', style: 'width:100%;' });
+                    (opts.options || []).forEach(([v, t]) => {
+                        const o = mk('option', { value: v }, t);
+                        if (String(v) === String(val)) o.selected = true;
+                        s.append(o);
+                    });
+                    w.append(s);
+                } else {
+                    w.append(mk('input', { id, type, class: 'uniselv-form-input', style: 'width:100%;', value: String(val ?? ''), ...(opts.min ? { min: opts.min } : {}), ...(opts.max ? { max: opts.max } : {}) }));
+                }
+                return w;
+            };
+
+            const lrvPolicyRow = mk('div', { style: 'display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
+            lrvPolicyRow.append(
+                mkCheck('plt-lrv-global-en', 'Enable User Laravel Access', lrvEnabled),
+                mkCheck('plt-lrv-allow-queue', 'Queue', allowedList.includes('queue')),
+                mkCheck('plt-lrv-allow-horizon', 'Horizon (>=512 MiB)', allowedList.includes('horizon')),
+                mkCheck('plt-lrv-allow-reverb', 'Reverb WS (>=512 MiB)', allowedList.includes('reverb')),
+                mkCheck('plt-lrv-allow-scheduler', 'Scheduler', allowedList.includes('scheduler')),
+                mkCheck('plt-sup-global-en', 'Allow Scoped Supervisor Mode', supGlobalEn)
+            );
+            const saveLrvPolicyBtn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button', style: 'margin-left:auto;' }, 'Save Global Policy');
+            saveLrvPolicyBtn.onclick = () => this.savePlatformSettings();
+            lrvPolicyRow.append(saveLrvPolicyBtn);
+            lrvBox.append(lrvPolicyRow);
+
+            // Per-User Permission Matrix (Admin decides which users get Queue / Horizon / Reverb / Scheduler / Supervisor)
+            const allUserPerms = d.user_permissions || {};
+            const permAcct = curUser || accounts[0] || '';
+            if (accounts.length) {
+                const pCard = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
+                const pTop = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;' });
+                pTop.append(mk('span', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;' }, 'Per-User Feature Permissions:'));
+                const pAcctSel = mk('select', { id: 'plt-perm-acct', class: 'uniselv-form-input', style: 'min-width:170px;' });
+                accounts.forEach(u => {
+                    const o = mk('option', { value: u }, u);
+                    if (u === permAcct) o.selected = true;
+                    pAcctSel.append(o);
+                });
+                const pChecks = mk('div', { style: 'display:flex;gap:14px;flex-wrap:wrap;align-items:center;' });
+                const renderUserPermChecks = (uname) => {
+                    pChecks.replaceChildren();
+                    const up = allUserPerms[uname] || {};
+                    pChecks.append(
+                        mkCheck('plt-up-queue', 'Queue Workers', up.platform_laravel_queue !== false),
+                        mkCheck('plt-up-horizon', 'Horizon', up.platform_laravel_horizon !== false),
+                        mkCheck('plt-up-reverb', 'Reverb WS', up.platform_laravel_reverb !== false),
+                        mkCheck('plt-up-scheduler', 'Scheduler', up.platform_laravel_scheduler !== false),
+                        mkCheck('plt-up-supervisor', 'Supervisor Access (No Terminal Needed)', Boolean(up.platform_supervisor))
+                    );
+                };
+                renderUserPermChecks(permAcct);
+                pAcctSel.onchange = () => renderUserPermChecks(pAcctSel.value);
+
+                const pSave = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button', id: 'plt-up-save-btn' }, 'Save User Permissions');
+                pSave.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value);
+                const pAllowAll = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Enable All');
+                pAllowAll.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value, { platform_laravel_queue: 1, platform_laravel_horizon: 1, platform_laravel_reverb: 1, platform_laravel_scheduler: 1, platform_supervisor: 1 });
+                const pRevokeAll = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Disable All');
+                pRevokeAll.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value, { platform_laravel_queue: 0, platform_laravel_horizon: 0, platform_laravel_reverb: 0, platform_laravel_scheduler: 0, platform_supervisor: 0 });
+                pTop.append(pAcctSel, pSave, pAllowAll, pRevokeAll);
+                pCard.append(pTop, pChecks);
+                lrvBox.append(pCard);
+            }
+
+            const fleetBar = mk('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;' });
+            fleetBar.append(mk('span', { style: 'font-size:0.82rem;font-weight:600;color:#475569;' }, 'Fleet Account Filter:'));
+            const acctSel = mk('select', { id: 'plt-acct-select', class: 'uniselv-form-input', style: 'min-width:200px;' });
+            const allOpt = mk('option', { value: '' }, 'All Accounts (Fleet Overview)');
+            if (!curUser) allOpt.selected = true;
+            acctSel.append(allOpt);
+            accounts.forEach(u => {
+                const o = mk('option', { value: u }, u);
+                if (u === curUser) o.selected = true;
+                acctSel.append(o);
+            });
+            acctSel.onchange = () => {
+                this._pltSelectedUser = acctSel.value;
+                this.loadPlatformAdmin();
+            };
+            const selfTestBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', id: 'plt-lrv-selftest-btn' }, curUser ? `Run Self-Test (${curUser})` : 'Run Live Laravel Self-Test');
+            selfTestBtn.onclick = () => this.runPlatformLaravelSelfTest(accounts[0] || '');
+            fleetBar.append(acctSel, selfTestBtn, mk('span', { style: 'font-size:0.79rem;color:#64748b;' }, 'Auto-discovered project Supervisor workers & active tenant services (no manual setup or .env editing).'));
+            lrvBox.append(fleetBar);
+
+            if (lrv.budget) {
+                const b = lrv.budget;
+                lrvBox.append(mk('div', { style: 'font-size:0.82rem;color:#475569;margin-bottom:10px;' },
+                    `Account Budget (${b.username}): Plan=${b.plan_name} · Slice=${b.expected_slice} · Max Queue Workers=${b.max_queue_workers} · Max Worker RAM=${b.max_worker_memory_mb} MiB · Horizon/Reverb=${b.horizon_allowed ? 'Allowed' : 'Disabled (<512 MiB or policy)'}`
+                ));
+            }
+
+            const lrvOut = mk('div', { id: 'plt-lrv-output', style: 'margin-bottom:10px;' });
+            lrvBox.append(lrvOut);
+            if (this._pltLaravelResult) {
+                this._renderPlatformStepBox(lrvOut, this._pltLaravelResult, 'Laravel Service Verification');
+            }
+
+            // Services fleet table
+            const svcs = lrv.services || [];
+            if (svcs.length) {
+                const wrap = mk('div', { class: 'uniselv-table-wrap', style: 'margin-bottom:10px;' });
+                const tbl = mk('table', { class: 'uniselv-table' });
+                const hr = tbl.createTHead().insertRow();
+                ['Account', 'Service', 'Project', 'PHP', 'Workers / Port', 'Slice / State', 'Admin Controls'].forEach(c => hr.append(mk('th', {}, c)));
+                const tb = tbl.createTBody();
+                svcs.forEach(s => {
+                    const tr = tb.insertRow();
+                    const actTd = mk('div', { style: 'display:flex;gap:4px;flex-wrap:wrap;' });
+                    [['start', 'Start'], ['stop', 'Stop'], ['restart', 'Restart'], [s.enabled ? 'disable' : 'enable', s.enabled ? 'Disable' : 'Enable'], ['test', 'Test'], ['logs', 'Logs'], ['uninstall', 'Remove']].forEach(([op, lbl]) => {
+                        const b = mk('button', { class: `uniselv-btn btn-sm ${op === 'uninstall' ? 'btn-danger' : 'btn-outline'}`, type: 'button', style: 'padding:3px 7px;font-size:0.74rem;' }, lbl);
+                        b.onclick = () => this.controlLaravelService(s.id, op, false, s.username);
+                        actTd.append(b);
+                    });
+                    const cells = [
+                        s.username,
+                        `${s.service_type.toUpperCase()} (${s.service_slug})`,
+                        s.app_path,
+                        s.php_branch,
+                        s.service_type === 'reverb' ? `Port ${s.port || '-'}` : `${s.workers}w (${s.queues})`,
+                        mk('span', { class: `uniselv-badge ${s.runtime_active ? 'badge-normal' : (s.active_state === 'failed' ? 'badge-critical' : 'badge-warning')}` }, `${s.active_state || 'inactive'} · ${s.slice || '-'}`),
+                        actTd
+                    ];
+                    cells.forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                wrap.append(tbl);
+                lrvBox.append(wrap);
+            } else {
+                lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.84rem;color:#64748b;' }, curUser ? `No managed Laravel services deployed by ${curUser}.` : 'No managed Laravel services deployed across accounts yet. Customers configure their own projects from Enduser -> App Services & Tools.'));
+            }
+
+            // Optional collapsible Admin Support Override
+            const supDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;' });
+            supDet.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color:#475569;' }, 'Support Override: Provision Laravel Service on Behalf of Selected Account (Optional)'));
+            const supBody = mk('div', { style: 'margin-top:10px;' });
+            const disc = lrv.discovered_apps || [];
+            const phpBranches = lrv.php_branches || ['php84'];
+            const defaultPhp = disc[0]?.recommended_php || phpBranches[phpBranches.length - 1] || 'php84';
+            if (!curUser) {
+                supBody.append(mk('p', { style: 'margin:0;font-size:0.82rem;color:#64748b;' }, 'Select a specific account from Fleet Account Filter above to inspect its Laravel projects or provision a support unit.'));
+            } else {
+                const warnBox = mk('div', { id: 'plt-lrv-env-warn', style: 'display:none;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:8px 10px;font-size:0.8rem;margin-bottom:10px;' });
+                if (disc.length) {
+                    const dWrap = mk('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;' });
+                    dWrap.append(mk('span', { style: 'font-size:0.8rem;font-weight:600;color:#334155;' }, 'Discovered Laravel Projects:'));
+                    disc.forEach(app => {
+                        const tag = this._formatLaravelAppLabel(app, app.relative_path === '.' ? '~/ (root)' : app.app_path);
+                        const btn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'font-size:0.76rem;' }, tag);
+                        btn.onclick = () => this._applyLaravelAppDefaults('plt-lrv', app, phpBranches);
+                        dWrap.append(btn);
+                    });
+                    supBody.append(dWrap);
+                }
+                const fGrid = mk('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;align-items:end;' });
+                const defaultAppPath = disc[0]?.app_path || `/home/${curUser}/public_html`;
+                fGrid.append(
+                    mkInput('plt-lrv-type', 'Service Type', 'select', 'queue', {
+                        options: [['queue', 'Laravel Queue Worker'], ['horizon', 'Laravel Horizon'], ['reverb', 'Laravel Reverb WebSocket'], ['scheduler', 'Laravel Scheduler']]
+                    }),
+                    mkInput('plt-lrv-app-path', 'Project Path (artisan)', 'text', defaultAppPath),
+                    mkInput('plt-lrv-php', 'PHP Version', 'select', defaultPhp, {
+                        options: phpBranches.map(p => [p, p.toUpperCase()])
+                    }),
+                    mkInput('plt-lrv-workers', 'Workers', 'number', '1', { min: 1, max: 16 }),
+                    mkInput('plt-lrv-queues', 'Queues', 'text', disc[0]?.recommended_queues || 'default')
+                );
+                const instBtn = mk('button', { class: 'uniselv-btn btn-outline', type: 'button' }, `Install for ${curUser}`);
+                instBtn.onclick = () => this.installLaravelService(true);
+                const instWrap = mk('div');
+                instWrap.append(instBtn);
+                fGrid.append(instWrap);
+                supBody.append(fGrid, warnBox);
+                if (disc[0]) this._renderLaravelEnvWarning(warnBox, disc[0]);
+            }
+            supDet.append(supBody);
+            lrvBox.append(supDet);
+            host.append(lrvBox);
+
+            // 3. Redis ACL Isolation Policy & Dedicated Port Registry
+            const isoBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const isoHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;' });
+            const redisGlobalEn = settings.platform_redis_acl_enabled !== '0';
+            isoHead.append(
+                mk('h6', { style: 'font-weight:700;margin:0;' }, `3. Redis ACL Tenant Isolation Policy (Redis ${redis.redis_version || 'N/A'}) & Dedicated Port Registry`),
+                mk('span', { class: `uniselv-badge ${redis.default_protected ? 'badge-normal' : 'badge-warning'}` }, redis.default_protected ? 'DEFAULT USER PROTECTED' : 'DEFAULT USER OPEN (LEGACY SAFE)')
+            );
+            isoBox.append(isoHead);
+            const rBar = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
+            const rSaveEn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Save Redis Policy');
+            rSaveEn.onclick = () => this.savePlatformSettings();
+            const rLock = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, redis.default_protected ? 'Unlock Default User (Compatibility)' : 'Lock Default User (Strict Isolation)');
+            rLock.onclick = () => this.runAdminRedisAction('lock_default', !redis.default_protected);
+            rBar.append(
+                mkCheck('plt-redis-global-en', 'Allow Enduser Self-Service Redis ACL', redisGlobalEn),
+                rSaveEn,
+                rLock
+            );
+            isoBox.append(rBar);
+            const rOut = mk('div', { id: 'plt-redis-output', style: 'margin-bottom:10px;' });
+            isoBox.append(rOut);
+            if (this._pltRedisTestResult) {
+                this._renderPlatformStepBox(rOut, this._pltRedisTestResult, 'Redis ACL Isolation Verification');
+            }
+
+            if ((redis.accounts || []).length) {
+                const rWrap = mk('div', { class: 'uniselv-table-wrap', style: 'margin-bottom:10px;' });
+                const rt = mk('table', { class: 'uniselv-table' });
+                const rh = rt.createTHead().insertRow();
+                ['Account', 'Redis User', 'Key Prefix', 'Status', 'Password (Masked)', 'Actions'].forEach(c => rh.append(mk('th', {}, c)));
+                const rb = rt.createTBody();
+                redis.accounts.forEach(a => {
+                    const tr = rb.insertRow();
+                    const acts = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;' });
+                    const tBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:3px 8px;font-size:0.74rem;' }, 'Test ACL');
+                    tBtn.onclick = () => this.runAdminRedisAction('test', false, a.username);
+                    const rvBtn = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button', style: 'padding:3px 8px;font-size:0.74rem;' }, 'Revoke');
+                    rvBtn.onclick = () => this.runAdminRedisAction('revoke', false, a.username);
+                    acts.append(tBtn, rvBtn);
+                    [a.username, a.redis_user, a.key_prefix, a.enabled ? 'ENABLED' : 'DISABLED', a.password_masked || 'configured', acts].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                rWrap.append(rt);
+                isoBox.append(rWrap);
+            } else {
+                isoBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.83rem;color:#64748b;' }, 'No tenant Redis ACL credentials provisioned yet. Endusers create and manage their own prefix-locked Redis credentials inside App Services & Tools.'));
+            }
+
+            const rSup = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:10px;' });
+            rSup.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color:#475569;' }, 'Support Override: Manually Provision / Test Redis ACL for a Username'));
+            const rSupBar = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;' });
+            const rUser = mk('input', { id: 'plt-redis-user', class: 'uniselv-form-input', style: 'max-width:180px;', value: curUser, placeholder: 'username' });
+            const rProv = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Provision/Rotate ACL');
+            rProv.onclick = () => this.runAdminRedisAction('provision');
+            const rTest = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Test Isolation');
+            rTest.onclick = () => this.runAdminRedisAction('test');
+            rSupBar.append(rUser, rProv, rTest);
+            rSup.append(rSupBar);
+            isoBox.append(rSup);
+
+            if (ports.length) {
+                const pWrap = mk('div', { class: 'uniselv-table-wrap' });
+                const pt = mk('table', { class: 'uniselv-table' });
+                const ph = pt.createTHead().insertRow();
+                ['Account', 'Octane Port', 'Reverb WS Port', 'Horizon Port', 'Node Port', 'Python Port', 'Socket Dir'].forEach(c => ph.append(mk('th', {}, c)));
+                const pb = pt.createTBody();
+                ports.forEach(p => {
+                    const pm = p.ports || {};
+                    const tr = pb.insertRow();
+                    [p.username, pm.octane_port, pm.reverb_port, pm.horizon_metrics_port, pm.node_port, pm.python_port, p.socket_dir].forEach(v => { tr.insertCell().textContent = String(v ?? '-'); });
+                });
+                pWrap.append(pt);
+                isoBox.append(pWrap);
+            }
+            host.append(isoBox);
+
+            // 4. Node/Python Containment, Heavy Binary Guard & Platform Settings
+            const guardBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            guardBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 10px 0;' }, `4. Node.js, Python, Log Watchdog & Heavy Binary Containment Guard (${runtimes.length} active detected)`));
+            const sGrid = mk('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end;margin-bottom:12px;' });
+            sGrid.append(
+                mkCheck('plt-rt-contain', 'Enforce slice containment (Node/Python/Laravel)', settings.platform_runtime_containment !== '0'),
+                mkCheck('plt-hb-guard', 'Guard Chromium/FFmpeg/LibreOffice', settings.platform_heavy_binary_guard !== '0'),
+                mkCheck('plt-log-global-en', 'Allow Enduser App Log Self-Trim', settings.platform_log_watchdog_enabled !== '0'),
+                mkCheck('plt-log-auto', 'Auto-trim oversized logs (>threshold)', settings.platform_log_auto_truncate === '1'),
+                mkInput('plt-rt-mode', 'Guard Mode', 'select', settings.platform_runtime_mode || 'enforce', { options: [['enforce', 'Enforce (Contain & Cap)'], ['monitor', 'Monitor Only']] }),
+                mkInput('plt-max-node', 'Max Node/Pm2 Procs', 'number', settings.platform_max_node_workers || '2', { min: 1, max: 32 }),
+                mkInput('plt-max-py', 'Max Python Workers', 'number', settings.platform_max_python_workers || '2', { min: 1, max: 32 }),
+                mkInput('plt-hb-conc', 'Heavy Binary Concurrency', 'number', settings.platform_heavy_binary_max_concurrent || '2', { min: 1, max: 16 }),
+                mkInput('plt-hb-sec', 'Heavy Binary Max Sec', 'number', settings.platform_heavy_binary_max_sec || '300', { min: 30, max: 3600 }),
+                mkInput('plt-log-mb', 'Log Bloat Threshold (MiB)', 'number', settings.platform_log_threshold_mib || '250', { min: 20, max: 10240 }),
+                mkInput('plt-lrv-cap', 'Global Max Laravel Workers', 'number', settings.platform_laravel_max_workers_cap || '4', { min: 1, max: 32 })
+            );
+            const saveSetBtn = mk('button', { class: 'uniselv-btn btn-primary', type: 'button' }, 'Save Platform Policies');
+            saveSetBtn.onclick = () => this.savePlatformSettings();
+            sGrid.append(mk('div', {}, null));
+            sGrid.lastChild.append(saveSetBtn);
+            guardBox.append(sGrid);
+
+            if (runtimes.length) {
+                const rtWrap = mk('div', { class: 'uniselv-table-wrap' });
+                const rtbl = mk('table', { class: 'uniselv-table' });
+                const rhr = rtbl.createTHead().insertRow();
+                ['PID', 'Account', 'Type', 'Binary', 'RSS (MiB)', 'Age (s)', 'Slice Containment'].forEach(c => rhr.append(mk('th', {}, c)));
+                const rtb = rtbl.createTBody();
+                runtimes.slice(0, 40).forEach(p => {
+                    const tr = rtb.insertRow();
+                    [
+                        p.pid,
+                        p.username,
+                        p.kind,
+                        p.comm,
+                        p.rss_mib,
+                        p.age_sec,
+                        mk('span', { class: `uniselv-badge ${p.contained ? 'badge-normal' : 'badge-warning'}` }, p.contained ? `CONTAINED (${p.expected_slice})` : `ESCAPED -> ${p.expected_slice}`)
+                    ].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                rtWrap.append(rtbl);
+                guardBox.append(rtWrap);
+            }
+            host.append(guardBox);
+
+            // 5. App Log Watchdog & Inode Monitor + 6. Server-to-Server Migration
+            const logBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            logBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '5. App Log Bloat & Inode Watchdog'));
+            if ((logsData.inodes || []).length) {
+                const inoWrap = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;' });
+                logsData.inodes.forEach(inRow => {
+                    inoWrap.append(mk('span', { class: 'uniselv-badge badge-outline' }, `${inRow.mount}: Inodes ${inRow.used}/${inRow.total} (${inRow.use_pct})`));
+                });
+                logBox.append(inoWrap);
+            }
+            const findings = logsData.findings || [];
+            if (findings.length) {
+                const lWrap = mk('div', { class: 'uniselv-table-wrap' });
+                const lt = mk('table', { class: 'uniselv-table' });
+                const lh = lt.createTHead().insertRow();
+                ['Account', 'Log Path', 'Size (MiB)', 'Status', 'Action'].forEach(c => lh.append(mk('th', {}, c)));
+                const lb = lt.createTBody();
+                findings.slice(0, 30).forEach(f => {
+                    const tr = lb.insertRow();
+                    const trimBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Trim (Keep Last 1000 Lines)');
+                    trimBtn.onclick = () => this.truncateAppLog(f.username, f.log_path, false);
+                    [
+                        f.username,
+                        f.log_path,
+                        `${f.size_mib} MiB`,
+                        mk('span', { class: `uniselv-badge ${f.over_threshold ? 'badge-critical' : 'badge-normal'}` }, f.over_threshold ? 'OVERSIZED' : 'OK'),
+                        trimBtn
+                    ].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                lWrap.append(lt);
+                logBox.append(lWrap);
+            } else {
+                logBox.append(mk('p', { style: 'margin:0;font-size:0.84rem;color:#64748b;' }, 'No large app log files found in tenant homes.'));
+            }
+            host.append(logBox);
+
+            // 6. Server-to-Server Policy Migration Export / Import
+            const migBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;' });
+            migBox.append(
+                mk('h6', { style: 'font-weight:700;margin:0 0 6px 0;' }, '6. Server-to-Server Policy Migration (Secrets Excluded)'),
+                mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0 0 8px 0;' }, 'Export plans, OpenSwoole & platform policies, package mappings, RBAC permissions, and managed Laravel service templates to JSON or preview/apply an imported bundle on a new server.')
+            );
+            const migTa = mk('textarea', { id: 'plt-import-json', class: 'uniselv-form-input', rows: '5', style: 'width:100%;font-family:monospace;font-size:0.78rem;margin-bottom:8px;', placeholder: 'Paste exported uniselv-policy-bundle JSON here...' }, this._pltImportText || '');
+            migTa.oninput = () => { this._pltImportText = migTa.value; };
+            const migBtns = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;' });
+            const dryBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Dry-Run Preview Import');
+            dryBtn.onclick = () => this.importPlatformPolicy(true);
+            const appBtn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Apply Policy Bundle');
+            appBtn.onclick = () => this.importPlatformPolicy(false);
+            migBtns.append(dryBtn, appBtn);
+            const migOut = mk('div', { id: 'plt-import-output', style: 'font-size:0.84rem;' });
+            if (this._pltImportPreview) migOut.textContent = this._pltImportPreview;
+            migBox.append(migTa, migBtns, migOut);
+            host.append(migBox);
+        }, { timeoutMs: 25000 });
+    },
+
+    _renderPlatformStepBox: function(container, res, title) {
+        if (!container || !res) return;
+        const mk = this._mkEl.bind(this);
+        container.replaceChildren();
+        const ok = res.all_passed !== undefined ? res.all_passed : Boolean(res.success);
+        const box = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;` });
+        box.append(mk('div', { style: 'font-weight:700;font-size:0.86rem;margin-bottom:6px;' }, `${title} — ${ok ? 'PASSED' : 'ATTENTION REQUIRED'}`));
+        if (Array.isArray(res.steps)) {
+            res.steps.forEach(s => {
+                const row = mk('div', { style: 'font-size:0.81rem;margin-bottom:4px;display:flex;gap:8px;align-items:center;' });
+                row.append(
+                    mk('span', { class: `uniselv-badge ${s.passed ? 'badge-normal' : 'badge-critical'}` }, s.passed ? 'PASS' : 'FAIL'),
+                    mk('span', {}, `${s.label || s.name}: ${s.detail || ''}`)
+                );
+                box.append(row);
+            });
+        } else if (Array.isArray(res.lines)) {
+            const pre = mk('pre', { style: 'background:#0f172a;color:#e2e8f0;padding:8px;border-radius:6px;max-height:220px;overflow:auto;font-size:0.76rem;margin:0;' }, res.lines.join('\n') || '(empty log)');
+            box.append(pre);
+        } else {
+            box.append(mk('div', { style: 'font-size:0.82rem;' }, res.message || res.error || JSON.stringify(res)));
+        }
+        container.append(box);
+    },
+
+    _startDepPolling: function() {
+        const jobEl = document.getElementById('uniselv-platform-job');
+        if (this._pltPolling) clearInterval(this._pltPolling);
+        this._pltPollInFlight = false;
+        this._pltPolling = setInterval(() => {
+            if (this._pltPollInFlight) return;
+            this._pltPollInFlight = true;
+            this.callApi('platform_dep_status', {}, (e2, r2) => {
+                this._pltPollInFlight = false;
+                const d2 = r2?.data || r2;
+                const j = d2?.job;
+                if (!j) return;
+                if (jobEl) jobEl.textContent = `Dependency job (${j.target || 'all'}): ${j.state}${j.error ? ' — ' + j.error : ''}`;
+                if (j.state === 'completed' || j.state === 'failed') {
+                    clearInterval(this._pltPolling);
+                    this._pltPolling = null;
+                    if (j.state === 'completed') UniselvNotify.success(`Dependency install (${j.target}) completed.`);
+                    else UniselvNotify.error(`Dependency install failed: ${j.error || 'see logs'}`);
+                    this.loadPlatformAdmin();
+                }
+            }, { timeoutMs: 12000 });
+        }, 3000);
+    },
+
+    installPlatformDeps: function(target) {
+        const jobEl = document.getElementById('uniselv-platform-job');
+        if (jobEl) jobEl.textContent = `Starting background dependency installation (${target})...`;
+        this.callApi('platform_install_deps', { target }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Could not start dependency installer');
+                return;
+            }
+            UniselvNotify.success(d.message || `Started ${target} installer`);
+            this._startDepPolling();
+        }, { timeoutMs: 30000 });
+    },
+
+    savePlatformSettings: function() {
+        const allowedTypes = [
+            document.getElementById('plt-lrv-allow-queue')?.checked ? 'queue' : '',
+            document.getElementById('plt-lrv-allow-horizon')?.checked ? 'horizon' : '',
+            document.getElementById('plt-lrv-allow-reverb')?.checked ? 'reverb' : '',
+            document.getElementById('plt-lrv-allow-scheduler')?.checked ? 'scheduler' : '',
+        ].filter(Boolean).join(',');
+        const payload = {
+            platform_laravel_services_enabled: document.getElementById('plt-lrv-global-en')?.checked ? '1' : '0',
+            platform_laravel_allowed_types: allowedTypes,
+            platform_supervisor_enabled: document.getElementById('plt-sup-global-en')?.checked ? '1' : '0',
+            platform_redis_acl_enabled: document.getElementById('plt-redis-global-en')?.checked ? '1' : '0',
+            platform_log_watchdog_enabled: document.getElementById('plt-log-global-en')?.checked ? '1' : '0',
+            platform_runtime_containment: document.getElementById('plt-rt-contain')?.checked ? '1' : '0',
+            platform_heavy_binary_guard: document.getElementById('plt-hb-guard')?.checked ? '1' : '0',
+            platform_log_auto_truncate: document.getElementById('plt-log-auto')?.checked ? '1' : '0',
+            platform_runtime_mode: document.getElementById('plt-rt-mode')?.value || 'enforce',
+            platform_max_node_workers: document.getElementById('plt-max-node')?.value || '2',
+            platform_max_python_workers: document.getElementById('plt-max-py')?.value || '2',
+            platform_heavy_binary_max_concurrent: document.getElementById('plt-hb-conc')?.value || '2',
+            platform_heavy_binary_max_sec: document.getElementById('plt-hb-sec')?.value || '300',
+            platform_log_threshold_mib: document.getElementById('plt-log-mb')?.value || '250',
+            platform_laravel_max_workers_cap: document.getElementById('plt-lrv-cap')?.value || '4',
+        };
+        this.callApi('platform_save_settings', payload, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed saving platform policies');
+            else {
+                UniselvNotify.success('Platform governance policies saved.');
+                this.loadPlatformAdmin();
+            }
+        });
+    },
+
+    toggleGlobalCapability: function(capKey, enableFlag, currentAllowed, settings) {
+        const nextAllowed = new Set(currentAllowed || []);
+        if (enableFlag) nextAllowed.add(capKey);
+        else nextAllowed.delete(capKey);
+        const payload = {
+            platform_laravel_services_enabled: nextAllowed.size > 0 ? '1' : (settings?.platform_laravel_services_enabled || '1'),
+            platform_laravel_allowed_types: Array.from(nextAllowed).join(','),
+        };
+        this.callApi('platform_save_settings', payload, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || `Failed updating ${capKey}`);
+            else {
+                UniselvNotify.success(`${capKey.toUpperCase()} ${enableFlag ? 'activated' : 'deactivated'} globally.`);
+                this.loadPlatformAdmin();
+            }
+        });
+    },
+
+    runSupervisorAction: function(operation) {
+        if (operation === 'install') {
+            this.callApi('platform_supervisor_action', { operation: 'install' }, (err, res) => {
+                const d = res?.data || res;
+                if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed installing Supervisor');
+                else {
+                    UniselvNotify.success('Supervisor installation started...');
+                    this._startDepPolling();
+                }
+            }, { timeoutMs: 30000 });
+            return;
+        }
+        this.callApi('platform_supervisor_action', { operation }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || `Supervisor ${operation} failed`);
+                return;
+            }
+            if (operation === 'test') {
+                this._pltSupResult = d;
+            } else {
+                UniselvNotify.success(`Supervisor ${operation} completed (${d.supervisor?.active_state || 'ok'}).`);
+            }
+            this.loadPlatformAdmin();
+        }, { timeoutMs: 30000 });
+    },
+
+    saveUserPlatformPermissions: function(username, explicitMap) {
+        if (!username) {
+            UniselvNotify.warning('Select an account first.');
+            return;
+        }
+        const perms = explicitMap || {
+            platform_laravel_queue: document.getElementById('plt-up-queue')?.checked ? 1 : 0,
+            platform_laravel_horizon: document.getElementById('plt-up-horizon')?.checked ? 1 : 0,
+            platform_laravel_reverb: document.getElementById('plt-up-reverb')?.checked ? 1 : 0,
+            platform_laravel_scheduler: document.getElementById('plt-up-scheduler')?.checked ? 1 : 0,
+            platform_supervisor: document.getElementById('plt-up-supervisor')?.checked ? 1 : 0,
+        };
+        const payload = Object.assign({ username }, perms);
+        this.callApi('save_user_platform_permissions', payload, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed updating user permissions');
+            else {
+                UniselvNotify.success(`Permissions updated for ${username}.`);
+                this.loadPlatformAdmin();
+            }
+        }, { timeoutMs: 30000 });
+    },
+
+    installLaravelService: function(isAdminContext) {
+        const prefix = isAdminContext ? 'plt-lrv' : 'eu-lrv';
+        const payload = {
+            username: isAdminContext ? (document.getElementById('plt-acct-select')?.value || this._pltSelectedUser || '') : '',
+            service_type: document.getElementById(`${prefix}-type`)?.value || 'queue',
+            app_path: document.getElementById(`${prefix}-app-path`)?.value || '',
+            php_branch: document.getElementById(`${prefix}-php`)?.value || 'php84',
+            workers: document.getElementById(`${prefix}-workers`)?.value || '1',
+            queues: document.getElementById(`${prefix}-queues`)?.value || 'default',
+            enabled: '1',
+        };
+        this.callApi('save_laravel_service', payload, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Failed installing Laravel service');
+                return;
+            }
+            UniselvNotify.success(`Installed & enabled ${d.unit_name} (${d.active_state}) in ${d.slice || 'account slice'}.`);
+            if (isAdminContext) this.loadPlatformAdmin();
+            else this.loadEnduserServices();
+        }, { timeoutMs: 40000 });
+    },
+
+    controlLaravelService: function(serviceId, operation, isEnduser, username) {
+        this.callApi('control_laravel_service', { service_id: serviceId, operation, ...(username ? { username } : {}) }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || `Laravel service ${operation} failed`);
+                return;
+            }
+            if (operation === 'test' || operation === 'logs') {
+                if (isEnduser) {
+                    this._euLaravelResult = d;
+                    this.loadEnduserServices();
+                } else {
+                    this._pltLaravelResult = d;
+                    this.loadPlatformAdmin();
+                }
+                return;
+            }
+            UniselvNotify.success(`Service ${d.unit_name}: ${operation} complete (${d.uninstalled ? 'removed' : d.active_state}).`);
+            if (isEnduser) this.loadEnduserServices();
+            else this.loadPlatformAdmin();
+        }, { timeoutMs: 40000 });
+    },
+
+    runPlatformLaravelSelfTest: function(fallbackUser = '') {
+        const username = document.getElementById('plt-acct-select')?.value || this._pltSelectedUser || fallbackUser || '';
+        const php_branch = document.getElementById('plt-lrv-php')?.value || 'php84';
+        if (!username) return UniselvNotify.warning('Select a target account first.');
+        const out = document.getElementById('plt-lrv-output');
+        if (out) out.textContent = `Running live ephemeral Laravel worker & slice self-test for ${username}...`;
+        this.callApi('platform_selftest_laravel', { username, php_branch }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Laravel self-test failed');
+                return;
+            }
+            this._pltLaravelResult = d;
+            if (d.all_passed) UniselvNotify.success(`Laravel service self-test PASSED for ${username}.`);
+            else UniselvNotify.error(`Laravel service self-test failed for ${username}.`);
+            this.loadPlatformAdmin();
+        }, { timeoutMs: 45000 });
+    },
+
+    runAdminRedisAction: function(operation, lockDefault, explicitUser) {
+        const username = explicitUser || document.getElementById('plt-redis-user')?.value?.trim() || this._pltSelectedUser || '';
+        const payload = { operation, username };
+        if (operation === 'lock_default') payload.lock_default = lockDefault ? '1' : '0';
+        this.callApi('platform_redis_action', payload, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || `Redis ${operation} failed`);
+                return;
+            }
+            if (operation === 'test') {
+                this._pltRedisTestResult = d;
+            } else {
+                UniselvNotify.success(d.message || `Redis ${operation} succeeded${d.redis_user ? ' for ' + d.redis_user : ''}.`);
+            }
+            this.loadPlatformAdmin();
+        }, { timeoutMs: 30000 });
+    },
+
+    enforcePlatformRuntimes: function() {
+        this.callApi('platform_enforce_runtimes', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Enforcement sweep failed');
+            else {
+                UniselvNotify.success(`Contained ${d.contained || 0} runtimes, stopped ${d.terminated || 0} offending binaries.`);
+                this.loadPlatformAdmin();
+            }
+        });
+    },
+
+    scanPlatformLogs: function() {
+        this.callApi('platform_scan_logs', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Log scan failed');
+            else {
+                this._pltLogResult = d;
+                UniselvNotify.success(`Scanned ${(d.findings || []).length} log files.`);
+                this.loadPlatformAdmin();
+            }
+        });
+    },
+
+    truncateAppLog: function(username, logPath, isEnduser) {
+        this.callApi('truncate_app_log', { username, log_path: logPath, keep_lines: 1000 }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Log trim failed');
+            else {
+                UniselvNotify.success(`Trimmed ${d.log_path}: freed ${d.freed_bytes || 0} bytes (kept last 1000 lines).`);
+                if (isEnduser) this.loadEnduserServices();
+                else this.scanPlatformLogs();
+            }
+        });
+    },
+
+    exportPlatformPolicy: function() {
+        this.callApi('platform_export_policy', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.bundle) return UniselvNotify.error(err || d?.error || 'Export failed');
+            const jsonText = JSON.stringify(d.bundle, null, 2);
+            this._pltImportText = jsonText;
+            const blob = new Blob([jsonText], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `uniselv-policy-bundle-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            UniselvNotify.success('Policy migration bundle exported (secrets stripped).');
+            this.loadPlatformAdmin();
+        });
+    },
+
+    importPlatformPolicy: function(dryRun) {
+        const raw = document.getElementById('plt-import-json')?.value || '';
+        if (!raw.trim()) return UniselvNotify.warning('Paste an exported policy bundle JSON first.');
+        this.callApi('platform_import_policy', { bundle: raw, dry_run: dryRun ? '1' : '0' }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) return UniselvNotify.error(err || d?.error || 'Import failed');
+            this._pltImportPreview = `${dryRun ? '[DRY-RUN PREVIEW]' : '[APPLIED]'} Summary: ${JSON.stringify(d.summary || {})}${d.reinstalled_services !== undefined ? ' · Reinstalled services: ' + d.reinstalled_services : ''}`;
+            UniselvNotify.success(dryRun ? 'Dry-run preview ready.' : 'Policy migration bundle applied cleanly.');
+            this.loadPlatformAdmin();
+        }, { timeoutMs: 30000 });
+    },
+
+    _formatLaravelAppLabel: function(app, baseLabel) {
+        const flags = [
+            app && app.has_horizon ? 'Horizon' : '',
+            app && app.has_reverb ? 'Reverb' : '',
+            app && app.has_vendor === false ? 'no-vendor' : '',
+            app && app.env && app.env.has_env === false ? 'no-.env' : '',
+        ].filter(Boolean);
+        return flags.length ? `${baseLabel} [${flags.join(', ')}]` : baseLabel;
+    },
+
+    _renderLaravelEnvWarning: function(warnEl, app) {
+        if (!warnEl) return;
+        if (app && app.env && app.env.has_env === false) {
+            const phpHint = app.php_constraint ? ` (requires PHP ${app.php_constraint})` : '';
+            warnEl.style.display = 'block';
+            warnEl.textContent = `Heads up: No ".env" file found yet in ${app.app_path}${phpHint}. Run your web installer or create .env before expecting workers to process database/Redis jobs.`;
+        } else {
+            warnEl.style.display = 'none';
+            warnEl.textContent = '';
+        }
+    },
+
+    _applyLaravelAppDefaults: function(prefix, app, phpBranches) {
+        if (!app) return;
+        const inp = document.getElementById(`${prefix}-app-path`);
+        if (inp) inp.value = app.app_path;
+        const phpSel = document.getElementById(`${prefix}-php`);
+        if (phpSel) {
+            const fallbackPhp = (phpBranches || [])[(phpBranches || []).length - 1] || 'php84';
+            const targetPhp = app.recommended_php || fallbackPhp;
+            if (Array.from(phpSel.options).some(o => o.value === targetPhp)) {
+                phpSel.value = targetPhp;
+            }
+        }
+        const qInp = document.getElementById(`${prefix}-queues`);
+        if (qInp && app.recommended_queues) {
+            qInp.value = app.recommended_queues;
+        }
+        this._renderLaravelEnvWarning(document.getElementById(`${prefix}-env-warn`), app);
+    },
+
+    // ==================== ENDUSER APP SERVICES & TOOLS ====================
+
+    loadEnduserServices: function() {
+        const host = document.getElementById('uniselv-enduser-services-body');
+        if (!host) return;
+        host.textContent = 'Loading your Laravel services, dedicated ports, Redis ACL & logs...';
+        this.callApi('platform_services', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                host.textContent = `App services unavailable: ${err || d?.error || 'Check daemon status'}`;
+                return;
+            }
+            const mk = this._mkEl.bind(this);
+            const cfg = d.settings || {};
+            const lrv = d.laravel || {};
+            const redis = d.redis || {};
+            const alloc = d.port_allocation || lrv.port_allocation || {};
+            const logsData = d.logs || {};
+            const disc = lrv.discovered_apps || [];
+            host.replaceChildren();
+
+            // 1. Granted Feature Permissions & Scoped Supervisor Access (Zero manual forms / zero .env edits)
+            const lrvBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            lrvBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 6px 0;' }, '1. Granted Feature Permissions & Project Integration'));
+            lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+                'Your server administrator manages server packages and grants permissions below. Configure Queue Workers, Horizon, Reverb WebSocket, Scheduler, and Supervisor directly inside your own Laravel project admin panel or settings — UNISELV never edits your .env or requires terminal access.'
+            ));
+            const lrvBudget = lrv.budget || {};
+            const lrvGlobalOn = cfg.platform_laravel_services_enabled !== '0' && lrvBudget.services_globally_enabled !== false;
+            const supReady = lrvBudget.supervisor_allowed && lrvBudget.supervisor_active;
+            const phpBranches = lrv.php_branches || ['php84'];
+            const latestPhp = phpBranches[phpBranches.length - 1] || 'php84';
+            const reverbPort = alloc.ports?.reverb_port || '-';
+            const horizonPort = alloc.ports?.horizon_metrics_port || '-';
+
+            if (!lrvGlobalOn) {
+                lrvBox.append(mk('div', { style: 'background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:10px 12px;font-size:0.84rem;margin-bottom:10px;' }, 'Laravel platform capabilities are currently deactivated globally by your server administrator.'));
+            }
+
+            const permWrap = mk('div', { class: 'uniselv-table-wrap', style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;' });
+            const permTbl = mk('table', { class: 'uniselv-table' });
+            const permHr = permTbl.createTHead().insertRow();
+            ['Feature / Runtime', 'Permission Status', 'How Your Project Uses It'].forEach(c => permHr.append(mk('th', {}, c)));
+            const permTb = permTbl.createTBody();
+            [
+                [
+                    'Supervisor (No Terminal)',
+                    supReady ? 'ACTIVE & PERMITTED' : (lrvBudget.supervisor_allowed ? 'PERMITTED (DAEMON STOPPED)' : 'DISABLED BY ADMIN'),
+                    supReady,
+                    `Scoped drop-in folder: /home/${d.username}/.uniselv-supervisor/conf.d/ — projects with built-in Supervisor setup run automatically under ${lrvBudget.expected_slice || 'your account slice'}.`
+                ],
+                [
+                    'Laravel Queue Workers',
+                    lrvBudget.queue_allowed ? `PERMITTED (Max ${lrvBudget.max_queue_workers || 1} Workers)` : 'DISABLED BY ADMIN',
+                    lrvBudget.queue_allowed,
+                    `Configure queue driver & workers inside your project's own admin panel or installer (${lrvBudget.max_worker_memory_mb || 256} MiB/worker cap).`
+                ],
+                [
+                    'Laravel Horizon',
+                    lrvBudget.horizon_allowed ? `PERMITTED (Port ${horizonPort})` : (lrvBudget.mem_max_mib < 512 ? 'NEEDS >=512 MiB PLAN' : 'DISABLED BY ADMIN'),
+                    lrvBudget.horizon_allowed,
+                    `Configure Redis & Horizon in your Laravel project settings when enabled on your plan.`
+                ],
+                [
+                    'Laravel Reverb / WebSocket',
+                    lrvBudget.reverb_allowed ? `PERMITTED (Port ${reverbPort})` : (lrvBudget.mem_max_mib < 512 ? 'NEEDS >=512 MiB PLAN' : 'DISABLED BY ADMIN'),
+                    lrvBudget.reverb_allowed,
+                    `Set assigned WebSocket port ${reverbPort} directly in your project's Reverb/Broadcasting settings.`
+                ],
+                [
+                    'Laravel Scheduler',
+                    lrvBudget.scheduler_allowed ? 'PERMITTED' : 'DISABLED BY ADMIN',
+                    lrvBudget.scheduler_allowed,
+                    `Use PHP CLI (/usr/local/apps/${latestPhp}/bin/php) in your project scheduler or Webuzo Cron (* * * * * ... artisan schedule:run).`
+                ]
+            ].forEach(([feat, statusTxt, ok, guide]) => {
+                const tr = permTb.insertRow();
+                [
+                    mk('strong', {}, feat),
+                    mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-warning'}` }, statusTxt),
+                    mk('span', { style: 'font-size:0.8rem;color:#475569;' }, guide)
+                ].forEach(v => {
+                    const td = tr.insertCell();
+                    td.append(v);
+                });
+            });
+            permWrap.append(permTbl);
+            lrvBox.append(permWrap);
+
+            if (lrv.budget) {
+                const b = lrv.budget;
+                lrvBox.append(mk('div', { style: 'font-size:0.82rem;color:#475569;margin-bottom:10px;' },
+                    `Account Plan (${b.plan_name}): Up to ${b.max_queue_workers} Workers · ${b.max_worker_memory_mb} MiB/Worker · Isolated Slice: ${b.expected_slice}`
+                ));
+            }
+
+            const euOut = mk('div', { id: 'eu-lrv-output', style: 'margin-bottom:10px;' });
+            lrvBox.append(euOut);
+            if (this._euLaravelResult) this._renderPlatformStepBox(euOut, this._euLaravelResult, 'Worker Health & Logs');
+
+            const svcs = lrv.services || [];
+            if (svcs.length) {
+                lrvBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;margin:8px 0 6px 0;' }, 'Detected Active Workers (From Your Project Config)'));
+                const sw = mk('div', { class: 'uniselv-table-wrap' });
+                const st = mk('table', { class: 'uniselv-table' });
+                const sh = st.createTHead().insertRow();
+                ['Program / Service', 'Project Path', 'Workers / Port', 'State', 'Health Tools'].forEach(c => sh.append(mk('th', {}, c)));
+                const sb = st.createTBody();
+                svcs.forEach(s => {
+                    const tr = sb.insertRow();
+                    const acts = mk('div', { style: 'display:flex;gap:4px;flex-wrap:wrap;' });
+                    const btns = [['restart', 'Restart'], ['test', 'Test'], ['logs', 'Logs']];
+                    if (s.source !== 'project_dropin') btns.push(['uninstall', 'Remove']);
+                    btns.forEach(([op, lbl]) => {
+                        const b = mk('button', { class: `uniselv-btn btn-sm ${op === 'uninstall' ? 'btn-danger' : 'btn-outline'}`, type: 'button', style: 'padding:3px 7px;font-size:0.74rem;' }, lbl);
+                        b.onclick = () => this.controlLaravelService(s.id, op, true);
+                        acts.append(b);
+                    });
+                    [
+                        s.source === 'project_dropin' ? `SUPERVISOR (${s.service_slug})` : `${s.service_type.toUpperCase()} (${s.service_slug})`,
+                        s.app_path,
+                        s.service_type === 'reverb' ? `Port ${s.port || '-'}` : `${s.workers}w (${s.queues})`,
+                        mk('span', { class: `uniselv-badge ${s.runtime_active ? 'badge-normal' : 'badge-warning'}` }, s.active_state || 'inactive'),
+                        acts
+                    ].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                sw.append(st);
+                lrvBox.append(sw);
+            } else {
+                lrvBox.append(mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.82rem;color:#64748b;' },
+                    'No active background workers detected yet. Enable Queue/Horizon/Reverb/Supervisor directly inside your Laravel project settings or admin panel.'
+                ));
+            }
+            host.append(lrvBox);
+
+            // 2. Assigned Ports, Sockets & Proxy Snippet
+            const pBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            pBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '2. Dedicated Ports, Private Sockets & Proxy Snippet'));
+            const portsMap = alloc.ports || {};
+            pBox.append(mk('div', { style: 'font-size:0.84rem;margin-bottom:8px;' },
+                `Octane: ${portsMap.octane_port || '-'} · Reverb WS: ${portsMap.reverb_port || '-'} · Horizon: ${portsMap.horizon_metrics_port || '-'} · Node: ${portsMap.node_port || '-'} · Python: ${portsMap.python_port || '-'} · Socket Dir: ${alloc.socket_dir || '-'}`
+            ));
+            if (alloc.reverb_proxy_snippet) {
+                pBox.append(mk('div', { style: 'font-size:0.78rem;color:#64748b;margin-bottom:6px;' }, 'Reverb WebSocket /domain vhost proxy template (apply in Webuzo custom vhost config or request support):'));
+                pBox.append(this._mkCodeCopyBox(alloc.reverb_proxy_snippet, 'Copy Proxy Config'));
+            }
+            host.append(pBox);
+
+            // 3. Optional Redis ACL Credentials (Read-Only Values for Project Settings)
+            const rBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const rHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
+            rHead.append(mk('h6', { style: 'font-weight:700;margin:0;' }, '3. Isolated Redis ACL Credentials (Optional Project Settings)'));
+            const redisGlobalOn = cfg.platform_redis_acl_enabled !== '0';
+            const rBtns = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;' });
+            if (redisGlobalOn) {
+                const rp = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, (redis.accounts || []).length ? 'Rotate Redis Password' : 'Create My Redis ACL');
+                rp.onclick = () => this.runEnduserRedisAction('provision');
+                const rt = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Test Isolation');
+                rt.onclick = () => this.runEnduserRedisAction('test');
+                rBtns.append(rp, rt);
+            }
+            rHead.append(rBtns);
+            rBox.append(rHead);
+            const euR = (redis.accounts || [])[0];
+            if (!redisGlobalOn && !euR) {
+                rBox.append(mk('div', { style: 'background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:10px 12px;font-size:0.83rem;' }, 'Self-service Redis ACL provisioning is disabled by your server administrator.'));
+            } else if (euR?.env_snippet) {
+                rBox.append(this._mkCodeCopyBox(euR.env_snippet, 'Copy Settings'));
+            } else {
+                rBox.append(mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0;' }, 'Click "Create My Redis ACL" to generate dedicated prefix-locked Redis credentials for your Laravel queues & cache.'));
+            }
+            if (this._euRedisResult) {
+                const ro = mk('div');
+                this._renderPlatformStepBox(ro, this._euRedisResult, 'Redis ACL Isolation Test');
+                rBox.append(ro);
+            }
+            host.append(rBox);
+
+            // 4. App Logs Cleanup
+            const lgBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;' });
+            lgBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '4. Application Log Watchdog & Safe Trim'));
+            const logSelfTrimOn = cfg.platform_log_watchdog_enabled !== '0';
+            if (!logSelfTrimOn) {
+                lgBox.append(mk('div', { style: 'font-size:0.81rem;color:#64748b;margin-bottom:8px;' }, 'Self-service log trimming is currently managed by your server administrator.'));
+            }
+            const lgRows = logsData.findings || [];
+            if (lgRows.length) {
+                const tw = mk('div', { class: 'uniselv-table-wrap' });
+                const lt = mk('table', { class: 'uniselv-table' });
+                const lh = lt.createTHead().insertRow();
+                ['Log File', 'Size (MiB)', 'Status', 'Action'].forEach(c => lh.append(mk('th', {}, c)));
+                const lb = lt.createTBody();
+                lgRows.forEach(f => {
+                    const tr = lb.insertRow();
+                    const tb = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, logSelfTrimOn ? 'Trim (Keep 1000 Lines)' : 'Managed by Admin');
+                    if (!logSelfTrimOn) tb.disabled = true;
+                    else tb.onclick = () => this.truncateAppLog(d.username, f.log_path, true);
+                    [f.log_path, `${f.size_mib} MiB`, f.over_threshold ? 'OVERSIZED' : 'OK', tb].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                tw.append(lt);
+                lgBox.append(tw);
+            } else {
+                lgBox.append(mk('p', { style: 'margin:0;font-size:0.83rem;color:#64748b;' }, 'No log files detected yet inside storage/logs or .uniselv-logs.'));
+            }
+            host.append(lgBox);
+        }, { timeoutMs: 20000 });
+    },
+
+    scanEnduserLogs: function() {
+        this.callApi('scan_app_logs', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Could not scan logs');
+            else {
+                UniselvNotify.success(`Found ${(d.findings || []).length} log files.`);
+                this.loadEnduserServices();
+            }
+        });
+    },
+
+    runEnduserRedisAction: function(operation) {
+        this.callApi('enduser_redis_action', { operation }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) return UniselvNotify.error(err || d?.error || `Redis ${operation} failed`);
+            if (operation === 'test') {
+                this._euRedisResult = d;
+            } else {
+                UniselvNotify.success(`Redis ACL updated for ${d.redis_user || 'your account'}.`);
+            }
+            this.loadEnduserServices();
+        }, { timeoutMs: 30000 });
     }
 };
 

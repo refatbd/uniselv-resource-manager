@@ -17,11 +17,13 @@ import sqlite3
 from collector import MetricsCollector
 from ipc_server import IpcRequestHandler
 from golden_shield_manager import GoldenShieldManager
+import openswoole_manager
+import platform_manager
 
 SOCKET_PATH = '/run/uniselv-resman/agent.sock'
 TOKEN_PATH = '/run/uniselv-resman/broker.token'
 DB_PATH = '/var/lib/uniselv-resource-manager/resman.sqlite'
-MAX_PAYLOAD_BYTES = 65536
+MAX_PAYLOAD_BYTES = 524288
 MAX_CONCURRENT_CLIENTS = 24
 
 class AgentDaemon:
@@ -133,6 +135,7 @@ class AgentDaemon:
         last_prune = 0
         last_drift_check = 0
         last_report_check = 0
+        last_log_scan = 0
         self.ensure_startup_enforcement_boundaries()
 
         while self.running:
@@ -145,6 +148,20 @@ class AgentDaemon:
                     self.collector.collect_step()
                     self.collector.check_runaway_watchdog()
                     self.collector.check_overload_circuit_breaker()
+                    try:
+                        openswoole_manager.enforce_runtime_policies(self.collector, self.db_path)
+                    except Exception as osw_err:
+                        print(f"[Agent OpenSwoole Enforcement Error] {osw_err}", file=sys.stderr)
+                    try:
+                        platform_manager.enforce_platform_tick(self.collector, self.db_path)
+                    except Exception as plat_err:
+                        print(f"[Agent Platform Containment Error] {plat_err}", file=sys.stderr)
+                    if time.time() - last_log_scan > 600:
+                        try:
+                            platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path)
+                        except Exception as log_err:
+                            print(f"[Agent Log Watchdog Error] {log_err}", file=sys.stderr)
+                        last_log_scan = time.time()
 
                 # 3. Prune database once per hour if auto_prune_hourly is enabled
                 if self.collector.settings.get('auto_prune_hourly', True) and (time.time() - last_prune > 3600):
@@ -178,6 +195,7 @@ class AgentDaemon:
             try:
                 if not self.handler.maintenance_mode:
                     self.handler.governance_tick()
+                    self.handler.openswoole_background_tick()
             except Exception as error:
                 print('[Runtime Governance Error] ' + str(error), file=sys.stderr)
             for _ in range(60):

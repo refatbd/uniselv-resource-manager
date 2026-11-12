@@ -545,7 +545,27 @@ defaults = [
     ('report_schedule', 'daily'),
     ('report_recipient', 'system_admin'),
     ('brand_name', 'UNISELV Resource Manager'),
-    ('brand_locale', 'en')
+    ('brand_locale', 'en'),
+    ('openswoole_auto_install_new_php', '1'),
+    ('openswoole_enforcement_mode', 'enforce'),
+    ('openswoole_strict_cgroup', '1'),
+    ('openswoole_worker_rss_mib', '128'),
+    ('openswoole_global_max_workers', '4'),
+    ('openswoole_enable_coroutine', '1'),
+    ('openswoole_preemptive_scheduler', '0'),
+    ('openswoole_unixsock_buffer_size', '8388608'),
+    ('openswoole_disabled_versions', ''),
+    ('platform_runtime_containment', '1'),
+    ('platform_runtime_mode', 'enforce'),
+    ('platform_max_node_workers', '2'),
+    ('platform_max_python_workers', '2'),
+    ('platform_heavy_binary_guard', '1'),
+    ('platform_heavy_binary_max_concurrent', '2'),
+    ('platform_heavy_binary_max_sec', '300'),
+    ('platform_log_threshold_mib', '250'),
+    ('platform_log_auto_truncate', '0'),
+    ('platform_redis_lock_default', '0'),
+    ('platform_laravel_max_workers_cap', '4')
 ]
 for k, v in defaults:
     cur.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)', (k, v))
@@ -598,6 +618,10 @@ if ($taskID && function_exists('task_update')) {
 }
 
 uniselv_reload_panel();
+
+@mkdir('/run/uniselv-apps', 0755, true);
+$preflight_cmd = '/usr/bin/python3 -c ' . escapeshellarg("import sys; sys.path.insert(0, '$agent_dir/agent'); import platform_manager, json; st = platform_manager.get_os_preflight_status(); print('[UNISELV PREFLIGHT] ready=' + str(st['ready_for_openswoole_build']) + ' missing_tools=' + ','.join(st['missing_tools']) + ' missing_headers=' + ','.join(st['missing_headers']))");
+@passthru($preflight_cmd);
 
 if ($taskID && function_exists('task_update')) {
     task_update($taskID, 'Activation Complete', 100);

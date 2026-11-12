@@ -16,6 +16,9 @@ baseline/
 # Test harnesses, load stress, & investigation scripts
 test_*
 !/test_telemetry_history.py
+!/test_platform_manager.py
+!/test_openswoole_governance.py
+!/test_native_reload.py
 load_stress.php
 cgroup_*.php
 run_*.py

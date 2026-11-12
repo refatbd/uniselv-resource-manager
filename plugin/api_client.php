@@ -8,7 +8,7 @@ class UniselvApiClient {
     private static $socket_path = '/run/uniselv-resman/agent.sock';
     private static $token_path  = '/run/uniselv-resman/broker.token';
 
-    public static function call($action, $params = [], $auth_user = '', $is_admin = false) {
+    public static function call($action, $params = [], $auth_user = '', $is_admin = false, $timeout = 15) {
         if (!file_exists(self::$socket_path)) {
             return [
                 'error' => 'UNISELV Resource Manager agent is not running. Service uniselv-resman-agent is inactive.'
@@ -39,7 +39,8 @@ class UniselvApiClient {
             ];
         }
 
-        stream_set_timeout($socket, 15);
+        $stream_timeout = max(5, min(60, intval($timeout)));
+        stream_set_timeout($socket, $stream_timeout);
         fwrite($socket, $json_data);
 
         $response = '';

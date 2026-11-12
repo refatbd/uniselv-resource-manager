@@ -1,3 +1,24 @@
+## 1.2.0 — 2026-11-12
+
+- Add full Platform Operations & Zero-Terminal Application Services suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab):
+  1. **OS Build Preflight & One-Click Toolchain/Composer Installer**: checks `gcc`, `g++`, `make`, `autoconf`, `pkg-config`, `libssl-dev`/`libcurl4-openssl-dev`/`zlib1g-dev`, and SHA-384 verified `composer` binary with background apt/dnf installation.
+  2. **One-Click Managed Laravel Services**: automatic Laravel project discovery, plan-proportional worker budgets, and one-click Install/Enable/Disable/Start/Stop/Restart/Remove/Logs/Test for **Laravel Queue Workers** (`queue:work`), **Laravel Horizon** (`horizon`), **Laravel Reverb WebSocket** (`reverb:start`), and **Laravel Scheduler** (`schedule:work`) running inside `User=<account>` + `Slice=golden-<uid>.slice`, plus Admin live ephemeral worker self-test.
+  3. **Node.js / Python / Manual Laravel Daemon Cgroup Containment & Budget Guard**: `/proc` detection and automatic `systemd-run`/`golden-<uid>.slice` containment with concurrency caps.
+  4. **Per-Account Port Registry & Socket Isolation**: collision-free 10-port blocks (`20000–59990`) + `/run/uniselv-apps/<user>` + reverse-proxy snippet.
+  5. **Per-Account Isolated Redis ACL Governance**: prefix-locked `u_<user>` ACLs (`~<user>:*` with dangerous admin commands disabled), persisted via `aclfile` + `ACL SAVE`, live cross-tenant `NOPERM` verification test, `.env` snippet, and opt-in `default` user lockdown.
+  6. **Heavy Background Binary Concurrency & Timeout Guard**: enforces slice containment, max concurrency, and max runtime for `chromium`/`headless_shell`/`wkhtmltopdf`/`ffmpeg`/`libreoffice`.
+  7. **App Log Bloat & Inode Watchdog**: monitors `/home` inodes and oversized tenant logs with symlink-safe tail truncation.
+  8. **Server-to-Server Policy Migration Export / Import**: secret-free JSON bundle export, dry-run preview, transactional apply, and managed service re-provisioning.
+  9. **Per-Account /run/uniselv-apps/<user>/ports.json Auto-Export**: atomic metadata emission (`0640` permissions, non-secret port allocations, socket dir, and Redis prefixes) with boot-time self-healing for zero-configuration client app detection (REVERB_PORT, OCTANE_PORT, HORIZON_METRICS_PORT).
+
+## 1.1.43 — 2026-11-12
+
+- Promote OpenSwoole Governance to a dedicated top-level **OpenSwoole** Admin tab with quick-jump links from System Health, live PHP/INI/toolchain readiness diagnostics (`openswoole_diagnostics`), one-click ephemeral loopback & cgroups v2 end-to-end self-test (`openswoole_selftest`), plan/account task-worker override controls, account-scoped Octane/OpenSwoole launch snippet generator, and an audit & enforcement event log table.
+
+## 1.1.42 — 2026-11-12
+
+- Add OpenSwoole Governance & Multi-PHP Automation: automatically discover and compile compatible PECL OpenSwoole releases inside isolated transient systemd units, copy `.so` into each PHP version's true `extension_dir`, auto-enable OpenSwoole on newly installed Webuzo PHP branches, enforce `golden-<uid>.slice` cgroups v2 containment and plan-proportional worker budgets, and expose full Admin and Enduser UI controls.
+
 ## 1.1.41 — 2026-11-10
 
 - Bound concurrent history scans, share identical in-flight results and briefly cache successful history responses. Accept up to 24 Agent IPC clients and return a retryable response when history capacity is busy.

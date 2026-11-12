@@ -164,6 +164,78 @@ CREATE TABLE IF NOT EXISTS role_permissions (
     updated_at INTEGER NOT NULL,
     PRIMARY KEY(role, permission)
 );
+
+CREATE TABLE IF NOT EXISTS openswoole_plan_policies (
+    plan_name TEXT PRIMARY KEY,
+    allowed INTEGER NOT NULL DEFAULT 1,
+    max_workers_override INTEGER NOT NULL DEFAULT 0,
+    max_task_workers_override INTEGER NOT NULL DEFAULT -1,
+    updated_at INTEGER NOT NULL,
+    updated_by TEXT NOT NULL DEFAULT 'admin'
+);
+
+CREATE TABLE IF NOT EXISTS openswoole_account_policies (
+    username TEXT PRIMARY KEY,
+    allowed INTEGER NOT NULL DEFAULT -1,
+    max_workers_override INTEGER NOT NULL DEFAULT 0,
+    max_task_workers_override INTEGER NOT NULL DEFAULT -1,
+    updated_at INTEGER NOT NULL,
+    updated_by TEXT NOT NULL DEFAULT 'admin'
+);
+
+CREATE TABLE IF NOT EXISTS managed_app_services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    uid INTEGER NOT NULL,
+    service_type TEXT NOT NULL,
+    service_slug TEXT NOT NULL,
+    app_path TEXT NOT NULL,
+    php_branch TEXT DEFAULT 'php84',
+    runtime_bin TEXT DEFAULT '',
+    workers INTEGER NOT NULL DEFAULT 1,
+    max_memory_mb INTEGER NOT NULL DEFAULT 256,
+    queues TEXT DEFAULT 'default',
+    port INTEGER DEFAULT 0,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    unit_name TEXT NOT NULL,
+    last_status TEXT DEFAULT 'stopped',
+    last_error TEXT DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(username, service_slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_managed_services_user ON managed_app_services(username);
+
+CREATE TABLE IF NOT EXISTS account_port_allocations (
+    username TEXT PRIMARY KEY,
+    uid INTEGER NOT NULL,
+    base_port INTEGER UNIQUE NOT NULL,
+    port_count INTEGER NOT NULL DEFAULT 10,
+    socket_dir TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS redis_acl_accounts (
+    username TEXT PRIMARY KEY,
+    redis_user TEXT NOT NULL,
+    key_prefix TEXT NOT NULL,
+    password_hash TEXT DEFAULT '',
+    password_plain_enc TEXT DEFAULT '',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    max_commands_policy TEXT DEFAULT 'tenant_safe',
+    updated_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS app_log_findings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
+    log_path TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    mtime INTEGER NOT NULL DEFAULT 0,
+    scanned_at INTEGER NOT NULL,
+    UNIQUE(username, log_path)
+);
 """
 
 def init_db(db_path: str):
@@ -253,7 +325,27 @@ def init_db(db_path: str):
             ('circuit_breaker_recovery_threshold', def_rec_thresh),
             ('report_schedule', 'daily'),
             ('brand_name', 'UNISELV Resource Manager'),
-            ('brand_locale', 'en')
+            ('brand_locale', 'en'),
+            ('openswoole_auto_install_new_php', '1'),
+            ('openswoole_enforcement_mode', 'enforce'),
+            ('openswoole_strict_cgroup', '1'),
+            ('openswoole_worker_rss_mib', '128'),
+            ('openswoole_global_max_workers', '4'),
+            ('openswoole_enable_coroutine', '1'),
+            ('openswoole_preemptive_scheduler', '0'),
+            ('openswoole_unixsock_buffer_size', '8388608'),
+            ('openswoole_disabled_versions', ''),
+            ('platform_runtime_containment', '1'),
+            ('platform_runtime_mode', 'enforce'),
+            ('platform_max_node_workers', '2'),
+            ('platform_max_python_workers', '2'),
+            ('platform_heavy_binary_guard', '1'),
+            ('platform_heavy_binary_max_concurrent', '2'),
+            ('platform_heavy_binary_max_sec', '300'),
+            ('platform_log_threshold_mib', '250'),
+            ('platform_log_auto_truncate', '0'),
+            ('platform_redis_lock_default', '0'),
+            ('platform_laravel_max_workers_cap', '4')
         ])
         conn.commit()
     finally:

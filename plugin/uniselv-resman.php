@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.1.41
+Version: 1.2.0
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -405,7 +405,12 @@ function uniselv_resman_admin() {
             'save_report_schedule', 'branding_save', 'mark_notification',
             'save_package_mapping', 'delete_package_mapping', 'webhook',
             'save_account_permission', 'save_role_permission',
-            'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php', 'run_governance'
+            'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php', 'run_governance',
+            'openswoole_save_settings', 'openswoole_php_action', 'openswoole_save_policy', 'openswoole_enforce',
+            'platform_save_settings', 'platform_install_deps', 'platform_selftest_laravel',
+            'platform_redis_action', 'platform_enforce_runtimes', 'platform_import_policy',
+            'platform_supervisor_action', 'save_user_platform_permissions',
+            'save_laravel_service', 'control_laravel_service', 'truncate_app_log'
         ];
         
         if (in_array($subact, $mutation_actions)) {
@@ -472,11 +477,35 @@ function uniselv_resman_admin() {
             'php_lifecycle' => 'get_php_lifecycle',
             'runtime_governance' => 'get_runtime_governance',
             'run_governance' => 'run_runtime_governance',
-            'export_governance' => 'export_runtime_governance'
+            'export_governance' => 'export_runtime_governance',
+            'openswoole_status' => 'get_openswoole_status',
+            'openswoole_save_settings' => 'save_openswoole_settings',
+            'openswoole_php_action' => 'openswoole_php_action',
+            'openswoole_save_policy' => 'save_openswoole_policy',
+            'openswoole_enforce' => 'enforce_openswoole_now',
+            'openswoole_diagnostics' => 'openswoole_diagnostics',
+            'openswoole_selftest' => 'openswoole_selftest',
+            'platform_status' => 'get_platform_status',
+            'platform_dep_status' => 'get_platform_dep_status',
+            'platform_save_settings' => 'save_platform_settings',
+            'platform_install_deps' => 'platform_install_deps',
+            'platform_selftest_laravel' => 'platform_selftest_laravel',
+            'platform_redis_action' => 'platform_redis_action',
+            'platform_scan_logs' => 'platform_scan_logs',
+            'platform_enforce_runtimes' => 'platform_enforce_runtimes',
+            'platform_export_policy' => 'platform_export_policy',
+            'platform_import_policy' => 'platform_import_policy',
+            'platform_supervisor_action' => 'platform_supervisor_action',
+            'save_user_platform_permissions' => 'save_user_platform_permissions',
+            'save_laravel_service' => 'save_laravel_service',
+            'control_laravel_service' => 'control_laravel_service',
+            'truncate_app_log' => 'truncate_app_log'
         ];
 
         if (isset($action_map[$subact])) {
-            $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, true);
+            $long_ops = ['openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service'];
+            $ipc_timeout = in_array($subact, $long_ops) ? 45 : 15;
+            $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, true, $ipc_timeout);
             echo json_encode($resp);
         } else {
             echo json_encode(['error' => 'Unknown admin subaction']);
@@ -524,13 +553,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.41r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.0r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.41r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.0r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -595,6 +624,12 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         </button>
         <button class="uniselv-tab-btn" data-tab="auditlog">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('audit_log', $locale) . '
+        </button>
+        <button class="uniselv-tab-btn" data-tab="openswoole">
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> OpenSwoole
+        </button>
+        <button class="uniselv-tab-btn" data-tab="platform">
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg> Platform &amp; Laravel
         </button>
         <button class="uniselv-tab-btn" data-tab="health">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ' . __u('system_health', $locale) . '
@@ -1738,6 +1773,11 @@ Do not use the customer port (2003). An unattended external provider route has n
                                     <option value="can_stop_processes">can_stop_processes</option>
                                     <option value="can_export_diagnostics">can_export_diagnostics</option>
                                     <option value="can_view_history">can_view_history</option>
+                                    <option value="platform_laravel_queue">platform_laravel_queue</option>
+                                    <option value="platform_laravel_horizon">platform_laravel_horizon</option>
+                                    <option value="platform_laravel_reverb">platform_laravel_reverb</option>
+                                    <option value="platform_laravel_scheduler">platform_laravel_scheduler</option>
+                                    <option value="platform_supervisor">platform_supervisor</option>
                                 </select>
                                 <select id="perm-grant-select" class="uniselv-form-input" style="width: 100px; font-size: 0.82rem;">
                                     <option value="1">Allow</option>
@@ -1807,6 +1847,44 @@ Do not use the customer port (2003). An unattended external provider route has n
     </div>';
 
     // TAB 5: HEALTH, FEATURE GOVERNANCE & RETENTION SETTINGS
+    echo '<div id="tab-openswoole" class="uniselv-tab-content">
+        <div class="uniselv-card mb-4" id="uniselv-openswoole-admin-card">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+                <div>
+                    <h5 style="margin:0 0 4px 0;">OpenSwoole Governance, Multi-PHP Automation &amp; Live Testing</h5>
+                    <p style="margin:0;font-size:0.86rem;color:#64748b;">Automatically compile &amp; enable OpenSwoole across all installed &amp; future PHP versions (mapped to real extension_dir), run PHP/INI readiness checks, execute live cgroup v2 &amp; worker-cap self-tests, and manage plan/account limits.</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="uniselv-btn btn-outline" id="osw-refresh-btn" onclick="UniselvResMan.loadOpenSwooleGovernance()">Refresh</button>
+                    <button class="uniselv-btn btn-outline" id="osw-diag-btn" onclick="UniselvResMan.runOpenSwooleDiagnostics()">Check PHP &amp; Build Readiness</button>
+                    <button class="uniselv-btn btn-outline" id="osw-enforce-now-btn" onclick="UniselvResMan.enforceOpenSwooleNow()">Enforce Cgroups &amp; Quotas</button>
+                    <button class="uniselv-btn btn-primary" id="osw-sync-all-btn" onclick="UniselvResMan.triggerOpenSwoolePhpAction(\'sync_all\')">Scan &amp; Enable All PHP Versions</button>
+                </div>
+            </div>
+            <p id="uniselv-openswoole-job" role="status" aria-live="polite" style="font-size:0.86rem;color:#2563eb;font-weight:600;margin:6px 0;"></p>
+            <div id="uniselv-openswoole-admin-body" role="region" aria-live="polite">Open the OpenSwoole tab to load automation status, diagnostics, and live self-tests.</div>
+        </div>
+    </div>
+
+    <div id="tab-platform" class="uniselv-tab-content">
+        <div class="uniselv-card mb-4">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
+                <div>
+                    <h5 style="margin:0 0 4px 0;">Platform Operations, Managed Laravel Services &amp; Tenant Isolation</h5>
+                    <p style="margin:0;font-size:0.86rem;color:#64748b;">One-click OS build preflight &amp; Composer installer, managed Laravel Queue Workers / Horizon / Reverb / Scheduler services inside account cgroup v2 slices, Redis ACL tenant isolation, port registry, heavy binary guard, log watchdog, and server-to-server policy migration.</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="uniselv-btn btn-outline" id="plt-refresh-btn" onclick="UniselvResMan.loadPlatformAdmin()">Refresh</button>
+                    <button class="uniselv-btn btn-outline" id="plt-scan-logs-btn" onclick="UniselvResMan.scanPlatformLogs()">Scan Logs &amp; Inodes</button>
+                    <button class="uniselv-btn btn-outline" id="plt-enforce-btn" onclick="UniselvResMan.enforcePlatformRuntimes()">Contain Runtimes &amp; Heavy Binaries</button>
+                    <button class="uniselv-btn btn-primary" id="plt-export-btn" onclick="UniselvResMan.exportPlatformPolicy()">Export Policy JSON</button>
+                </div>
+            </div>
+            <p id="uniselv-platform-job" role="status" aria-live="polite" style="font-size:0.86rem;color:#2563eb;font-weight:600;margin:6px 0;"></p>
+            <div id="uniselv-platform-admin-body" role="region" aria-live="polite">Open the Platform &amp; Laravel tab to load build preflight, managed services, Redis ACL isolation, ports, logs, and migration tools.</div>
+        </div>
+    </div>';
+
     echo '<div id="tab-health" class="uniselv-tab-content">
         <div class="uniselv-card mb-4">
             <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
@@ -1815,6 +1893,15 @@ Do not use the customer port (2003). An unattended external provider route has n
             </div>
             <p>Global PHP settings are inherited. Installed versions must also be registered with the managed runtime. Stopped services need review before assigning a site.</p>
             <div id="uniselv-php-lifecycle" class="uniselv-table-wrap" role="status" aria-live="polite">Open this section to load PHP status.</div>
+        </div>
+        <div class="uniselv-card mb-4">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+                <div>
+                    <h5 style="margin:0 0 4px 0;">OpenSwoole Governance, Testing &amp; Multi-PHP Automation</h5>
+                    <p style="margin:0;font-size:0.86rem;color:#64748b;">Manage PHP extensions, run readiness checks &amp; live cgroup/worker-cap self-tests, and configure per-plan/account OpenSwoole budgets in the dedicated OpenSwoole tab.</p>
+                </div>
+                <button class="uniselv-btn btn-primary" onclick="UniselvResMan.switchTab(\'openswoole\')">Open OpenSwoole Console</button>
+            </div>
         </div>
         <div class="uniselv-card mb-4" id="uniselv-governance-card">
             <h5>Runtime Governance &amp; Configuration Evidence</h5>
@@ -2213,7 +2300,7 @@ function uniselv_resman_enduser() {
         $subact = isset($_REQUEST['subact']) ? $_REQUEST['subact'] : '';
         $params = $_POST;
 
-        if (in_array($subact, ['stop_process', 'mark_notification'])) {
+        if (in_array($subact, ['stop_process', 'mark_notification', 'save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'truncate_app_log'])) {
             uniselv_verify_csrf($current_user);
         }
 
@@ -2227,11 +2314,20 @@ function uniselv_resman_enduser() {
             'snapshot_detail' => 'get_snapshot_detail',
             'notifications' => 'get_enduser_notifications',
             'mark_notification' => 'mark_notification',
-            'export_report' => 'get_enduser_support_export'
+            'export_report' => 'get_enduser_support_export',
+            'openswoole_status' => 'get_enduser_openswoole',
+            'platform_services' => 'get_enduser_platform_services',
+            'save_laravel_service' => 'save_laravel_service',
+            'control_laravel_service' => 'control_laravel_service',
+            'enduser_redis_action' => 'enduser_redis_action',
+            'scan_app_logs' => 'scan_app_logs',
+            'truncate_app_log' => 'truncate_app_log'
         ];
 
         if (isset($action_map[$subact])) {
-            $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, false);
+            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action'];
+            $ipc_timeout = in_array($subact, $long_ops) ? 35 : 15;
+            $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, false, $ipc_timeout);
             echo json_encode($resp);
         } else {
             echo json_encode(['error' => 'Unknown enduser subaction']);
@@ -2268,13 +2364,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.1.41r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.0r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.1.41r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.0r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2319,6 +2415,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         </button>
         <button class="uniselv-tab-btn" data-tab="notifications" id="tab-btn-notifications">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> ' . __u('notifications_tab', $locale) . ' (<span id="uniselv-notif-count-badge">' . count(isset($notifs['events']) ? $notifs['events'] : []) . '</span>)
+        </button>
+        <button class="uniselv-tab-btn" data-tab="services" id="tab-btn-services">
+            <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg> App Services &amp; Tools
         </button>
         <button class="uniselv-tab-btn" data-tab="help" id="tab-btn-help">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('help_about', $locale) . '
@@ -2822,6 +2921,16 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </table>
             </div>
         </div>
+        <div class="uniselv-card mb-4" id="uniselv-enduser-openswoole-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <h5 style="margin:0 0 4px 0;font-weight:700;font-size:1.05rem;color:#1e293b;">OpenSwoole Assigned Resource Budget &amp; Runtime</h5>
+                    <p style="margin:0;font-size:0.84rem;color:#64748b;">Shows whether OpenSwoole is enabled on your plan, your safe worker ceiling inside your account cgroup slice, and active OpenSwoole workers.</p>
+                </div>
+                <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadEnduserOpenSwoole()">Refresh OpenSwoole</button>
+            </div>
+            <div id="uniselv-enduser-openswoole-body">Open Current Usage to view your OpenSwoole resource limits.</div>
+        </div>
     </div>';
 
     // TAB 3: HISTORY
@@ -2951,6 +3060,23 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </table>
             </div>
             <div id="uniselv-notif-pagination" class="uniselv-pagination-wrap"></div>
+        </div>
+    </div>
+
+    <div id="tab-services" class="uniselv-tab-content">
+        <div class="uniselv-card mb-4">
+            <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
+                <div>
+                    <h5 style="margin:0 0 4px 0;">App Services, Laravel Workers, Dedicated Ports &amp; Redis Isolation</h5>
+                    <p style="margin:0;font-size:0.86rem;color:#64748b;">Install and control Laravel Queue Workers, Horizon, Reverb WebSocket, and Scheduler with one click (no terminal commands needed), inspect assigned ports &amp; sockets, generate your isolated Redis ACL credentials, and trim large application logs safely.</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="uniselv-btn btn-outline" onclick="UniselvResMan.loadEnduserServices()">Refresh Services</button>
+                    <button class="uniselv-btn btn-outline" onclick="UniselvResMan.scanEnduserLogs()">Scan App Logs</button>
+                </div>
+            </div>
+            <p id="uniselv-enduser-services-msg" role="status" aria-live="polite" style="font-size:0.86rem;color:#2563eb;font-weight:600;margin:6px 0;"></p>
+            <div id="uniselv-enduser-services-body" role="region" aria-live="polite">Open App Services &amp; Tools to manage Laravel workers, ports, Redis ACL, and logs.</div>
         </div>
     </div>';
 

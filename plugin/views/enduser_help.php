@@ -3,6 +3,17 @@
  * UNISELV Resource Manager - Modern Enduser Help & About View
  * Role-specific, searchable, responsive documentation tailored for Webuzo hosting customers.
  */
+$uniselvEuInfo = @json_decode(@file_get_contents(__DIR__ . '/../info.json'), true) ?: [];
+$uniselvEuVersion = htmlspecialchars((string)($uniselvEuInfo['version'] ?? '1.2.0'), ENT_QUOTES, 'UTF-8');
+$uniselvEuPhp = [];
+foreach ((array)@glob('/usr/local/apps/php*/bin/php') as $_euPhpBin) {
+    if (preg_match('#/apps/(php\d{2,3})/bin/php$#', (string)$_euPhpBin, $_euM) && @is_executable($_euPhpBin)) {
+        $_euBr = $_euM[1];
+        $_euHasOsw = @file_exists("/usr/local/apps/{$_euBr}/ext/openswoole.so") || @file_exists("/usr/local/apps/{$_euBr}/etc/php.d/openswoole.ini");
+        $uniselvEuPhp[] = strtoupper($_euBr) . ($_euHasOsw ? ' + OpenSwoole' : '');
+    }
+}
+sort($uniselvEuPhp);
 ?>
 <div id="tab-help" class="uniselv-tab-content">
     <!-- Help Header & Real-time Search -->
@@ -96,6 +107,30 @@
             </div>
         </div>
 
+        <div class="uniselv-help-card" data-cat="features" id="help-topic-services">
+            <span class="uniselv-help-badge badge-cat-features">Laravel &amp; App Services</span>
+            <h4 class="uniselv-help-card-title">One-Click Laravel Workers, Horizon, Reverb, Ports &amp; Redis ACL</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Menu:</strong> <em>App Services &amp; Tools</em> tab.<br>
+                <strong>What it does:</strong> Manage production background services without opening an SSH terminal:
+                <ul style="margin:6px 0 6px 18px; padding:0; line-height:1.55;">
+                    <li><strong>Managed Laravel Services:</strong> Auto-detects your Laravel projects and lets you install, start, stop, restart, enable/disable, test, or inspect logs for <strong>Queue Workers</strong>, <strong>Horizon</strong>, <strong>Reverb WebSocket</strong>, and <strong>Scheduler</strong> when enabled by your administrator (Horizon and Reverb require at least <code>512 MiB</code> plan RAM).</li>
+                    <li><strong>Dedicated Ports, Unix Sockets &amp; Copy Helpers:</strong> Shows your reserved, conflict-free ports for Octane, Reverb, Horizon, Node, and Python plus your private socket directory, with one-click Copy buttons for Reverb Apache proxy snippets.</li>
+                    <li><strong>Isolated Redis ACL:</strong> When permitted by host policy, generate or rotate your private Redis ACL username/password locked strictly to your account key prefix with one-click <code>.env</code> snippet copy.</li>
+                    <li><strong>App Log Watchdog:</strong> Scan oversized logs (e.g. <code>storage/logs/laravel.log</code>) and safely trim when enabled by host policy, preserving the newest 1,000 lines.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="uniselv-help-card" data-cat="features" id="help-topic-openswoole">
+            <span class="uniselv-help-badge badge-cat-features">OpenSwoole</span>
+            <h4 class="uniselv-help-card-title">OpenSwoole &amp; Laravel Octane Plan Budgets</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Menu:</strong> <em>Current usage</em> tab &gt; OpenSwoole Runtime Governance.<br>
+                <strong>What it shows:</strong> Whether OpenSwoole is enabled on your plan, your assigned dedicated Octane port, allowed <strong>Max Workers</strong>, <strong>Max Task Workers</strong>, memory cap, active PHP branches, and a one-click copyable <code>php artisan octane:start --port=&lt;port&gt;</code> command pre-filled with your safe worker flags.
+            </div>
+        </div>
+
         <!-- 3. UNDERSTANDING METRICS -->
         <div class="uniselv-help-card" data-cat="metrics" id="help-topic-metrics">
             <span class="uniselv-help-badge badge-cat-metrics">Resource Metrics</span>
@@ -135,6 +170,12 @@
                     <li>Export your support report via the <strong>Export Support Report</strong> button.</li>
                     <li>Contact your hosting administrator to request a temporary <strong>Turbo</strong> or <strong>Enterprise</strong> resource boost for the duration of the campaign.</li>
                 </ol>
+                <strong>Scenario 4: Running Laravel Queues, Horizon, or Reverb WebSocket without SSH:</strong>
+                <ol style="margin:6px 0 6px 20px; padding:0;">
+                    <li>Open the <strong>App Services &amp; Tools</strong> tab and select your detected Laravel project pill to fill the path.</li>
+                    <li>Pick <em>Queue Worker</em>, <em>Horizon</em>, <em>Reverb WebSocket</em>, or <em>Scheduler</em>, choose your PHP version, and click <strong>Install &amp; Start Service</strong>.</li>
+                    <li>Use <strong>Test</strong> or <strong>Logs</strong> anytime to verify jobs are running cleanly inside your isolated slice.</li>
+                </ol>
             </div>
         </div>
 
@@ -159,9 +200,13 @@
             <span class="uniselv-help-badge badge-cat-about">About</span>
             <h4 class="uniselv-help-card-title">About Your Hosting Environment</h4>
             <div class="uniselv-help-card-desc">
-                Your account is hosted on high-performance cloud infrastructure utilizing Linux <strong>Cgroups v2</strong> resource accounting and controls.<br>
-                Account limits and the shared hosting pool reduce resource contention. Shared database, storage and host pressure can still affect site performance; this is not complete container or filesystem isolation.<br>
-                For questions regarding your plan allocation or upgrading your limits, contact your hosting provider.
+                <table style="width:100%; border-collapse:collapse; font-size:0.86rem; color:#334155; margin-bottom:10px;">
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600; width:190px;">Resource Manager Version:</td><td><strong>v<?php echo $uniselvEuVersion; ?></strong> (OpenSwoole &amp; Managed Laravel Platform)</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600;">Kernel Isolation:</td><td>Linux <strong>Cgroups v2</strong> per-account resource slice</td></tr>
+                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600;">Available PHP Runtimes:</td><td><?php echo htmlspecialchars($uniselvEuPhp ? implode(', ', $uniselvEuPhp) : 'Standard Webuzo PHP', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                    <tr><td style="padding:5px 0; font-weight:600;">Managed App Features:</td><td>One-Click Laravel Queue / Horizon / Reverb / Scheduler, Isolated Redis ACL &amp; Dedicated Port Registry</td></tr>
+                </table>
+                Account limits and the shared hosting pool reduce resource contention. Shared database, storage and host pressure can still affect site performance; this is not complete container or filesystem isolation. For questions regarding your plan allocation or upgrading your limits, contact your hosting provider.
             </div>
         </div>
 

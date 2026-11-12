@@ -20,6 +20,8 @@ import threading
 import zlib
 from concurrent.futures import Future, TimeoutError as FutureTimeout
 import runtime_governance as governance
+import openswoole_manager
+import platform_manager
 try:
     import fcntl
 except ImportError:
@@ -476,7 +478,9 @@ class IpcRequestHandler:
                     return {'error': 'Forbidden: Account is outside reseller ownership', 'status_code': 403}
                 reseller_common = {'get_enduser_dashboard', 'get_enduser_history', 'get_enduser_processes',
                     'stop_enduser_process', 'get_enduser_snapshots', 'get_snapshots_index', 'get_snapshot_detail',
-                    'get_enduser_notifications', 'mark_notification', 'get_enduser_support_export', 'get_branding_settings'}
+                    'get_enduser_notifications', 'mark_notification', 'get_enduser_support_export', 'get_branding_settings',
+                    'get_enduser_openswoole', 'get_enduser_platform_services', 'save_laravel_service',
+                    'control_laravel_service', 'enduser_redis_action', 'scan_app_logs', 'truncate_app_log'}
                 reseller_admin = {'get_admin_accounts', 'get_admin_account_detail', 'set_temporary_override', 'cancel_temporary_override', 'get_audit_log', 'get_admin_audit_limits', 'audit_limits'}
                 if action not in reseller_common | reseller_admin:
                     return {'error': 'Forbidden: Server-wide action requires root', 'status_code': 403}
@@ -520,6 +524,20 @@ class IpcRequestHandler:
                 return self.action_mark_notification(user, params)
             elif action == 'get_enduser_support_export':
                 return self.action_enduser_support_export(target_user, params)
+            elif action == 'get_enduser_openswoole':
+                return self.action_enduser_openswoole(target_user)
+            elif action == 'get_enduser_platform_services':
+                return self.action_get_enduser_platform_services(target_user)
+            elif action == 'save_laravel_service':
+                return self.action_save_laravel_service(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'control_laravel_service':
+                return self.action_control_laravel_service(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'enduser_redis_action':
+                return self.action_enduser_redis_action(user, target_user, params)
+            elif action == 'scan_app_logs':
+                return platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path, target_user=target_user)
+            elif action == 'truncate_app_log':
+                return self.action_truncate_app_log(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
             elif action == 'get_branding_settings':
                 return self.action_get_branding_settings()
             elif action == 'process_webhook':
@@ -635,6 +653,44 @@ class IpcRequestHandler:
                 return self.golden_shield.restore_backup(backup_id)
             elif action == 'list_golden_shield_backups':
                 return {'success': True, 'backups': self.golden_shield.list_backups()}
+            elif action == 'get_openswoole_status':
+                return self.action_get_openswoole_status()
+            elif action == 'save_openswoole_settings':
+                return self.action_save_openswoole_settings(user, params)
+            elif action == 'openswoole_php_action':
+                return self.action_openswoole_php_action(user, params)
+            elif action == 'save_openswoole_policy':
+                return self.action_save_openswoole_policy(user, params)
+            elif action == 'enforce_openswoole_now':
+                return self.action_enforce_openswoole_now(user, params)
+            elif action == 'openswoole_diagnostics':
+                return self.action_openswoole_diagnostics()
+            elif action == 'openswoole_selftest':
+                return self.action_openswoole_selftest(user, params)
+            elif action == 'get_platform_status':
+                return self.action_get_platform_status(params)
+            elif action == 'get_platform_dep_status':
+                return platform_manager.get_os_preflight_status()
+            elif action == 'save_platform_settings':
+                return self.action_save_platform_settings(user, params)
+            elif action == 'platform_install_deps':
+                return self.action_platform_install_deps(user, params)
+            elif action == 'platform_selftest_laravel':
+                return self.action_platform_selftest_laravel(params)
+            elif action == 'platform_redis_action':
+                return self.action_platform_redis_action(user, params)
+            elif action == 'platform_scan_logs':
+                return platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path, target_user=str(params.get('username') or '').strip() or None)
+            elif action == 'platform_enforce_runtimes':
+                return self.action_platform_enforce_runtimes(user)
+            elif action == 'platform_export_policy':
+                return platform_manager.export_policy_bundle(self.db_path)
+            elif action == 'platform_import_policy':
+                return self.action_platform_import_policy(user, params)
+            elif action == 'platform_supervisor_action':
+                return self.action_platform_supervisor_action(user, params)
+            elif action == 'save_user_platform_permissions':
+                return self.action_save_user_platform_permissions(user, params)
             else:
                 return {'error': f'Unknown action: {action}'}
         except Exception as e:
@@ -2090,7 +2146,12 @@ class IpcRequestHandler:
                 'available_permissions': [
                     {'key': 'can_stop_processes', 'label': 'Stop Own Processes', 'description': 'Allow enduser to terminate their own stuck processes'},
                     {'key': 'can_export_diagnostics', 'label': 'Support Diagnostic Export', 'description': 'Allow generating and downloading support export bundles'},
-                    {'key': 'can_view_history', 'label': 'View Historical Telemetry', 'description': 'Allow querying historical metrics charts and samples'}
+                    {'key': 'can_view_history', 'label': 'View Historical Telemetry', 'description': 'Allow querying historical metrics charts and samples'},
+                    {'key': 'platform_laravel_queue', 'label': 'Laravel Queue Workers', 'description': 'Allow user to run managed Laravel Queue Workers'},
+                    {'key': 'platform_laravel_horizon', 'label': 'Laravel Horizon', 'description': 'Allow user to run Laravel Horizon'},
+                    {'key': 'platform_laravel_reverb', 'label': 'Laravel Reverb / WS', 'description': 'Allow user to run Laravel Reverb WebSocket server'},
+                    {'key': 'platform_laravel_scheduler', 'label': 'Laravel Scheduler', 'description': 'Allow user to run Laravel Scheduler'},
+                    {'key': 'platform_supervisor', 'label': 'Supervisor Scoped Access', 'description': 'Allow isolated Supervisor workers & status checks without terminal access'},
                 ]
             }
         finally:
@@ -2123,15 +2184,18 @@ class IpcRequestHandler:
             """, (now, admin_user, username, json.dumps({'permission': permission, 'granted': granted})))
 
             conn.commit()
-            return {
-                'status': 'success',
-                'username': username,
-                'permission': permission,
-                'granted': bool(granted),
-                'updated_at': now
-            }
         finally:
             conn.close()
+
+        if permission in platform_manager.PLATFORM_PERMISSION_KEYS:
+            platform_manager.enforce_platform_permissions(self.collector, self.db_path, target_user=username)
+        return {
+            'status': 'success',
+            'username': username,
+            'permission': permission,
+            'granted': bool(granted),
+            'updated_at': now
+        }
 
     def action_save_role_permission(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """B04: Update role baseline permission."""
@@ -2159,15 +2223,18 @@ class IpcRequestHandler:
             """, (now, admin_user, f"role:{role}", json.dumps({'permission': permission, 'granted': granted})))
 
             conn.commit()
-            return {
-                'status': 'success',
-                'role': role,
-                'permission': permission,
-                'granted': bool(granted),
-                'updated_at': now
-            }
         finally:
             conn.close()
+
+        if permission in platform_manager.PLATFORM_PERMISSION_KEYS:
+            platform_manager.enforce_platform_permissions(self.collector, self.db_path)
+        return {
+            'status': 'success',
+            'role': role,
+            'permission': permission,
+            'granted': bool(granted),
+            'updated_at': now
+        }
 
     def action_admin_audit_limits(self) -> Dict[str, Any]:
         """
@@ -4298,4 +4365,427 @@ class IpcRequestHandler:
             'adapter': adapter,
             'payload': payload
         })
+
+    # ==================== OPENSWOOLE GOVERNANCE & MULTI-PHP AUTOMATION ====================
+
+    _openswoole_mutex = threading.Lock()
+
+    def openswoole_background_tick(self):
+        """Reconcile any newly installed Webuzo PHP versions for OpenSwoole automation."""
+        if not self._openswoole_mutex.acquire(blocking=False):
+            return
+        try:
+            res = openswoole_manager.reconcile_new_php_versions(self.db_path, automatic=True, force_all=False)
+            if res.get('provisioned'):
+                print(f"[Agent OpenSwoole Auto-Provisioned] {[x.get('version') for x in res['provisioned']]}", file=sys.stderr)
+        finally:
+            self._openswoole_mutex.release()
+
+    def action_get_openswoole_status(self) -> Dict[str, Any]:
+        return openswoole_manager.get_admin_status_payload(self.collector, self.db_path)
+
+    def action_enduser_openswoole(self, username: str) -> Dict[str, Any]:
+        res = openswoole_manager.get_enduser_status_payload(self.collector, self.db_path, username)
+        try:
+            alloc = platform_manager.ensure_account_port_allocation(self.collector, self.db_path, username)
+            oct_port = (alloc.get('ports') or {}).get('octane_port')
+            if oct_port and isinstance(res.get('guidance'), dict):
+                res['guidance']['assigned_octane_port'] = oct_port
+                cmd = res['guidance'].get('recommended_octane_command', '')
+                if cmd and '--port=' not in cmd:
+                    res['guidance']['recommended_octane_command'] = f"{cmd} --port={oct_port}"
+        except Exception:
+            pass
+        return res
+
+    def action_save_openswoole_settings(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        validated: Dict[str, str] = {}
+        for bk in ('openswoole_auto_install_new_php', 'openswoole_strict_cgroup', 'openswoole_enable_coroutine', 'openswoole_preemptive_scheduler'):
+            if bk in params:
+                v = params[bk]
+                is_true = v is True or v == '1' or v == 1 or str(v).lower() in ('true', 'on', 'yes')
+                validated[bk] = '1' if is_true else '0'
+
+        if 'openswoole_enforcement_mode' in params:
+            mode = str(params['openswoole_enforcement_mode']).strip().lower()
+            if mode in ('monitor', 'enforce'):
+                validated['openswoole_enforcement_mode'] = mode
+
+        int_bounds = {
+            'openswoole_worker_rss_mib': (64, 512),
+            'openswoole_global_max_workers': (1, 64),
+            'openswoole_unixsock_buffer_size': (1048576, 67108864),
+        }
+        for ik, (lo, hi) in int_bounds.items():
+            if ik in params:
+                try:
+                    validated[ik] = str(max(lo, min(hi, int(str(params[ik])))))
+                except (ValueError, TypeError):
+                    return {'success': False, 'error': f'Invalid integer for {ik}'}
+
+        if not validated:
+            return {'success': False, 'error': 'No valid OpenSwoole settings provided'}
+
+        conn = self.get_db()
+        try:
+            for k, v in validated.items():
+                conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (k, v))
+            conn.execute(
+                "INSERT INTO audit_log (timestamp, actor, action, target_account, details_json) VALUES (?, ?, 'save_openswoole_settings', 'system', ?)",
+                (int(time.time()), admin_user, json.dumps(validated)),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        settings = openswoole_manager.load_openswoole_settings(self.db_path)
+        ini_sync = openswoole_manager.sync_ini_for_active_versions(settings)
+        openswoole_manager.export_policy_manifest(self.collector, self.db_path)
+        return {'success': True, 'settings': settings, 'ini_sync': ini_sync}
+
+    def action_openswoole_php_action(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        op = str(params.get('operation', '')).strip().lower()
+        ver = str(params.get('version', '')).strip().lower()
+        if op not in ('install', 'rebuild', 'enable', 'disable', 'sync_all'):
+            return {'success': False, 'error': f'Unsupported OpenSwoole operation: {op}'}
+        if op != 'sync_all' and not re.fullmatch(r'php\d{2,3}', ver):
+            return {'success': False, 'error': f'Invalid PHP version: {ver}'}
+
+        if op == 'disable':
+            if not self._openswoole_mutex.acquire(blocking=False):
+                return {'success': False, 'error': 'Another OpenSwoole provisioning job is running'}
+            try:
+                settings = openswoole_manager.load_openswoole_settings(self.db_path)
+                res = openswoole_manager.set_php_version_enabled(ver, False, settings, self.db_path)
+                openswoole_manager._record_audit(self.db_path, admin_user, f'openswoole_{op}', ver, res)
+                return res
+            finally:
+                self._openswoole_mutex.release()
+
+        if not self._openswoole_mutex.acquire(blocking=False):
+            return {'success': False, 'error': 'Another OpenSwoole provisioning job is already running'}
+
+        job = {
+            'id': uuid.uuid4().hex,
+            'operation': op,
+            'version': ver or 'all',
+            'actor': admin_user,
+            'startedAt': int(time.time()),
+            'state': 'running',
+            'agentPid': os.getpid(),
+        }
+        try:
+            openswoole_manager.STORE_DIR.mkdir(parents=True, exist_ok=True)
+            openswoole_manager.atomic_write_json(openswoole_manager.JOB_FILE, job, mode=0o640)
+        except Exception:
+            self._openswoole_mutex.release()
+            raise
+
+        def _worker():
+            try:
+                settings = openswoole_manager.load_openswoole_settings(self.db_path)
+                if op == 'sync_all':
+                    result = openswoole_manager.reconcile_new_php_versions(self.db_path, automatic=False, force_all=True)
+                elif op in ('install', 'rebuild'):
+                    disabled = openswoole_manager.parse_disabled_versions(settings.get('openswoole_disabled_versions', ''))
+                    disabled.discard(ver)
+                    openswoole_manager._update_setting(self.db_path, 'openswoole_disabled_versions', openswoole_manager.serialize_disabled_versions(disabled))
+                    settings['openswoole_disabled_versions'] = openswoole_manager.serialize_disabled_versions(disabled)
+                    result = openswoole_manager.build_and_enable_php_version(ver, settings, force_rebuild=(op == 'rebuild'))
+                else:
+                    result = openswoole_manager.set_php_version_enabled(ver, True, settings, self.db_path)
+
+                job['result'] = result
+                job['state'] = 'completed' if result.get('success', False) else 'failed'
+                if not result.get('success', False):
+                    if result.get('failed'):
+                        job['error'] = '; '.join(f"{x.get('version')}: {x.get('error')}" for x in result['failed'])
+                    else:
+                        job['error'] = result.get('error', 'Provisioning failed')
+                openswoole_manager._record_audit(self.db_path, admin_user, f'openswoole_{op}', ver or 'all', job)
+            except Exception as exc:
+                job.update(state='failed', error=str(exc))
+            finally:
+                try:
+                    job['finishedAt'] = int(time.time())
+                    openswoole_manager.atomic_write_json(openswoole_manager.JOB_FILE, job, mode=0o640)
+                finally:
+                    self._openswoole_mutex.release()
+
+        threading.Thread(target=_worker, daemon=True).start()
+        return {'success': True, 'queued': True, 'operation': op, 'version': ver or 'all', 'jobId': job['id']}
+
+    def action_save_openswoole_policy(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        scope = str(params.get('scope', '')).strip().lower()
+        target = str(params.get('target', '')).strip()
+        if scope not in ('plan', 'account'):
+            return {'success': False, 'error': 'Invalid policy scope (must be plan or account)'}
+        if not re.fullmatch(r'[A-Za-z0-9_.-]{1,64}', target):
+            return {'success': False, 'error': 'Invalid target identifier'}
+
+        try:
+            allowed_raw = int(str(params.get('allowed', 1 if scope == 'plan' else -1)))
+            max_workers_ov = max(0, min(64, int(str(params.get('max_workers_override', 0) or 0))))
+            max_tasks_ov = max(-1, min(64, int(str(params.get('max_task_workers_override', -1) if params.get('max_task_workers_override', '') != '' else -1))))
+        except (ValueError, TypeError):
+            return {'success': False, 'error': 'Invalid numeric policy values'}
+
+        now = int(time.time())
+        conn = self.get_db()
+        try:
+            if scope == 'plan':
+                allowed_val = 1 if allowed_raw else 0
+                conn.execute(
+                    """INSERT OR REPLACE INTO openswoole_plan_policies
+                       (plan_name, allowed, max_workers_override, max_task_workers_override, updated_at, updated_by)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (target, allowed_val, max_workers_ov, max_tasks_ov, now, admin_user),
+                )
+            else:
+                allowed_val = allowed_raw if allowed_raw in (-1, 0, 1) else -1
+                if allowed_val == -1 and max_workers_ov == 0 and max_tasks_ov == -1:
+                    conn.execute('DELETE FROM openswoole_account_policies WHERE username = ?', (target,))
+                else:
+                    conn.execute(
+                        """INSERT OR REPLACE INTO openswoole_account_policies
+                           (username, allowed, max_workers_override, max_task_workers_override, updated_at, updated_by)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (target, allowed_val, max_workers_ov, max_tasks_ov, now, admin_user),
+                    )
+            conn.execute(
+                "INSERT INTO audit_log (timestamp, actor, action, target_account, details_json) VALUES (?, ?, 'save_openswoole_policy', ?, ?)",
+                (now, admin_user, target, json.dumps({'scope': scope, 'allowed': allowed_val, 'max_workers_override': max_workers_ov, 'max_task_workers_override': max_tasks_ov})),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        openswoole_manager.export_policy_manifest(self.collector, self.db_path)
+        return {'success': True, 'scope': scope, 'target': target}
+
+    def action_enforce_openswoole_now(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        action_type = str(params.get('mode', 'reconcile')).strip().lower()
+        if action_type == 'stop_pid':
+            try:
+                pid = int(params.get('pid', 0))
+                uid = int(params.get('uid', 0))
+            except (ValueError, TypeError):
+                return {'success': False, 'error': 'Invalid PID or UID'}
+            if pid <= 1 or uid < 1000:
+                return {'success': False, 'error': 'Refusing invalid target process'}
+            ok = openswoole_manager._safe_stop_pid(uid, pid, 0)
+            if ok:
+                openswoole_manager._record_audit(self.db_path, admin_user, 'openswoole_manual_stop', str(uid), {'pid': pid})
+            return {'success': ok, 'pid': pid, 'message': 'Signal sent' if ok else 'Could not signal process'}
+
+        res = openswoole_manager.enforce_runtime_policies(self.collector, self.db_path)
+        openswoole_manager._record_audit(self.db_path, admin_user, 'openswoole_manual_enforce', 'system', res)
+        return {'success': True, **res}
+
+    def action_openswoole_diagnostics(self) -> Dict[str, Any]:
+        return openswoole_manager.run_openswoole_readiness_check(self.db_path)
+
+    def action_openswoole_selftest(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        username = str(params.get('username', '') or '').strip()
+        php_version = str(params.get('php_version', '') or '').strip()
+        return openswoole_manager.run_openswoole_self_test(
+            self.collector,
+            self.db_path,
+            actor=admin_user,
+            username=username,
+            php_version=php_version,
+        )
+
+    # ==================== PLATFORM OPERATIONS & MANAGED LARAVEL SERVICES ====================
+
+    def action_get_enduser_platform_services(self, target_user: str) -> Dict[str, Any]:
+        laravel = platform_manager.list_laravel_services(self.collector, self.db_path, target_user=target_user)
+        redis_st = platform_manager.get_redis_isolation_status(self.collector, self.db_path, scoped_user=target_user)
+        ports = platform_manager.ensure_account_port_allocation(self.collector, self.db_path, target_user)
+        logs = platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path, target_user=target_user)
+        rt = platform_manager.scan_tenant_runtimes_and_binaries(self.collector, self.db_path)
+        own_rt = [p for p in rt.get('processes', []) if p.get('username') == target_user]
+        return {
+            'success': True,
+            'username': target_user,
+            'settings': platform_manager.load_platform_settings(self.db_path),
+            'stack_readiness': platform_manager.get_laravel_stack_readiness(self.db_path),
+            'laravel': laravel,
+            'redis': redis_st,
+            'port_allocation': ports,
+            'logs': logs,
+            'runtimes': own_rt,
+        }
+
+    def action_save_laravel_service(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        scoped = dict(params or {})
+        req_user = str(scoped.get('username') or '').strip()
+        if not is_root_admin or not req_user:
+            scoped['username'] = target_user
+        return platform_manager.save_and_install_laravel_service(self.collector, self.db_path, actor, scoped)
+
+    def action_control_laravel_service(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        raw_sid = str(params.get('service_id') or '').strip()
+        if raw_sid.startswith('dropin:'):
+            service_id: Any = raw_sid
+        else:
+            try:
+                service_id = int(raw_sid or 0)
+            except (TypeError, ValueError):
+                return {'success': False, 'error': 'Invalid service_id'}
+            if service_id <= 0:
+                return {'success': False, 'error': 'Missing service_id'}
+        op = str(params.get('operation') or '').strip().lower()
+        return platform_manager.control_laravel_service(
+            self.db_path, actor, target_user, service_id, op, is_admin=is_root_admin
+        )
+
+    def action_enduser_redis_action(self, actor: str, target_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        op = str(params.get('operation') or '').strip().lower()
+        settings = platform_manager.load_platform_settings(self.db_path)
+        if settings.get('platform_redis_acl_enabled', '1') != '1' and op in ('provision', 'test'):
+            return {'success': False, 'error': 'Self-service Redis ACL provisioning is disabled by the server administrator'}
+        if op == 'provision':
+            return platform_manager.provision_redis_acl(self.db_path, target_user, actor=actor)
+        elif op == 'revoke':
+            return platform_manager.revoke_redis_acl(self.db_path, target_user, actor=actor)
+        elif op == 'test':
+            return platform_manager.test_redis_acl_isolation(self.db_path, target_user)
+        return {'success': False, 'error': 'Unsupported Redis operation for tenant account'}
+
+    def action_truncate_app_log(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        if not is_root_admin:
+            settings = platform_manager.load_platform_settings(self.db_path)
+            if settings.get('platform_log_watchdog_enabled', '1') != '1':
+                return {'success': False, 'error': 'Self-service Log Watchdog trimming is disabled by the server administrator'}
+        req_user = str(params.get('username') or '').strip()
+        eff_user = req_user if (is_root_admin and req_user) else target_user
+        log_path = str(params.get('log_path') or '').strip()
+        try:
+            keep_lines = int(params.get('keep_lines') or 1000)
+        except (TypeError, ValueError):
+            keep_lines = 1000
+        return platform_manager.truncate_app_log(
+            self.db_path, actor, eff_user, log_path, keep_lines=keep_lines, is_admin=is_root_admin
+        )
+
+    def action_get_platform_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        scoped = str(params.get('username') or '').strip() or None
+        payload = platform_manager.get_platform_overview_payload(self.collector, self.db_path, target_user=scoped)
+        payload['logs'] = platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path, target_user=scoped)
+        return payload
+
+    def action_save_platform_settings(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        cur = platform_manager.load_platform_settings(self.db_path)
+        allowed_modes = {'enforce', 'monitor'}
+        runtime_mode = str(params.get('platform_runtime_mode', cur.get('platform_runtime_mode', 'enforce'))).strip().lower()
+        if runtime_mode not in allowed_modes:
+            runtime_mode = 'enforce'
+        def _bool_str(key: str, default_str: str) -> str:
+            if key not in params:
+                return cur.get(key, default_str)
+            return '1' if str(params.get(key)) not in ('0', 'false', 'False', '') else '0'
+        try:
+            raw_types = params.get('platform_laravel_allowed_types', cur.get('platform_laravel_allowed_types', 'queue,horizon,reverb,scheduler'))
+            parsed_types = ','.join(platform_manager.parse_allowed_laravel_types(raw_types))
+            updates = {
+                'platform_laravel_services_enabled': _bool_str('platform_laravel_services_enabled', '1'),
+                'platform_laravel_allowed_types': parsed_types,
+                'platform_supervisor_enabled': _bool_str('platform_supervisor_enabled', '1'),
+                'platform_redis_acl_enabled': _bool_str('platform_redis_acl_enabled', '1'),
+                'platform_log_watchdog_enabled': _bool_str('platform_log_watchdog_enabled', '1'),
+                'platform_runtime_containment': _bool_str('platform_runtime_containment', '1'),
+                'platform_runtime_mode': runtime_mode,
+                'platform_max_node_workers': str(max(1, min(32, int(params.get('platform_max_node_workers') or cur.get('platform_max_node_workers', '2'))))),
+                'platform_max_python_workers': str(max(1, min(32, int(params.get('platform_max_python_workers') or cur.get('platform_max_python_workers', '2'))))),
+                'platform_heavy_binary_guard': _bool_str('platform_heavy_binary_guard', '1'),
+                'platform_heavy_binary_max_concurrent': str(max(1, min(16, int(params.get('platform_heavy_binary_max_concurrent') or cur.get('platform_heavy_binary_max_concurrent', '2'))))),
+                'platform_heavy_binary_max_sec': str(max(30, min(3600, int(params.get('platform_heavy_binary_max_sec') or cur.get('platform_heavy_binary_max_sec', '300'))))),
+                'platform_log_threshold_mib': str(max(20, min(10240, int(params.get('platform_log_threshold_mib') or cur.get('platform_log_threshold_mib', '250'))))),
+                'platform_log_auto_truncate': '1' if str(params.get('platform_log_auto_truncate', cur.get('platform_log_auto_truncate', '0'))) in ('1', 'true', 'True') else '0',
+                'platform_laravel_max_workers_cap': str(max(1, min(32, int(params.get('platform_laravel_max_workers_cap') or cur.get('platform_laravel_max_workers_cap', '4'))))),
+            }
+        except (TypeError, ValueError):
+            return {'success': False, 'error': 'Invalid numeric platform policy settings'}
+
+        conn = self.get_db()
+        try:
+            for k, v in updates.items():
+                conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', (k, v))
+            conn.commit()
+        finally:
+            conn.close()
+        platform_manager._record_audit(self.db_path, admin_user, 'save_platform_settings', 'system', updates)
+        enforcement = platform_manager.enforce_platform_permissions(self.collector, self.db_path)
+        return {'success': True, 'settings': platform_manager.load_platform_settings(self.db_path), 'enforcement': enforcement}
+
+    def action_platform_supervisor_action(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        op = str(params.get('operation') or 'status').strip().lower()
+        if op == 'install':
+            return platform_manager.start_install_build_dependencies(self.db_path, admin_user, target='supervisor')
+        return platform_manager.control_supervisor_service(self.collector, self.db_path, admin_user, op)
+
+    def action_save_user_platform_permissions(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        username = str(params.get('username') or '').strip()
+        perms = params.get('permissions')
+        if isinstance(perms, str):
+            raw_perms = perms.strip()
+            for candidate in (raw_perms, raw_perms.replace('\\"', '"').replace("\\'", "'")):
+                try:
+                    parsed = json.loads(candidate)
+                    if isinstance(parsed, dict):
+                        perms = parsed
+                        break
+                except Exception:
+                    continue
+        if not isinstance(perms, dict):
+            perms = {k: params[k] for k in platform_manager.PLATFORM_PERMISSION_KEYS if k in params}
+        if not perms:
+            return {'success': False, 'error': 'Permissions map is required'}
+        return platform_manager.set_user_platform_permissions(self.collector, self.db_path, admin_user, username, perms)
+
+    def action_platform_install_deps(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        target = str(params.get('target') or 'toolchain').strip().lower()
+        return platform_manager.start_install_build_dependencies(self.db_path, admin_user, target=target)
+
+    def action_platform_selftest_laravel(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        username = str(params.get('username') or '').strip()
+        if not username:
+            return {'success': False, 'error': 'Target account username is required'}
+        php_branch = str(params.get('php_branch') or 'php84').strip()
+        return platform_manager.run_laravel_services_selftest(self.collector, self.db_path, username, php_branch=php_branch)
+
+    def action_platform_redis_action(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        op = str(params.get('operation') or '').strip().lower()
+        username = str(params.get('username') or '').strip()
+        if op == 'lock_default':
+            lock_flag = str(params.get('lock_default', '0')) in ('1', 'true', 'True')
+            return platform_manager.set_redis_default_lockdown(lock_flag, self.db_path, actor=admin_user)
+        if not username:
+            return {'success': False, 'error': 'Account username is required'}
+        if op == 'provision':
+            return platform_manager.provision_redis_acl(self.db_path, username, actor=admin_user)
+        elif op == 'revoke':
+            return platform_manager.revoke_redis_acl(self.db_path, username, actor=admin_user)
+        elif op == 'test':
+            return platform_manager.test_redis_acl_isolation(self.db_path, username)
+        return {'success': False, 'error': 'Invalid Redis isolation operation'}
+
+    def action_platform_enforce_runtimes(self, admin_user: str) -> Dict[str, Any]:
+        res = platform_manager.enforce_platform_tick(self.collector, self.db_path)
+        platform_manager._record_audit(self.db_path, admin_user, 'platform_manual_enforce', 'system', res)
+        return {'success': True, **res}
+
+    def action_platform_import_policy(self, admin_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        bundle = params.get('bundle')
+        if isinstance(bundle, str):
+            try:
+                bundle = json.loads(bundle)
+            except Exception as exc:
+                return {'success': False, 'error': f'Invalid JSON bundle: {exc}'}
+        if not isinstance(bundle, dict):
+            return {'success': False, 'error': 'Policy bundle JSON object is required'}
+        dry_run = str(params.get('dry_run', '0')) in ('1', 'true', 'True')
+        return platform_manager.import_policy_bundle(self.collector, self.db_path, admin_user, bundle, dry_run=dry_run)
+
 
