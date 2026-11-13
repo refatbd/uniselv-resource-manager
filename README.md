@@ -1,4 +1,6 @@
-Current runtime release: **1.2.7**. Full Platform Operations & Zero-Terminal App Services suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab) with OS build preflight & one-click toolchain/Composer installer, managed Laravel Queue Workers / Horizon / Reverb WebSocket / Scheduler services inside `golden-<uid>.slice`, per-account dedicated ports, Redis ACL tenant isolation, Node.js/Python/heavy-binary containment guard, app log watchdog, and server-to-server policy migration, alongside the dedicated Admin **OpenSwoole** multi-PHP governance console. See [changelog](CHANGELOG.md).
+Current runtime release: **1.2.8**. Enterprise Chrome Browser Engine governance and headless PDF/rendering isolation suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab), featuring one-click install/uninstall of Google Chrome, master kill-switch toggle, Linux group security (`uniselv-chrome` 0750 mode), per-tenant permission matrix, headless smoke test diagnostics, zombie process killer, and full integration with Spatie Browsershot / Puppeteer, alongside the full Platform Operations suite and OpenSwoole multi-PHP governance console. See [changelog](CHANGELOG.md).
+
+> Previous release **1.2.7**, 2026-11-13. Full Platform Operations & Zero-Terminal App Services suite.
 
 > Previous release **1.1.36**, 2026-11-04. Plan-proportional PHP worker ceiling calculation and dynamic CPUWeight.
 > Previous release **1.1.35**, 2026-11-01. PAM Session Guard cron fast-path bypass and slice reuse.

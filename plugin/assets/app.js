@@ -4685,6 +4685,29 @@ const UniselvResMan = {
                 return;
             }
             const mk = this._mkEl.bind(this);
+            const mkCheck = (id, label, checked) => {
+                const w = mk('label', { style: 'display:flex;align-items:center;gap:7px;font-size:0.83rem;font-weight:600;cursor:pointer;' });
+                const i = mk('input', { type: 'checkbox', id });
+                i.checked = Boolean(checked);
+                w.append(i, document.createTextNode(label));
+                return w;
+            };
+            const mkInput = (id, label, type, val, opts = {}) => {
+                const w = mk('div');
+                w.append(mk('label', { for: id, style: 'display:block;font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:4px;' }, label));
+                if (type === 'select') {
+                    const s = mk('select', { id, class: 'uniselv-form-input', style: 'width:100%;' });
+                    (opts.options || []).forEach(([v, t]) => {
+                        const o = mk('option', { value: v }, t);
+                        if (String(v) === String(val)) o.selected = true;
+                        s.append(o);
+                    });
+                    w.append(s);
+                } else {
+                    w.append(mk('input', { id, type, class: 'uniselv-form-input', style: 'width:100%;', value: String(val ?? ''), ...(opts.min ? { min: opts.min } : {}), ...(opts.max ? { max: opts.max } : {}) }));
+                }
+                return w;
+            };
             const pre = d.preflight || {};
             const settings = d.settings || {};
             const lrv = d.laravel || {};
@@ -4734,6 +4757,109 @@ const UniselvResMan = {
             depActions.append(b1, b2, b3, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, pre.composer_path ? `Composer: ${pre.composer_path}` : 'Composer not installed globally'));
             preBox.append(depActions);
             host.append(preBox);
+
+            // 1B. Chrome Browser Engine Governance & Access Control
+            const chrome = d.chrome || {};
+            const chromeBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const chromeHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;' });
+            const chromeInstalled = Boolean(chrome.installed);
+            const chromeGlobalEn = Boolean(chrome.globally_enabled);
+            const chromeAllowedCount = chrome.allowed_count || 0;
+            const chromeTotalUsers = chrome.total_users || accounts.length || 0;
+
+            const chromeStatusBadges = mk('div', { style: 'display:flex;gap:6px;align-items:center;' });
+            chromeStatusBadges.append(
+                mk('span', { class: `uniselv-badge ${chromeInstalled ? (chromeGlobalEn ? 'badge-normal' : 'badge-warning') : 'badge-critical'}` },
+                    chromeInstalled ? (chromeGlobalEn ? (chrome.version || 'Google Chrome Active') : 'GLOBALLY DISABLED') : 'NOT INSTALLED'
+                ),
+                mk('span', { class: 'uniselv-badge badge-outline', style: 'font-size:0.75rem;' }, `Group: ${chrome.group_name || 'uniselv-chrome'} (${chrome.file_mode || '0750'})`)
+            );
+            chromeHead.append(
+                mk('h6', { style: 'font-weight:700;margin:0;' }, '1B. Chrome Browser Engine Governance & Access Control'),
+                chromeStatusBadges
+            );
+            chromeBox.append(chromeHead);
+            chromeBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+                'Enterprise Headless Chrome governance: one-click install/uninstall Google Chrome & libraries, global master switch, OS-level group isolation (uniselv-chrome 0750 mode), granular per-user permissions, and automated slice containment.'
+            ));
+
+            const chromeStats = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:0.8rem;color:#334155;' });
+            chromeStats.append(
+                mk('span', { class: 'uniselv-badge badge-outline' }, `Executable: ${chrome.executable_path || '/usr/bin/google-chrome'}`),
+                mk('span', { class: 'uniselv-badge badge-outline' }, `Permitted Accounts: ${chromeAllowedCount} / ${chromeTotalUsers}`),
+                mk('span', { class: `uniselv-badge ${chrome.active_count ? 'badge-warning' : 'badge-outline'}` }, `Active Instances: ${chrome.active_count || 0}`)
+            );
+            chromeBox.append(chromeStats);
+
+            const chromeToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;' });
+            const chromeToggleLabel = mkCheck('plt-chrome-global-toggle', 'Enable Chrome Engine Globally Across Server', chromeGlobalEn);
+            const chromeToggleInput = chromeToggleLabel.querySelector('input');
+            if (chromeToggleInput) {
+                chromeToggleInput.onchange = () => this.toggleChromeGlobal(chromeToggleInput.checked);
+            }
+            chromeToolbar.append(chromeToggleLabel);
+
+            const chromeActions = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;' });
+            if (!chromeInstalled) {
+                const bInstChrome = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Install Chrome Engine');
+                bInstChrome.onclick = () => this.installChromeEngine();
+                chromeActions.append(bInstChrome);
+            } else {
+                const bTestChrome = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Run Smoke Test');
+                bTestChrome.onclick = () => this.testAdminChrome();
+                const bSyncChrome = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Sync OS Permissions');
+                bSyncChrome.onclick = () => this.syncChromePermissions();
+                const bUninstChrome = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Uninstall Chrome');
+                bUninstChrome.onclick = () => this.uninstallChromeEngine();
+                chromeActions.append(bTestChrome, bSyncChrome, bUninstChrome);
+            }
+            chromeToolbar.append(chromeActions);
+            chromeBox.append(chromeToolbar);
+
+            const chromeTestOut = mk('div', { id: 'plt-chrome-test-output', style: 'margin-bottom:12px;' });
+            chromeBox.append(chromeTestOut);
+
+            const matrixDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;', open: true });
+            const matrixSum = mk('summary', { style: 'cursor:pointer;font-size:0.83rem;font-weight:700;color:#1e293b;' }, `Tenant Chrome Permission Matrix (${chromeAllowedCount} of ${chromeTotalUsers} Allowed)`);
+            const matrixBody = mk('div', { style: 'margin-top:10px;' });
+
+            const matrixBulk = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;' });
+            const bAllowAllChrome = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Grant Chrome to All Accounts');
+            bAllowAllChrome.onclick = () => this.bulkUserChromePermissions(true);
+            const bRevokeAllChrome = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Revoke Chrome from All Accounts');
+            bRevokeAllChrome.onclick = () => this.bulkUserChromePermissions(false);
+            matrixBulk.append(bAllowAllChrome, bRevokeAllChrome, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, 'Synchronizes immediately with Linux group "uniselv-chrome".'));
+            matrixBody.append(matrixBulk);
+
+            const uMatrix = chrome.user_matrix || [];
+            if (uMatrix.length) {
+                const mWrap = mk('div', { class: 'uniselv-table-wrap', style: 'max-height:300px;overflow-y:auto;' });
+                const mt = mk('table', { class: 'uniselv-table' });
+                const mh = mt.createTHead().insertRow();
+                ['Account', 'Plan', 'Chrome Access', 'OS Group Membership', 'Quick Action'].forEach(c => mh.append(mk('th', {}, c)));
+                const mb = mt.createTBody();
+                uMatrix.forEach(row => {
+                    const tr = mb.insertRow();
+                    const chk = mk('input', { type: 'checkbox' });
+                    chk.checked = Boolean(row.granted);
+                    chk.onchange = () => this.toggleUserChromePermission(row.username, chk.checked);
+
+                    const stBadge = mk('span', { class: `uniselv-badge ${row.in_os_group ? 'badge-normal' : 'badge-outline'}` }, row.in_os_group ? 'IN GROUP' : 'EXCLUDED');
+                    const quickBtn = mk('button', { class: `uniselv-btn btn-sm ${row.granted ? 'btn-danger' : 'btn-outline'}`, type: 'button', style: 'padding:2px 8px;font-size:0.72rem;' }, row.granted ? 'Revoke' : 'Grant');
+                    quickBtn.onclick = () => this.toggleUserChromePermission(row.username, !row.granted);
+
+                    [row.username, row.plan_name, chk, stBadge, quickBtn].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                mWrap.append(mt);
+                matrixBody.append(mWrap);
+            }
+            matrixDet.append(matrixSum, matrixBody);
+            chromeBox.append(matrixDet);
+            host.append(chromeBox);
 
             // 2. Laravel Stack & Supervisor — Install, Activate/Deactivate & User Permissions
             const sup = d.supervisor || pre.supervisor || {};
@@ -4809,30 +4935,6 @@ const UniselvResMan = {
             lrvBox.append(supOut);
             if (this._pltSupResult) this._renderPlatformStepBox(supOut, this._pltSupResult, 'Supervisor Verification');
 
-            const mkCheck = (id, label, checked) => {
-                const w = mk('label', { style: 'display:flex;align-items:center;gap:7px;font-size:0.83rem;font-weight:600;cursor:pointer;' });
-                const i = mk('input', { type: 'checkbox', id });
-                i.checked = Boolean(checked);
-                w.append(i, document.createTextNode(label));
-                return w;
-            };
-            const mkInput = (id, label, type, val, opts = {}) => {
-                const w = mk('div');
-                w.append(mk('label', { for: id, style: 'display:block;font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:4px;' }, label));
-                if (type === 'select') {
-                    const s = mk('select', { id, class: 'uniselv-form-input', style: 'width:100%;' });
-                    (opts.options || []).forEach(([v, t]) => {
-                        const o = mk('option', { value: v }, t);
-                        if (String(v) === String(val)) o.selected = true;
-                        s.append(o);
-                    });
-                    w.append(s);
-                } else {
-                    w.append(mk('input', { id, type, class: 'uniselv-form-input', style: 'width:100%;', value: String(val ?? ''), ...(opts.min ? { min: opts.min } : {}), ...(opts.max ? { max: opts.max } : {}) }));
-                }
-                return w;
-            };
-
             const lrvPolicyRow = mk('div', { style: 'display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
             lrvPolicyRow.append(
                 mkCheck('plt-lrv-global-en', 'Enable User Laravel Access', lrvEnabled),
@@ -4869,7 +4971,8 @@ const UniselvResMan = {
                         mkCheck('plt-up-horizon', 'Horizon', up.platform_laravel_horizon !== false),
                         mkCheck('plt-up-reverb', 'Reverb WS', up.platform_laravel_reverb !== false),
                         mkCheck('plt-up-scheduler', 'Scheduler', up.platform_laravel_scheduler !== false),
-                        mkCheck('plt-up-supervisor', 'Supervisor Access (No Terminal Needed)', Boolean(up.platform_supervisor))
+                        mkCheck('plt-up-supervisor', 'Supervisor Access (No Terminal Needed)', Boolean(up.platform_supervisor)),
+                        mkCheck('plt-up-chrome', 'Chrome Engine (Headless/Puppeteer)', Boolean(up.platform_chrome))
                     );
                 };
                 renderUserPermChecks(permAcct);
@@ -4878,9 +4981,9 @@ const UniselvResMan = {
                 const pSave = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button', id: 'plt-up-save-btn' }, 'Save User Permissions');
                 pSave.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value);
                 const pAllowAll = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Enable All');
-                pAllowAll.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value, { platform_laravel_queue: 1, platform_laravel_horizon: 1, platform_laravel_reverb: 1, platform_laravel_scheduler: 1, platform_supervisor: 1 });
+                pAllowAll.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value, { platform_laravel_queue: 1, platform_laravel_horizon: 1, platform_laravel_reverb: 1, platform_laravel_scheduler: 1, platform_supervisor: 1, platform_chrome: 1 });
                 const pRevokeAll = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Disable All');
-                pRevokeAll.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value, { platform_laravel_queue: 0, platform_laravel_horizon: 0, platform_laravel_reverb: 0, platform_laravel_scheduler: 0, platform_supervisor: 0 });
+                pRevokeAll.onclick = () => this.saveUserPlatformPermissions(pAcctSel.value, { platform_laravel_queue: 0, platform_laravel_horizon: 0, platform_laravel_reverb: 0, platform_laravel_scheduler: 0, platform_supervisor: 0, platform_chrome: 0 });
                 pTop.append(pAcctSel, pSave, pAllowAll, pRevokeAll);
                 pCard.append(pTop, pChecks);
                 lrvBox.append(pCard);
@@ -5351,6 +5454,7 @@ const UniselvResMan = {
             platform_laravel_reverb: document.getElementById('plt-up-reverb')?.checked ? 1 : 0,
             platform_laravel_scheduler: document.getElementById('plt-up-scheduler')?.checked ? 1 : 0,
             platform_supervisor: document.getElementById('plt-up-supervisor')?.checked ? 1 : 0,
+            platform_chrome: document.getElementById('plt-up-chrome')?.checked ? 1 : 0,
         };
         const payload = Object.assign({ username }, perms);
         this.callApi('save_user_platform_permissions', payload, (err, res) => {
@@ -5646,6 +5750,12 @@ const UniselvResMan = {
                     lrvBudget.scheduler_allowed ? 'PERMITTED' : 'DISABLED BY ADMIN',
                     lrvBudget.scheduler_allowed,
                     `Use PHP CLI (/usr/local/apps/${latestPhp}/bin/php) in your project scheduler or Webuzo Cron (* * * * * ... artisan schedule:run).`
+                ],
+                [
+                    'Chrome Browser Engine (Headless)',
+                    (d.chrome?.effective_allowed) ? 'ACTIVE & PERMITTED' : ((d.chrome?.globally_enabled) ? 'DISABLED BY ADMIN' : 'GLOBALLY DISABLED'),
+                    Boolean(d.chrome?.effective_allowed),
+                    `Executable path: ${d.chrome?.executable_path || '/usr/bin/google-chrome'} --no-sandbox. Use with Spatie Browsershot, Puppeteer, or headless PDF generation.`
                 ]
             ].forEach(([feat, statusTxt, ok, guide]) => {
                 const tr = permTb.insertRow();
@@ -5804,7 +5914,216 @@ const UniselvResMan = {
                 lgBox.append(mk('p', { style: 'margin:0;font-size:0.83rem;color:#64748b;' }, 'No log files detected yet inside storage/logs or .uniselv-logs.'));
             }
             host.append(lgBox);
+
+            // 5. Chrome Browser Engine & Headless Tools (Enduser)
+            const euChrome = d.chrome || {};
+            const euChromeBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-top:16px;' });
+            const euChromeHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
+            const euChromeOk = Boolean(euChrome.effective_allowed);
+            euChromeHead.append(
+                mk('h6', { style: 'font-weight:700;margin:0;' }, '5. Chrome Browser Engine & Headless PDF/Web Tools'),
+                mk('span', { class: `uniselv-badge ${euChromeOk ? 'badge-normal' : 'badge-warning'}` },
+                    euChromeOk ? 'ACTIVE & PERMITTED' : (euChrome.globally_enabled ? 'DISABLED BY ADMIN' : 'GLOBALLY DISABLED')
+                )
+            );
+            euChromeBox.append(euChromeHead);
+            euChromeBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+                'Server-side Google Chrome headless rendering engine for PDF generation, website snapshots, and web scraping with Spatie Browsershot, Puppeteer, and native PHP.'
+            ));
+
+            const euToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
+            euToolbar.append(this._mkCodeCopyBox(`CHROME_PATH=${euChrome.executable_path || '/usr/bin/google-chrome'}`, 'Copy Path'));
+            const bEuTest = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '🧪 Run Chrome Smoke Test');
+            bEuTest.onclick = () => this.runEnduserChromeTest();
+            bEuTest.disabled = !euChromeOk;
+            const bEuKill = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, '🧹 Stop All My Chrome Processes');
+            bEuKill.onclick = () => this.killEnduserChromeProcesses();
+            euToolbar.append(bEuTest, bEuKill, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, `Budget: Max ${euChrome.max_concurrent || 2} concurrent · Max ${euChrome.max_timeout_sec || 300}s`));
+            euChromeBox.append(euToolbar);
+
+            const euChromeTestOut = mk('div', { id: 'eu-chrome-test-output', style: 'margin-bottom:10px;' });
+            euChromeBox.append(euChromeTestOut);
+
+            const runningProcs = euChrome.running_processes || [];
+            if (runningProcs.length) {
+                euChromeBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;' }, `Active Headless Instances (${runningProcs.length})`));
+                const procWrap = mk('div', { class: 'uniselv-table-wrap', style: 'margin-bottom:10px;' });
+                const pt = mk('table', { class: 'uniselv-table' });
+                const ph = pt.createTHead().insertRow();
+                ['PID', 'Command', 'RAM (RSS)', 'Runtime', 'Action'].forEach(c => ph.append(mk('th', {}, c)));
+                const pb = pt.createTBody();
+                runningProcs.forEach(pr => {
+                    const tr = pb.insertRow();
+                    const stopB = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button', style: 'padding:2px 6px;font-size:0.72rem;' }, 'Stop');
+                    stopB.onclick = () => this.stopProcess(pr.pid);
+                    [pr.pid, pr.comm, `${pr.rss_mib || 0} MiB`, `${pr.age_sec || 0}s`, stopB].forEach(v => {
+                        const td = tr.insertCell();
+                        if (v instanceof Node) td.append(v);
+                        else td.textContent = String(v ?? '-');
+                    });
+                });
+                procWrap.append(pt);
+                euChromeBox.append(procWrap);
+            }
+
+            const snipDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;' });
+            snipDet.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color:#475569;' }, 'Integration Code Snippets (Browsershot, Puppeteer, Native PHP)'));
+            const snipBody = mk('div', { style: 'margin-top:10px;' });
+            const chromeExec = euChrome.executable_path || '/usr/bin/google-chrome';
+            const browsershotCode = `use Spatie\\Browsershot\\Browsershot;\n\nBrowsershot::url('https://example.com')\n    ->setChromePath('${chromeExec}')\n    ->addChromiumArguments([\n        'no-sandbox',\n        'disable-setuid-sandbox',\n        'disable-dev-shm-usage',\n        'disable-gpu'\n    ])\n    ->save('invoice.pdf');`;
+            const puppeteerCode = `const puppeteer = require('puppeteer-core');\n\nconst browser = await puppeteer.launch({\n    executablePath: '${chromeExec}',\n    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']\n});\nconst page = await browser.newPage();\nawait page.goto('https://example.com');\nawait page.pdf({ path: 'page.pdf', format: 'A4' });\nawait browser.close();`;
+            const phpShellCode = `$cmd = '${chromeExec} --headless --disable-gpu --no-sandbox --print-to-pdf=' . escapeshellarg('output.pdf') . ' ' . escapeshellarg('https://example.com');\nshell_exec($cmd);`;
+
+            snipBody.append(
+                mk('div', { style: 'font-weight:700;font-size:0.79rem;margin-bottom:4px;' }, '1. Spatie Browsershot (Laravel / PHP)'),
+                this._mkCodeCopyBox(browsershotCode, 'Copy Browsershot Snippet'),
+                mk('div', { style: 'font-weight:700;font-size:0.79rem;margin:10px 0 4px 0;' }, '2. Puppeteer (Node.js)'),
+                this._mkCodeCopyBox(puppeteerCode, 'Copy Puppeteer Snippet'),
+                mk('div', { style: 'font-weight:700;font-size:0.79rem;margin:10px 0 4px 0;' }, '3. Native PHP (shell_exec)'),
+                this._mkCodeCopyBox(phpShellCode, 'Copy PHP Snippet')
+            );
+            snipDet.append(snipBody);
+            euChromeBox.append(snipDet);
+            host.append(euChromeBox);
         }, { timeoutMs: 20000 });
+    },
+
+    installChromeEngine: function() {
+        if (!confirm('Install Google Chrome and required headless rendering libraries on this server?')) return;
+        UniselvNotify.info('Starting Chrome Engine installation via apt/dpkg...');
+        this.callApi('install_chrome_engine', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Chrome installation failed');
+            else {
+                UniselvNotify.success('Chrome Engine installed successfully!');
+                this.loadPlatformAdmin();
+            }
+        }, { timeoutMs: 180000 });
+    },
+
+    uninstallChromeEngine: function() {
+        if (!confirm('Are you sure you want to stop all Chrome processes and purge Chrome Engine from this server?')) return;
+        UniselvNotify.info('Purging Chrome Engine from server...');
+        this.callApi('uninstall_chrome_engine', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Chrome uninstallation failed');
+            else {
+                UniselvNotify.success('Chrome Engine uninstalled successfully.');
+                this.loadPlatformAdmin();
+            }
+        }, { timeoutMs: 180000 });
+    },
+
+    toggleChromeGlobal: function(enabled) {
+        const msg = enabled ? 'Enable Chrome Engine globally across all server tenants?' : 'Disable Chrome Engine globally? (All active headless processes will be stopped)';
+        if (!confirm(msg)) {
+            this.loadPlatformAdmin();
+            return;
+        }
+        this.callApi('set_chrome_global_toggle', { enabled: enabled ? '1' : '0' }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed updating Chrome global state');
+            else {
+                UniselvNotify.success(`Chrome Engine ${enabled ? 'enabled' : 'disabled'} globally.`);
+                this.loadPlatformAdmin();
+            }
+        }, { timeoutMs: 30000 });
+    },
+
+    syncChromePermissions: function() {
+        UniselvNotify.info('Syncing OS permissions and uniselv-chrome group...');
+        this.callApi('sync_chrome_permissions', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed syncing Chrome permissions');
+            else {
+                UniselvNotify.success(`Synchronized OS permissions across ${d.synced_count || 0} accounts.`);
+                this.loadPlatformAdmin();
+            }
+        }, { timeoutMs: 30000 });
+    },
+
+    testAdminChrome: function() {
+        const outBox = document.getElementById('plt-chrome-test-output');
+        if (outBox) outBox.textContent = 'Running headless smoke test as root...';
+        this.callApi('run_admin_chrome_test', { username: 'root' }, (err, res) => {
+            const d = res?.data || res;
+            if (!outBox) return;
+            outBox.replaceChildren();
+            const mk = this._mkEl.bind(this);
+            const ok = Boolean(d?.success);
+            const card = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;font-size:0.82rem;` });
+            card.append(
+                mk('div', { style: 'font-weight:700;margin-bottom:4px;' }, `Chrome Smoke Test — ${ok ? 'PASSED' : 'FAILED'} (${d?.duration_sec || 0}s)`),
+                mk('pre', { style: 'background:#0f172a;color:#f8fafc;padding:8px;border-radius:6px;font-size:0.75rem;max-height:120px;overflow:auto;margin:0;' }, d?.output_snippet || d?.error || 'No output')
+            );
+            outBox.append(card);
+            if (ok) UniselvNotify.success('Headless Chrome test passed successfully!');
+            else UniselvNotify.error(`Chrome test failed: ${d?.error || 'see output'}`);
+        }, { timeoutMs: 35000 });
+    },
+
+    toggleUserChromePermission: function(username, granted) {
+        const permsMap = {};
+        permsMap[username] = granted ? 1 : 0;
+        this.callApi('save_user_chrome_permissions', { permissions: JSON.stringify(permsMap) }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed updating user Chrome permission');
+            else {
+                UniselvNotify.success(`Chrome ${granted ? 'granted' : 'revoked'} for ${username}.`);
+                this.loadPlatformAdmin();
+            }
+        }, { timeoutMs: 25000 });
+    },
+
+    bulkUserChromePermissions: function(grantAll) {
+        const msg = grantAll ? 'Grant Chrome Engine access to ALL hosting accounts?' : 'Revoke Chrome Engine access from ALL hosting accounts?';
+        if (!confirm(msg)) return;
+        this.callApi('get_chrome_status', {}, (cErr, cRes) => {
+            const cd = cRes?.data || cRes;
+            const matrix = cd?.user_matrix || [];
+            const permsMap = {};
+            matrix.forEach(row => { permsMap[row.username] = grantAll ? 1 : 0; });
+            this.callApi('save_user_chrome_permissions', { permissions: JSON.stringify(permsMap) }, (err, res) => {
+                const rd = res?.data || res;
+                if (err || !rd?.success) UniselvNotify.error(err || rd?.error || 'Failed bulk updating Chrome permissions');
+                else {
+                    UniselvNotify.success(`Updated Chrome permissions for ${Object.keys(permsMap).length} accounts.`);
+                    this.loadPlatformAdmin();
+                }
+            }, { timeoutMs: 35000 });
+        });
+    },
+
+    runEnduserChromeTest: function() {
+        const outBox = document.getElementById('eu-chrome-test-output');
+        if (outBox) outBox.textContent = 'Executing headless smoke test as your user account...';
+        this.callApi('enduser_chrome_test', {}, (err, res) => {
+            const d = res?.data || res;
+            if (!outBox) return;
+            outBox.replaceChildren();
+            const mk = this._mkEl.bind(this);
+            const ok = Boolean(d?.success);
+            const card = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;font-size:0.82rem;` });
+            card.append(
+                mk('div', { style: 'font-weight:700;margin-bottom:4px;' }, `Chrome Engine Smoke Test — ${ok ? 'PASSED' : 'FAILED'} (${d?.duration_sec || 0}s)`),
+                mk('pre', { style: 'background:#0f172a;color:#f8fafc;padding:8px;border-radius:6px;font-size:0.75rem;max-height:120px;overflow:auto;margin:0;' }, d?.output_snippet || d?.error || 'No output')
+            );
+            outBox.append(card);
+            if (ok) UniselvNotify.success('Chrome headless execution confirmed for your account!');
+            else UniselvNotify.error(`Chrome test failed: ${d?.error || 'Permission error'}`);
+        }, { timeoutMs: 35000 });
+    },
+
+    killEnduserChromeProcesses: function() {
+        if (!confirm('Stop all running Chrome / headless instances for your account?')) return;
+        this.callApi('enduser_chrome_kill', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) UniselvNotify.error(err || d?.error || 'Failed to stop Chrome instances');
+            else {
+                UniselvNotify.success(`Stopped ${d.stopped_count || 0} Chrome processes.`);
+                this.loadEnduserServices();
+            }
+        }, { timeoutMs: 25000 });
     },
 
     scanEnduserLogs: function() {

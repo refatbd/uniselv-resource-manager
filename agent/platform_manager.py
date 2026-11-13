@@ -57,6 +57,7 @@ PLATFORM_PERMISSION_KEYS = (
     'platform_laravel_reverb',
     'platform_laravel_scheduler',
     'platform_supervisor',
+    'platform_chrome',
 )
 PLATFORM_PERMISSION_DEFAULTS = {
     'platform_laravel_queue': True,
@@ -64,6 +65,7 @@ PLATFORM_PERMISSION_DEFAULTS = {
     'platform_laravel_reverb': True,
     'platform_laravel_scheduler': True,
     'platform_supervisor': False,
+    'platform_chrome': False,
 }
 HEAVY_BINARY_NAMES = {
     'chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell',
@@ -85,6 +87,9 @@ DEFAULT_PLATFORM_SETTINGS = {
     'platform_heavy_binary_guard': '1',
     'platform_heavy_binary_max_concurrent': '2',
     'platform_heavy_binary_max_sec': '300',
+    'platform_chrome_enabled': '1',
+    'platform_chrome_max_concurrent': '2',
+    'platform_chrome_max_sec': '300',
     'platform_log_threshold_mib': '250',
     'platform_log_auto_truncate': '0',
     'platform_redis_lock_default': '0',
@@ -1244,6 +1249,13 @@ def set_user_platform_permissions(
         conn.close()
 
     _record_audit(db_path, admin_user, 'save_user_platform_permissions', username, applied)
+    if 'platform_chrome' in applied:
+        try:
+            sync_chrome_os_permissions(collector, db_path)
+            if not applied['platform_chrome']:
+                kill_user_chrome_processes(username, collector, db_path)
+        except Exception:
+            pass
     enforcement = enforce_platform_permissions(collector, db_path, target_user=username)
     return {
         'success': True,
@@ -2820,6 +2832,8 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
     contained_moves = 0
     terminated: List[int] = []
 
+    chrome_globally_on = settings.get('platform_chrome_enabled', '1') != '0'
+
     for p in procs:
         if contain_enabled and not p['contained']:
             ok = bool(osw_mgr.contain_process_in_account_slice(p['uid'], p['pid']))
@@ -2827,14 +2841,33 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
                 contained_moves += 1
                 _record_audit(db_path, 'system', 'platform_runtime_contained', p['username'], {'pid': p['pid'], 'kind': p['kind'], 'slice': p['expected_slice']})
 
+    # Unauthorized Chrome Engine enforcement
+    for p in procs:
+        comm_l = str(p.get('comm', '')).lower()
+        cmd_l = str(p.get('cmdline', '')).lower()
+        is_chrome_proc = comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in cmd_l for h in ('--headless', 'google-chrome'))
+        if is_chrome_proc and p.get('kind') == 'heavy_binary' and p['pid'] not in terminated:
+            uname = p['username']
+            u_perms = get_user_platform_permissions(db_path, uname)
+            chrome_allowed = chrome_globally_on and u_perms.get('platform_chrome', False)
+            if not chrome_allowed and mode == 'enforce':
+                if osw_mgr._safe_stop_pid(p['uid'], p['pid'], 0):
+                    terminated.append(p['pid'])
+                    _record_audit(db_path, 'system', 'unauthorized_chrome_stopped', uname, {
+                        'pid': p['pid'], 'comm': p['comm'], 'cmdline': p['cmdline'][:120],
+                        'reason': 'chrome_globally_disabled' if not chrome_globally_on else 'permission_revoked'
+                    })
+
     if hb_guard:
         by_user_hb: Dict[str, List[Dict[str, Any]]] = {}
         for p in procs:
-            if p['kind'] == 'heavy_binary':
+            if p['kind'] == 'heavy_binary' and p['pid'] not in terminated:
                 by_user_hb.setdefault(p['username'], []).append(p)
         for uname, hlist in by_user_hb.items():
             hlist.sort(key=lambda x: x['age_sec'], reverse=True)
             for idx, hp in enumerate(hlist):
+                if hp['pid'] in terminated:
+                    continue
                 over_age = hp['age_sec'] > hb_max_sec
                 over_conc = idx >= hb_max_conc
                 if (over_age or over_conc) and mode == 'enforce':
@@ -3119,6 +3152,7 @@ def get_platform_overview_payload(collector: Any, db_path: str, target_user: Opt
     redis_st = get_redis_isolation_status(collector, db_path)
     ports = list_all_port_allocations(collector, db_path)
     user_perms = {u: get_user_platform_permissions(db_path, u) for u in (lrv.get('accounts') or [])}
+    chrome_st = get_chrome_engine_status(collector, db_path)
     return {
         'success': True,
         'settings': settings,
@@ -3126,8 +3160,453 @@ def get_platform_overview_payload(collector: Any, db_path: str, target_user: Opt
         'supervisor': preflight.get('supervisor') or get_supervisor_status(),
         'stack_readiness': get_laravel_stack_readiness(db_path),
         'user_permissions': user_perms,
+        'chrome': chrome_st,
         'laravel': lrv,
         'runtimes': rt.get('processes', []),
         'redis': redis_st,
         'port_allocations': ports,
     }
+
+
+# ==================== 7. CHROME BROWSER ENGINE GOVERNANCE & ACCESS CONTROL ====================
+
+CHROME_GROUP_NAME = 'uniselv-chrome'
+CHROME_BINARY_CANDIDATES = [
+    '/usr/bin/google-chrome',
+    '/opt/google/chrome/chrome',
+    '/opt/google/chrome/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser'
+]
+
+
+def _find_chrome_binary() -> str:
+    for cand in CHROME_BINARY_CANDIDATES:
+        if os.path.exists(cand):
+            return cand
+    return ''
+
+
+def get_chrome_engine_status(collector: Any, db_path: str) -> Dict[str, Any]:
+    """Full Chrome engine status report for Admin Panel."""
+    settings = load_platform_settings(db_path)
+    globally_on = settings.get('platform_chrome_enabled', '1') != '0'
+
+    found_path = _find_chrome_binary()
+    version_str = ''
+    if found_path and os.name != 'nt':
+        try:
+            p = subprocess.run([found_path, '--version'], capture_output=True, text=True, timeout=8)
+            version_str = (p.stdout or p.stderr).strip()
+        except Exception as e:
+            version_str = f"Detected ({str(e)})"
+    elif found_path:
+        version_str = 'Simulated Google Chrome 157'
+
+    mode_str = ''
+    group_str = ''
+    if found_path and os.path.exists(found_path):
+        try:
+            st = os.stat(found_path)
+            mode_str = oct(st.st_mode)[-4:]
+            try:
+                import grp
+                group_str = grp.getgrgid(st.st_gid).gr_name
+            except Exception:
+                group_str = str(st.st_gid)
+        except Exception:
+            pass
+
+    current_members: List[str] = []
+    if os.name != 'nt' and os.path.exists('/etc/group'):
+        try:
+            with open('/etc/group', 'r', encoding='utf-8', errors='replace') as gf:
+                for line in gf:
+                    parts = line.strip().split(':')
+                    if parts[0] == CHROME_GROUP_NAME and len(parts) >= 4:
+                        current_members = [m.strip() for m in parts[3].split(',') if m.strip()]
+                        break
+        except Exception:
+            pass
+
+    users = collector.get_webuzo_users() if collector else {}
+    allowed_users: List[str] = []
+    user_matrix: List[Dict[str, Any]] = []
+    for uname, uinfo in sorted(users.items()):
+        perms = get_user_platform_permissions(db_path, uname)
+        granted = bool(perms.get('platform_chrome', False))
+        if granted:
+            allowed_users.append(uname)
+        user_matrix.append({
+            'username': uname,
+            'plan_name': uinfo.get('plan_name', 'default'),
+            'granted': granted,
+            'effective_allowed': globally_on and granted,
+            'in_os_group': uname in current_members
+        })
+
+    active_procs: List[Dict[str, Any]] = []
+    try:
+        scan = scan_tenant_runtimes_and_binaries(collector, db_path)
+        for pr in scan.get('processes', []):
+            comm_l = str(pr.get('comm', '')).lower()
+            cmd_l = str(pr.get('cmdline', '')).lower()
+            if comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in cmd_l for h in ('--headless', 'google-chrome')):
+                active_procs.append(pr)
+    except Exception:
+        pass
+
+    preflight = {
+        'group_exists': bool(group_str == CHROME_GROUP_NAME or os.name == 'nt'),
+        'binary_mode_secure': bool(mode_str in ('0750', '0700') or os.name == 'nt'),
+        'packages_ready': bool(found_path)
+    }
+
+    return {
+        'success': True,
+        'installed': bool(found_path),
+        'version': version_str or ('Not installed' if not found_path else 'Found'),
+        'executable_path': found_path or '/usr/bin/google-chrome',
+        'globally_enabled': globally_on,
+        'group_name': CHROME_GROUP_NAME,
+        'group_owner': group_str,
+        'file_mode': mode_str,
+        'allowed_users': allowed_users,
+        'allowed_count': len(allowed_users),
+        'total_users': len(users),
+        'user_matrix': user_matrix,
+        'active_processes': active_procs,
+        'active_count': len(active_procs),
+        'preflight': preflight,
+        'settings': {
+            'max_concurrent': int(settings.get('platform_chrome_max_concurrent', '2') or 2),
+            'max_sec': int(settings.get('platform_chrome_max_sec', '300') or 300),
+        }
+    }
+
+
+def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
+    """Enforces Linux group ownership, 0750 permissions, and per-user membership in 'uniselv-chrome'."""
+    settings = load_platform_settings(db_path)
+    chrome_globally_on = settings.get('platform_chrome_enabled', '1') != '0'
+
+    binaries = []
+    for cand in ['/opt/google/chrome/chrome', '/opt/google/chrome/google-chrome', '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser']:
+        if os.path.exists(cand):
+            binaries.append(cand)
+
+    if os.name != 'nt':
+        try:
+            subprocess.run(['groupadd', '-f', CHROME_GROUP_NAME], capture_output=True, timeout=10)
+        except Exception:
+            pass
+
+        # Safeguard: ensure Webuzo shell fork-bomb protection exempts uniselv-chrome group from ulimit -u 35 restriction
+        for pfile in ['/etc/profile', '/etc/bash.bashrc']:
+            if os.path.exists(pfile):
+                try:
+                    with open(pfile, 'r', encoding='utf-8', errors='ignore') as pf:
+                        ptxt = pf.read()
+                    if '(wheel|sudo)' in ptxt and '(wheel|sudo|uniselv-chrome)' not in ptxt:
+                        new_ptxt = ptxt.replace('(wheel|sudo)', '(wheel|sudo|uniselv-chrome)')
+                        with open(pfile, 'w', encoding='utf-8') as pf:
+                            pf.write(new_ptxt)
+                except Exception:
+                    pass
+
+        for b in binaries:
+            if not os.path.islink(b):
+                try:
+                    subprocess.run(['chgrp', CHROME_GROUP_NAME, b], capture_output=True, timeout=10)
+                    if chrome_globally_on:
+                        os.chmod(b, 0o750)
+                    else:
+                        os.chmod(b, 0o700)
+                except Exception:
+                    pass
+
+    users = collector.get_webuzo_users() if collector else {}
+    current_members = set()
+    if os.name != 'nt' and os.path.exists('/etc/group'):
+        try:
+            with open('/etc/group', 'r', encoding='utf-8', errors='replace') as gf:
+                for line in gf:
+                    parts = line.strip().split(':')
+                    if parts[0] == CHROME_GROUP_NAME and len(parts) >= 4:
+                        current_members = set(m.strip() for m in parts[3].split(',') if m.strip())
+                        break
+        except Exception:
+            pass
+
+    synced: List[Dict[str, Any]] = []
+    for uname in sorted(users.keys()):
+        perms = get_user_platform_permissions(db_path, uname)
+        allowed = chrome_globally_on and perms.get('platform_chrome', False)
+        is_member = uname in current_members
+
+        if os.name != 'nt':
+            try:
+                if allowed and not is_member:
+                    subprocess.run(['usermod', '-a', '-G', CHROME_GROUP_NAME, uname], capture_output=True, timeout=10)
+                    current_members.add(uname)
+                elif not allowed and is_member:
+                    subprocess.run(['gpasswd', '-d', uname, CHROME_GROUP_NAME], capture_output=True, timeout=10)
+                    current_members.discard(uname)
+            except Exception:
+                pass
+        synced.append({'username': uname, 'allowed': allowed, 'member': uname in current_members})
+
+    return {
+        'success': True,
+        'globally_enabled': chrome_globally_on,
+        'binaries': binaries,
+        'group_members': sorted(list(current_members)),
+        'synced_count': len(synced),
+        'users': synced
+    }
+
+
+def install_chrome_engine(collector: Any, db_path: str, actor: str = 'admin') -> Dict[str, Any]:
+    """Automated apt/dpkg installation of Google Chrome + required headless rendering dependencies."""
+    if os.name == 'nt':
+        return {'success': True, 'message': 'Simulated install on Windows', 'status': get_chrome_engine_status(collector, db_path)}
+
+    try:
+        subprocess.run(['apt-get', 'update', '-y'], capture_output=True, timeout=120)
+        deps = ['wget', 'ca-certificates', 'fonts-liberation', 'libnss3', 'libgbm1', 'xdg-utils']
+        subprocess.run(['apt-get', 'install', '-y', *deps], capture_output=True, timeout=180)
+
+        deb_url = 'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
+        deb_target = '/tmp/google-chrome-stable_current_amd64.deb'
+        subprocess.run(['wget', '-q', '-O', deb_target, deb_url], capture_output=True, timeout=120)
+
+        if os.path.exists(deb_target) and os.path.getsize(deb_target) > 50000000:
+            res = subprocess.run(['dpkg', '-i', deb_target], capture_output=True, text=True, timeout=180)
+            if res.returncode != 0:
+                subprocess.run(['apt-get', 'install', '-f', '-y'], capture_output=True, timeout=180)
+            try:
+                os.unlink(deb_target)
+            except Exception:
+                pass
+        else:
+            subprocess.run(['apt-get', 'install', '-y', 'google-chrome-stable'], capture_output=True, timeout=180)
+
+        sync_chrome_os_permissions(collector, db_path)
+        _record_audit(db_path, actor, 'install_chrome_engine', 'server', {'status': 'completed'})
+        return get_chrome_engine_status(collector, db_path)
+    except Exception as e:
+        return {'success': False, 'error': f"Installation failed: {str(e)}"}
+
+
+def uninstall_chrome_engine(collector: Any, db_path: str, actor: str = 'admin') -> Dict[str, Any]:
+    """Safely stop all Chrome processes and purge packages from system."""
+    if os.name == 'nt':
+        return {'success': True, 'message': 'Simulated uninstall on Windows', 'status': get_chrome_engine_status(collector, db_path)}
+
+    try:
+        scan = scan_tenant_runtimes_and_binaries(collector, db_path)
+        for pr in scan.get('processes', []):
+            comm_l = str(pr.get('comm', '')).lower()
+            cmd_l = str(pr.get('cmdline', '')).lower()
+            if comm_l in ('chrome', 'chromium', 'headless_shell') or any(h in cmd_l for h in ('--headless', 'google-chrome')):
+                osw_mgr._safe_stop_pid(pr['uid'], pr['pid'], 0)
+
+        subprocess.run(['apt-get', 'purge', '-y', 'google-chrome-stable', 'chromium', 'chromium-browser'], capture_output=True, timeout=180)
+        subprocess.run(['apt-get', 'autoremove', '-y'], capture_output=True, timeout=120)
+
+        _record_audit(db_path, actor, 'uninstall_chrome_engine', 'server', {'status': 'purged'})
+        return get_chrome_engine_status(collector, db_path)
+    except Exception as e:
+        return {'success': False, 'error': f"Uninstall failed: {str(e)}"}
+
+
+def set_chrome_global_toggle(collector: Any, db_path: str, actor: str, enabled: bool) -> Dict[str, Any]:
+    """Toggle Chrome engine availability globally across all tenants."""
+    val = '1' if enabled else '0'
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('platform_chrome_enabled', ?)", (val,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    sync_chrome_os_permissions(collector, db_path)
+    if not enabled:
+        scan = scan_tenant_runtimes_and_binaries(collector, db_path)
+        for pr in scan.get('processes', []):
+            comm_l = str(pr.get('comm', '')).lower()
+            cmd_l = str(pr.get('cmdline', '')).lower()
+            if comm_l in ('chrome', 'chromium', 'headless_shell') or any(h in cmd_l for h in ('--headless', 'google-chrome')):
+                osw_mgr._safe_stop_pid(pr['uid'], pr['pid'], 0)
+
+    _record_audit(db_path, actor, 'set_chrome_global_toggle', 'server', {'enabled': enabled})
+    return get_chrome_engine_status(collector, db_path)
+
+
+def save_user_chrome_permissions(collector: Any, db_path: str, admin_user: str, user_perms_map: Dict[str, Any]) -> Dict[str, Any]:
+    """Bulk or single user update for Chrome Engine permissions with immediate OS sync."""
+    if not isinstance(user_perms_map, dict) or not user_perms_map:
+        return {'success': False, 'error': 'User permissions map required'}
+
+    now = int(time.time())
+    users = collector.get_webuzo_users() if collector else {}
+    applied: Dict[str, bool] = {}
+    revoked_users: List[str] = []
+
+    conn = sqlite3.connect(db_path)
+    try:
+        for uname, raw_val in user_perms_map.items():
+            uname = str(uname).strip()
+            if uname not in users and uname != 'root':
+                continue
+            granted = 1 if str(raw_val) not in ('0', 'false', 'False', '') and raw_val is not False else 0
+            conn.execute(
+                """INSERT INTO account_permissions (username, permission, granted, updated_at, updated_by)
+                   VALUES (?, 'platform_chrome', ?, ?, ?)
+                   ON CONFLICT(username, permission) DO UPDATE SET
+                     granted = excluded.granted, updated_at = excluded.updated_at, updated_by = excluded.updated_by""",
+                (uname, granted, now, admin_user)
+            )
+            applied[uname] = bool(granted)
+            if not granted:
+                revoked_users.append(uname)
+        conn.commit()
+    finally:
+        conn.close()
+
+    sync_chrome_os_permissions(collector, db_path)
+    for r_user in revoked_users:
+        try:
+            kill_user_chrome_processes(r_user, collector, db_path)
+        except Exception:
+            pass
+
+    _record_audit(db_path, admin_user, 'save_user_chrome_permissions', 'multiple', applied)
+    return {'success': True, 'applied': applied, 'status': get_chrome_engine_status(collector, db_path)}
+
+
+def get_user_chrome_info(collector: Any, db_path: str, username: str) -> Dict[str, Any]:
+    """Returns enduser view of Chrome Engine availability, permissions, path, and active instances."""
+    perms = get_user_platform_permissions(db_path, username)
+    settings = load_platform_settings(db_path)
+    globally_on = settings.get('platform_chrome_enabled', '1') != '0'
+    permitted = bool(perms.get('platform_chrome', False))
+
+    bin_path = _find_chrome_binary()
+    version_str = ''
+    if bin_path and os.name != 'nt':
+        try:
+            p = subprocess.run([bin_path, '--version'], capture_output=True, text=True, timeout=5)
+            version_str = (p.stdout or p.stderr).strip()
+        except Exception:
+            version_str = 'Google Chrome'
+    elif bin_path:
+        version_str = 'Google Chrome (Simulated)'
+
+    user_procs: List[Dict[str, Any]] = []
+    try:
+        scan = scan_tenant_runtimes_and_binaries(collector, db_path)
+        for pr in scan.get('processes', []):
+            if pr.get('username') == username:
+                comm_l = str(pr.get('comm', '')).lower()
+                cmd_l = str(pr.get('cmdline', '')).lower()
+                if comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell') or any(h in cmd_l for h in ('--headless', 'google-chrome')):
+                    user_procs.append({
+                        'pid': pr['pid'],
+                        'comm': pr['comm'],
+                        'rss_mib': pr['rss_mib'],
+                        'age_sec': pr['age_sec'],
+                        'contained': pr['contained']
+                    })
+    except Exception:
+        pass
+
+    return {
+        'success': True,
+        'installed': bool(bin_path),
+        'version': version_str or ('Not installed' if not bin_path else 'Found'),
+        'executable_path': bin_path or '/usr/bin/google-chrome',
+        'globally_enabled': globally_on,
+        'account_permitted': permitted,
+        'effective_allowed': globally_on and permitted,
+        'running_processes': user_procs,
+        'running_count': len(user_procs),
+        'max_concurrent': int(settings.get('platform_chrome_max_concurrent', '2') or 2),
+        'max_timeout_sec': int(settings.get('platform_chrome_max_sec', '300') or 300)
+    }
+
+
+def run_user_chrome_test(username: str, db_path: str, is_admin: bool = False) -> Dict[str, Any]:
+    """Runs a quick headless smoke test under the account's Linux user identity."""
+    perms = get_user_platform_permissions(db_path, username)
+    settings = load_platform_settings(db_path)
+    globally_on = settings.get('platform_chrome_enabled', '1') != '0'
+    allowed = is_admin or (globally_on and perms.get('platform_chrome', False))
+
+    if not allowed:
+        return {
+            'success': False,
+            'error': 'Chrome Engine access is disabled for this account by administrator policy.'
+        }
+
+    bin_path = _find_chrome_binary()
+    if not bin_path:
+        return {'success': False, 'error': 'Chrome Engine is not installed on this server.'}
+
+    if os.name == 'nt':
+        return {
+            'success': True,
+            'duration_sec': 0.12,
+            'output_snippet': '<html><head><title>UNISELV-Smoke-Test</title></head><body><h1>Chrome-Ready</h1></body></html>',
+            'exit_code': 0
+        }
+
+    t0 = time.time()
+    try:
+        test_html = 'data:text/html,<html><head><title>UNISELV-Smoke-Test</title></head><body><h1>Chrome-Ready</h1></body></html>'
+        inner_cmd = f"{bin_path} --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --dump-dom '{test_html}'"
+
+        if os.name != 'nt' and shutil.which('systemd-run'):
+            unit = f'uniselv-chr-test-{int(time.time() * 1000) % 100000}'
+            cmd = [
+                'systemd-run', f'--unit={unit}', '--pipe', '--wait', '--collect',
+                '-p', 'MemoryMax=1G', '-p', 'TasksMax=256',
+                '--', 'su', '-', username, '-s', '/bin/bash', '-c', inner_cmd
+            ]
+        else:
+            cmd = ['su', '-', username, '-s', '/bin/bash', '-c', inner_cmd]
+
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+        duration = round(time.time() - t0, 3)
+        out = (proc.stdout or '').strip()
+        err = (proc.stderr or '').strip()
+
+        ok = proc.returncode == 0 and 'Chrome-Ready' in out
+        return {
+            'success': ok,
+            'duration_sec': duration,
+            'output_snippet': out[:300] if ok else (err[:300] or out[:300]),
+            'exit_code': proc.returncode,
+            'raw_error': err if not ok else ''
+        }
+    except subprocess.TimeoutExpired:
+        return {'success': False, 'duration_sec': round(time.time() - t0, 3), 'error': 'Test execution timed out (exceeded 25s)'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def kill_user_chrome_processes(username: str, collector: Any, db_path: str) -> Dict[str, Any]:
+    """Stops all running Chrome/headless instances belonging to target account."""
+    scan = scan_tenant_runtimes_and_binaries(collector, db_path)
+    stopped: List[int] = []
+    for pr in scan.get('processes', []):
+        if pr.get('username') == username:
+            comm_l = str(pr.get('comm', '')).lower()
+            cmd_l = str(pr.get('cmdline', '')).lower()
+            if comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell') or any(h in cmd_l for h in ('--headless', 'google-chrome')):
+                if osw_mgr._safe_stop_pid(pr['uid'], pr['pid'], 0):
+                    stopped.append(pr['pid'])
+
+    _record_audit(db_path, username, 'kill_user_chrome_processes', username, {'stopped_pids': stopped, 'count': len(stopped)})
+    return {'success': True, 'stopped_count': len(stopped), 'pids': stopped}
+

@@ -565,6 +565,10 @@ class IpcRequestHandler:
                 return self.action_manage_reverb_vhost_proxy(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
             elif action == 'kill_stuck_cli_processes':
                 return self.action_kill_stuck_cli_processes(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'enduser_chrome_test':
+                return platform_manager.run_user_chrome_test(target_user, self.db_path, is_admin=False)
+            elif action == 'enduser_chrome_kill':
+                return platform_manager.kill_user_chrome_processes(target_user, self.collector, self.db_path)
             elif action == 'get_branding_settings':
                 return self.action_get_branding_settings()
             elif action == 'process_webhook':
@@ -720,6 +724,28 @@ class IpcRequestHandler:
                 return self.action_platform_supervisor_action(user, params)
             elif action == 'save_user_platform_permissions':
                 return self.action_save_user_platform_permissions(user, params)
+            elif action == 'get_chrome_status':
+                return platform_manager.get_chrome_engine_status(self.collector, self.db_path)
+            elif action == 'install_chrome_engine':
+                return platform_manager.install_chrome_engine(self.collector, self.db_path, actor=user)
+            elif action == 'uninstall_chrome_engine':
+                return platform_manager.uninstall_chrome_engine(self.collector, self.db_path, actor=user)
+            elif action == 'set_chrome_global_toggle':
+                en = bool(params.get('enabled', True))
+                return platform_manager.set_chrome_global_toggle(self.collector, self.db_path, actor=user, enabled=en)
+            elif action == 'sync_chrome_permissions':
+                return platform_manager.sync_chrome_os_permissions(self.collector, self.db_path)
+            elif action == 'run_admin_chrome_test':
+                target_u = str(params.get('username') or 'root').strip()
+                return platform_manager.run_user_chrome_test(target_u, self.db_path, is_admin=True)
+            elif action == 'save_user_chrome_permissions':
+                perms_map = params.get('permissions') or {}
+                if isinstance(perms_map, str):
+                    try:
+                        perms_map = json.loads(perms_map)
+                    except Exception:
+                        perms_map = {}
+                return platform_manager.save_user_chrome_permissions(self.collector, self.db_path, user, perms_map)
             else:
                 return {'error': f'Unknown action: {action}'}
         except Exception as e:
@@ -4663,6 +4689,7 @@ class IpcRequestHandler:
             'port_allocation': ports,
             'logs': logs,
             'runtimes': own_rt,
+            'chrome': platform_manager.get_user_chrome_info(self.collector, self.db_path, target_user),
         }
 
     def action_save_laravel_service(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:

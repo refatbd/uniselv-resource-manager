@@ -1,3 +1,13 @@
+## 1.2.8 — 2026-11-13
+
+- Added Chrome Browser Engine (Google Chrome / Chromium) governance and isolation across Admin and Enduser panels.
+- Automated one-click installation and safe uninstallation of Google Chrome and required headless rendering libraries.
+- Linux group-level access control (`uniselv-chrome` with 0750 permissions) ensuring unauthorized tenants receive immediate kernel-level permission denial.
+- Global master kill-switch toggle with immediate revocation and process termination across tenants.
+- Per-account access control matrix in Admin panel with instant synchronization to OS groups and DB permissions.
+- Interactive Enduser panel suite: live smoke test diagnostics, zombie process killer, running instance tracker, and copy-ready integration snippets for Spatie Browsershot, Puppeteer, and native PHP.
+- Enforced background daemon watchdog terminating rogue/unauthorized chrome processes and containing authorized ones inside `golden-<uid>.slice`.
+
 ## 1.2.7 — 2026-11-13
 
 - Add an authenticated HTTPS billing webhook endpoint with HTTP status codes.

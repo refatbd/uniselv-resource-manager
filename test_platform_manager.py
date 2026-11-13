@@ -969,6 +969,61 @@ class PlatformManagerTestCase(unittest.TestCase):
             self.assertIn(10001, pids)
             self.assertNotIn(10002, pids)  # php-fpm strictly protected
 
+    def test_chrome_engine_governance(self):
+        # 1. Status check
+        st = pm.get_chrome_engine_status(self.collector, self.db_path)
+        self.assertTrue(st['success'])
+        self.assertTrue(st['globally_enabled'])
+        self.assertEqual(st['group_name'], 'uniselv-chrome')
+        self.assertEqual(len(st['user_matrix']), len(self.collector.users))
+
+        # 2. Grant Chrome permission to starter1
+        res = pm.save_user_chrome_permissions(self.collector, self.db_path, 'admin', {'starter1': 1, 'pro1': 0})
+        self.assertTrue(res['success'])
+        self.assertTrue(res['applied']['starter1'])
+        self.assertFalse(res['applied']['pro1'])
+
+        perms_s1 = pm.get_user_platform_permissions(self.db_path, 'starter1')
+        perms_p1 = pm.get_user_platform_permissions(self.db_path, 'pro1')
+        self.assertTrue(perms_s1['platform_chrome'])
+        self.assertFalse(perms_p1['platform_chrome'])
+
+        # 3. User chrome info view
+        u_info_s1 = pm.get_user_chrome_info(self.collector, self.db_path, 'starter1')
+        u_info_p1 = pm.get_user_chrome_info(self.collector, self.db_path, 'pro1')
+        self.assertTrue(u_info_s1['account_permitted'])
+        self.assertTrue(u_info_s1['effective_allowed'])
+        self.assertFalse(u_info_p1['account_permitted'])
+        self.assertFalse(u_info_p1['effective_allowed'])
+
+        # 4. User test runner permission guard
+        test_denied = pm.run_user_chrome_test('pro1', self.db_path, is_admin=False)
+        self.assertFalse(test_denied['success'])
+        self.assertIn('disabled for this account', test_denied['error'])
+
+        # 5. Global toggle deactivation
+        t_off = pm.set_chrome_global_toggle(self.collector, self.db_path, 'admin', False)
+        self.assertFalse(t_off['globally_enabled'])
+        u_info_off = pm.get_user_chrome_info(self.collector, self.db_path, 'starter1')
+        self.assertFalse(u_info_off['effective_allowed'])
+
+        # 6. Global toggle reactivation
+        t_on = pm.set_chrome_global_toggle(self.collector, self.db_path, 'admin', True)
+        self.assertTrue(t_on['globally_enabled'])
+
+        # 7. Kill user processes test
+        fake_procs = [
+            {'pid': 7001, 'uid': 1001, 'username': 'starter1', 'comm': 'chrome', 'cmdline': 'chrome --headless'},
+            {'pid': 7002, 'uid': 1002, 'username': 'pro1', 'comm': 'chrome', 'cmdline': 'chrome --headless'},
+        ]
+        with mock.patch.object(pm, 'scan_tenant_runtimes_and_binaries', return_value={'success': True, 'processes': fake_procs}), \
+             mock.patch.object(om, '_safe_stop_pid', return_value=True) as stop_mock:
+            k_res = pm.kill_user_chrome_processes('starter1', self.collector, self.db_path)
+            self.assertTrue(k_res['success'])
+            self.assertEqual(k_res['stopped_count'], 1)
+            self.assertEqual(k_res['pids'], [7001])
+            stop_mock.assert_called_once_with(1001, 7001, 0)
+
 
 if __name__ == '__main__':
     unittest.main()

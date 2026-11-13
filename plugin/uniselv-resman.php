@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.2.7
+Version: 1.2.8
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -412,7 +412,8 @@ function uniselv_resman_admin() {
             'platform_redis_action', 'platform_enforce_runtimes', 'platform_import_policy',
             'platform_supervisor_action', 'save_user_platform_permissions',
             'save_laravel_service', 'control_laravel_service', 'truncate_app_log',
-            'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'
+            'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes',
+            'install_chrome_engine', 'uninstall_chrome_engine', 'set_chrome_global_toggle', 'sync_chrome_permissions', 'run_admin_chrome_test', 'save_user_chrome_permissions'
         ];
         
         if (in_array($subact, $mutation_actions)) {
@@ -506,11 +507,18 @@ function uniselv_resman_admin() {
             'manage_laravel_scheduler_cron' => 'manage_laravel_scheduler_cron',
             'manage_reverb_vhost_proxy' => 'manage_reverb_vhost_proxy',
             'get_active_resource_boosts' => 'get_active_resource_boosts',
-            'kill_stuck_cli_processes' => 'kill_stuck_cli_processes'
+            'kill_stuck_cli_processes' => 'kill_stuck_cli_processes',
+            'get_chrome_status' => 'get_chrome_status',
+            'install_chrome_engine' => 'install_chrome_engine',
+            'uninstall_chrome_engine' => 'uninstall_chrome_engine',
+            'set_chrome_global_toggle' => 'set_chrome_global_toggle',
+            'sync_chrome_permissions' => 'sync_chrome_permissions',
+            'run_admin_chrome_test' => 'run_admin_chrome_test',
+            'save_user_chrome_permissions' => 'save_user_chrome_permissions'
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['sync_plans', 'platform_import_policy', 'openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'];
+            $long_ops = ['sync_plans', 'platform_import_policy', 'openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes', 'install_chrome_engine', 'uninstall_chrome_engine', 'run_admin_chrome_test'];
             $ipc_timeout = in_array($subact, $long_ops) ? 60 : 15;
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, true, $ipc_timeout);
             echo json_encode($resp);
@@ -560,13 +568,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.7r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.8r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.7r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.8r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -2323,7 +2331,8 @@ function uniselv_resman_enduser() {
 
         if (in_array($subact, ['stop_process', 'mark_notification', 'save_laravel_service', 'control_laravel_service',
             'enduser_redis_action', 'truncate_app_log', 'sync_laravel_workers',
-            'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'])) {
+            'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes',
+            'enduser_chrome_test', 'enduser_chrome_kill'])) {
             uniselv_verify_csrf($current_user);
         }
 
@@ -2348,11 +2357,13 @@ function uniselv_resman_enduser() {
             'sync_laravel_workers' => 'sync_laravel_workers',
             'manage_laravel_scheduler_cron' => 'manage_laravel_scheduler_cron',
             'manage_reverb_vhost_proxy' => 'manage_reverb_vhost_proxy',
-            'kill_stuck_cli_processes' => 'kill_stuck_cli_processes'
+            'kill_stuck_cli_processes' => 'kill_stuck_cli_processes',
+            'enduser_chrome_test' => 'enduser_chrome_test',
+            'enduser_chrome_kill' => 'enduser_chrome_kill'
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'];
+            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes', 'enduser_chrome_test', 'enduser_chrome_kill'];
             $ipc_timeout = in_array($subact, $long_ops) ? 35 : 15;
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, false, $ipc_timeout);
             echo json_encode($resp);
@@ -2394,13 +2405,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.7r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.8r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.7r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.8r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
