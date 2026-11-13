@@ -1,3 +1,31 @@
+## 1.2.7 — 2026-11-13
+
+- Add an authenticated HTTPS billing webhook endpoint with HTTP status codes.
+- Keep credentials local during policy export and import, validate bundle structure and report service restore failures.
+- Support the legacy OpenSwoole HTTP server class in self-tests and run managed Laravel CLI probes as the tenant.
+- Allow more time for Bulk Sync and policy import requests.
+
+## 1.2.6 — 2026-11-13
+
+- Expose an ownership-scoped account list on the Webuzo Resource Usage page for directly authenticated resellers.
+
+## 1.2.5 — 2026-11-13
+
+- Group history reads into bounded SQLite batches and omit unused hourly details from the tenant chart view.
+
+## 1.2.4 — 2026-11-13
+
+- Use indexed latest-sample reads in the admin overview and accounts list.
+- Reuse Golden Shield overview probes for up to three seconds during concurrent requests.
+- Fetch live dashboard metrics without recalculating diagnostics on every browser poll.
+
+## 1.2.3 — 2026-11-13
+
+- Verify tenant ownership and registered upstreams for Reverb. Use Webuzo domain includes and roll back failed reloads.
+- Protect platform mutations with POST and CSRF checks. Preserve unrelated cron entries and run log trimming with tenant permissions.
+- Scope Redis ACL commands, persist Webuzo ACL changes, and replace destructive probes with ACL DRYRUN.
+- Refresh telemetry on dashboard entry and support keyboard navigation between tabs.
+
 ## 1.2.0 — 2026-11-12
 
 - Add full Platform Operations & Zero-Terminal Application Services suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab):

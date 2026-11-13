@@ -1,12 +1,14 @@
 """Platform Operations, OS Preflight, Managed Laravel Services, Runtime Containment,
 Port Registry, Redis ACL Isolation, Heavy Binary Guard, Log Watchdog & Migration."""
 
+from contextlib import closing
 import hashlib
 import json
 import os
 import pathlib
 import re
 import secrets
+import shlex
 import shutil
 import signal
 import sqlite3
@@ -33,13 +35,20 @@ PLATFORM_DIR = pathlib.Path('/var/lib/uniselv-resource-manager/platform')
 DEP_JOB_FILE = PLATFORM_DIR / 'dep_job.json'
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 SUPERVISOR_CONF_DIR = pathlib.Path('/etc/supervisor/conf.d')
-APACHE_CONF_DIR = pathlib.Path('/usr/local/apps/apache2/etc/conf.d')
+APACHE_CONF_DIR = pathlib.Path('/var/webuzo-data/apache2/custom/domains')
+LEGACY_APACHE_CONF_DIR = pathlib.Path('/usr/local/apps/apache2/etc/conf.d')
+APACHECTL = pathlib.Path('/usr/local/apps/apache2/bin/apachectl')
+REDIS_ADMIN_FILE = pathlib.Path('/etc/uniselv-resman/redis-admin.json')
+_REDIS_LOCK = threading.RLock()
+WEBUZO_DOMAINS_DB = pathlib.Path('/var/webuzo/db/domains.db')
 SUDOERS_DIR = pathlib.Path('/etc/sudoers.d')
 APP_SOCKET_ROOT = pathlib.Path('/run/uniselv-apps')
 SYSTEM_COMPOSER_BIN = pathlib.Path('/usr/local/bin/composer')
 
 _DEP_LOCK = threading.Lock()
 _PLATFORM_SELFTEST_LOCK = threading.Lock()
+_CRON_LOCK = threading.Lock()
+_REVERB_LOCK = threading.Lock()
 
 SERVICE_TYPES = ('queue', 'horizon', 'reverb', 'scheduler')
 PLATFORM_PERMISSION_KEYS = (
@@ -821,46 +830,67 @@ def _find_redis_conf() -> Optional[pathlib.Path]:
     return None
 
 
-def _run_redis(args: List[str], auth_user: str = '', auth_pass: str = '', timeout: float = 5.0) -> Tuple[int, str, str]:
+def _run_redis(args: List[str], auth_user: str = '', auth_pass: str = '', timeout: float = 5.0,
+               *, management: bool = True) -> Tuple[int, str, str]:
     cli = _find_redis_cli()
     if not cli:
         return 127, '', 'redis-cli binary not found'
-    cmd = [cli, '-h', '127.0.0.1', '-p', '6379']
+    env = dict(os.environ)
+    env.pop('REDISCLI_AUTH', None)
+    if management and not auth_user and REDIS_ADMIN_FILE.is_file():
+        info = REDIS_ADMIN_FILE.stat()
+        if info.st_uid != 0 or info.st_mode & 0o077:
+            return 1, '', 'Redis management credentials must be root-only'
+        try:
+            creds = json.loads(REDIS_ADMIN_FILE.read_text())
+            auth_user, auth_pass = creds['username'], creds['password']
+        except (OSError, ValueError, KeyError):
+            return 1, '', 'Redis management credentials are unreadable'
+    cmd = [cli, '-e', '-h', '127.0.0.1', '-p', '6379', '--raw']
     if auth_user:
         cmd.extend(['--user', auth_user])
-    cmd.extend(['--raw', *args])
-    env = dict(os.environ)
     if auth_pass:
         env['REDISCLI_AUTH'] = auth_pass
-    res = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=timeout)
+    res = subprocess.run([*cmd, *args], env=env, capture_output=True, text=True, timeout=timeout)
     return res.returncode, res.stdout.strip(), res.stderr.strip()
 
 
-def _ensure_redis_acl_persistence(conf_path: Optional[pathlib.Path]) -> str:
-    """Ensure aclfile exists and attempt ACL SAVE safely without restarting live Redis."""
-    if conf_path and conf_path.is_file():
-        acl_file = conf_path.parent / 'users.acl'
-        try:
-            text = conf_path.read_text(encoding='utf-8', errors='replace')
-            has_aclfile = any(line.strip().startswith('aclfile ') for line in text.splitlines())
-            if not acl_file.exists():
-                acl_file.write_text('', encoding='utf-8')
-                if grp is not None and pwd is not None and hasattr(os, 'chown'):
-                    try:
-                        r_pw = pwd.getpwnam('redis')
-                        if r_pw is not None:
-                            os.chown(acl_file, r_pw.pw_uid, r_pw.pw_gid)
-                    except (KeyError, OSError):
-                        pass
-                os.chmod(acl_file, 0o640)
-            if not has_aclfile:
-                new_text = text.rstrip('\n') + f'\naclfile {acl_file}\n'
-                _atomic_write_text(conf_path, new_text, mode=0o644)
-                _run_redis(['CONFIG', 'SET', 'aclfile', str(acl_file)])
-        except Exception:
-            pass
+def _save_redis_acl() -> Optional[str]:
     rc, out, err = _run_redis(['ACL', 'SAVE'])
-    return out if rc == 0 else (err or 'ACL kept in runtime memory')
+    if not rc and out == 'OK':
+        return None
+    # Webuzo runs Redis with a read-only application directory. Its ACL file
+    # is readable by Redis, while the root agent can atomically replace it.
+    rc, config, _ = _run_redis(['CONFIG', 'GET', 'aclfile'])
+    webuzo_acl = pathlib.Path('/usr/local/apps/redis/users.acl')
+    if rc or config.splitlines() != ['aclfile', str(webuzo_acl)]:
+        return err or out or 'Redis ACL persistence failed'
+    rc, rules, _ = _run_redis(['ACL', 'LIST'])
+    if rc or not rules or any(not line.startswith('user ') for line in rules.splitlines()):
+        return 'Cannot read a valid Redis ACL snapshot'
+    try:
+        info = webuzo_acl.stat(follow_symlinks=False)
+        if webuzo_acl.is_symlink() or not webuzo_acl.is_file():
+            return 'Unsafe Redis ACL file'
+        previous = webuzo_acl.read_text()
+        for content in (rules + '\n', previous):
+            fd, tmp = tempfile.mkstemp(dir=webuzo_acl.parent)
+            try:
+                with os.fdopen(fd, 'w') as stream:
+                    stream.write(content)
+                    os.fchown(stream.fileno(), info.st_uid, info.st_gid)
+                    os.fchmod(stream.fileno(), 0o640)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(tmp, webuzo_acl)
+            finally:
+                pathlib.Path(tmp).unlink(missing_ok=True)
+            rc, out, err = _run_redis(['ACL', 'LOAD'])
+            if content == rules + '\n' and not rc and out == 'OK':
+                return None
+        return 'Redis rejected the ACL snapshot; previous file restored'
+    except OSError as exc:
+        return f'Cannot persist the Redis ACL: {exc}'
 
 
 def get_redis_isolation_status(collector: Any, db_path: str, scoped_user: Optional[str] = None) -> Dict[str, Any]:
@@ -872,10 +902,10 @@ def get_redis_isolation_status(collector: Any, db_path: str, scoped_user: Option
     default_protected = False
     live_err = ''
     if cli:
-        rc, out, err = _run_redis(['PING'])
+        rc, out, err = _run_redis(['PING'], management=False)
         if rc == 0 and 'PONG' in out:
             ping_ok = True
-        elif 'NOAUTH' in err or 'WRONGPASS' in err:
+        elif 'NOAUTH' in (out + err) or 'WRONGPASS' in (out + err):
             ping_ok = True
             default_protected = True
         else:
@@ -889,9 +919,6 @@ def get_redis_isolation_status(collector: Any, db_path: str, scoped_user: Option
                         acl_supported = int(redis_ver.split('.')[0]) >= 6
                     except ValueError:
                         acl_supported = True
-        rc_a, out_a, _ = _run_redis(['ACL', 'GETUSER', 'default'])
-        if rc_a == 0 and 'nopass' not in out_a:
-            default_protected = True
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -903,20 +930,8 @@ def get_redis_isolation_status(collector: Any, db_path: str, scoped_user: Option
             rows = conn.execute('SELECT * FROM redis_acl_accounts ORDER BY username ASC').fetchall()
         for r in rows:
             d = dict(r)
-            pw = d.pop('password_plain_enc', '') or ''
+            d.pop('password_plain_enc', None)
             d.pop('password_hash', None)
-            d['password_masked'] = (pw[:4] + '****' + pw[-3:]) if len(pw) >= 8 else ('configured' if pw else '')
-            d['password'] = pw if scoped_user else ''
-            pw_snip = pw if scoped_user else '<use_provisioned_secret>'
-            d['env_snippet'] = (
-                f"REDIS_URL=redis://{d['redis_user']}:{pw_snip}@127.0.0.1:6379/0\n"
-                f"REDIS_HOST=127.0.0.1\n"
-                f"REDIS_PORT=6379\n"
-                f"REDIS_USERNAME={d['redis_user']}\n"
-                f"REDIS_PASSWORD={pw_snip}\n"
-                f"REDIS_PREFIX={d['key_prefix']}\n"
-                f"HORIZON_PREFIX={d['key_prefix']}horizon:"
-            )
             rows_out.append(d)
     finally:
         conn.close()
@@ -934,126 +949,118 @@ def get_redis_isolation_status(collector: Any, db_path: str, scoped_user: Option
     }
 
 
+# Explicit commands for Laravel caches, queues, locks, sessions and Horizon.
+# Redis applies the key and channel patterns to every accepted command.
+REDIS_TENANT_COMMANDS = (
+    'ping echo select auth quit hello client|setname client|setinfo '
+    'get mget set mset setex psetex setnx getdel getex incr incrby decr decrby '
+    'exists del unlink expire pexpire expireat pexpireat persist ttl pttl type '
+    'hget hset hgetall hdel hmget hmset hincrby hexists hlen hkeys hvals hscan '
+    'lpush rpush lpop rpop blpop brpop lrange llen ltrim lindex lrem '
+    'sadd srem smembers scard sismember sscan spop sunion '
+    'zadd zrem zrange zrangebyscore zrevrange zrevrangebyscore zscore zcard '
+    'zcount zincrby zremrangebyrank zremrangebyscore zscan '
+    'multi exec discard watch unwatch eval evalsha script|load script|exists '
+    'publish subscribe unsubscribe psubscribe punsubscribe'
+).split()
+
+
 def provision_redis_acl(db_path: str, username: str, actor: str = 'admin') -> Dict[str, Any]:
     if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
-        return {'success': False, 'error': 'Invalid username'}
+        return {'error': 'Invalid username'}
     redis_user = f'u_{username}'
     key_prefix = f'{username}:'
-    secret = secrets.token_urlsafe(21)
-    key_pattern = f'~{key_prefix}*'
-
-    rc, out, err = _run_redis([
-        'ACL', 'SETUSER', redis_user, 'reset', 'on', f'>{secret}', key_pattern,
-        '+@all', '-FLUSHALL', '-FLUSHDB', '-CONFIG', '-SHUTDOWN', '-SLAVEOF', '-REPLICAOF',
-        '-BGSAVE', '-BGREWRITEAOF', '-DEBUG', '-ACL', '-MODULE',
-    ])
-    if rc != 0 or 'OK' not in out:
-        return {'success': False, 'error': err or out or 'Failed executing Redis ACL SETUSER'}
-
-    persist_note = _ensure_redis_acl_persistence(_find_redis_conf())
-    pw_hash = hashlib.sha256(secret.encode('utf-8')).hexdigest()
-    now = int(time.time())
-    conn = sqlite3.connect(db_path)
-    try:
+    secret = secrets.token_urlsafe(24)
+    password_hash = hashlib.sha256(secret.encode()).hexdigest()
+    with _REDIS_LOCK, closing(sqlite3.connect(db_path)) as conn, conn:
+        previous = conn.execute('SELECT password_hash FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
+        rc, out, err = _run_redis([
+            'ACL', 'SETUSER', redis_user, 'reset', 'on', f'#{password_hash}', f'~{key_prefix}*',
+            f'&{key_prefix}*', *('+' + command for command in REDIS_TENANT_COMMANDS),
+        ])
+        if rc or out != 'OK':
+            return {'error': err or out or 'Redis ACL provisioning failed'}
+        error = _save_redis_acl()
+        if error:
+            if previous and previous[0]:
+                _run_redis(['ACL', 'SETUSER', redis_user, 'resetpass', f'#{previous[0]}'])
+            else:
+                _run_redis(['ACL', 'DELUSER', redis_user])
+            return {'error': error}
         conn.execute(
             """INSERT OR REPLACE INTO redis_acl_accounts
                (username, redis_user, key_prefix, password_hash, password_plain_enc, enabled, max_commands_policy, updated_at)
-               VALUES (?, ?, ?, ?, ?, 1, 'tenant_safe', ?)""",
-            (username, redis_user, key_prefix, pw_hash, secret, now),
+               VALUES (?, ?, ?, ?, '', 1, 'tenant_allowlist', ?)""",
+            (username, redis_user, key_prefix, password_hash, int(time.time())),
         )
-        conn.commit()
-    finally:
-        conn.close()
-
-    _record_audit(db_path, actor, 'platform_redis_acl_provision', username, {'redis_user': redis_user, 'key_prefix': key_prefix, 'persist': persist_note})
-    return {
-        'success': True,
-        'username': username,
-        'redis_user': redis_user,
-        'password': secret,
-        'key_prefix': key_prefix,
-        'persist': persist_note,
-        'env_snippet': (
-            f"REDIS_HOST=127.0.0.1\nREDIS_PORT=6379\n"
-            f"REDIS_USERNAME={redis_user}\nREDIS_PASSWORD={secret}\n"
-            f"REDIS_PREFIX={key_prefix}\nHORIZON_PREFIX={key_prefix}horizon:"
-        ),
-    }
+    _record_audit(db_path, actor, 'platform_redis_acl_provision', username, {'redis_user': redis_user})
+    return {'success': True, 'username': username, 'redis_user': redis_user, 'key_prefix': key_prefix,
+            'password': secret, 'env_snippet': (
+                f'REDIS_HOST=127.0.0.1\nREDIS_PORT=6379\nREDIS_USERNAME={redis_user}\n'
+                f'REDIS_PASSWORD={secret}\nREDIS_PREFIX={key_prefix}\nHORIZON_PREFIX={key_prefix}horizon:'
+            )}
 
 
 def revoke_redis_acl(db_path: str, username: str, actor: str = 'admin') -> Dict[str, Any]:
     redis_user = f'u_{username}'
-    rc, out, err = _run_redis(['ACL', 'DELUSER', redis_user])
-    _ensure_redis_acl_persistence(_find_redis_conf())
-    conn = sqlite3.connect(db_path)
-    try:
-        conn.execute('DELETE FROM redis_acl_accounts WHERE username = ?', (username,))
-        conn.commit()
-    finally:
-        conn.close()
-    _record_audit(db_path, actor, 'platform_redis_acl_revoke', username, {'redis_user': redis_user, 'rc': rc})
-    if rc != 0 and '0' not in out:
-        return {'success': False, 'error': err or out}
+    with _REDIS_LOCK:
+        rc, out, err = _run_redis(['ACL', 'DELUSER', redis_user])
+        if rc or out not in ('0', '1'):
+            return {'error': err or out or 'Redis ACL revocation failed'}
+        error = _save_redis_acl()
+        if error:
+            return {'error': f'Live Redis access revoked, but persistence failed: {error}'}
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute('DELETE FROM redis_acl_accounts WHERE username = ?', (username,))
+    _record_audit(db_path, actor, 'platform_redis_acl_revoke', username, {'redis_user': redis_user})
     return {'success': True, 'username': username, 'redis_user': redis_user}
 
 
 def test_redis_acl_isolation(db_path: str, username: str) -> Dict[str, Any]:
-    """Run live cross-tenant key isolation and admin-command block tests as the account's Redis ACL user."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        row = conn.execute('SELECT * FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
-    finally:
-        conn.close()
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        row = conn.execute('SELECT redis_user, key_prefix FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
     if not row:
-        return {'success': False, 'error': f'No Redis ACL provisioned yet for {username}; provision one first.'}
-
-    redis_user = row['redis_user']
-    secret = row['password_plain_enc']
-    prefix = row['key_prefix']
-    steps: List[Dict[str, Any]] = []
-
-    own_key = f'{prefix}__uniselv_acl_probe'
-    rc1, out1, err1 = _run_redis(['SET', own_key, 'ok', 'EX', '15'], auth_user=redis_user, auth_pass=secret)
-    rc2, out2, _ = _run_redis(['GET', own_key], auth_user=redis_user, auth_pass=secret)
-    _run_redis(['DEL', own_key], auth_user=redis_user, auth_pass=secret)
-    own_ok = (rc1 == 0 and 'OK' in out1 and rc2 == 0 and out2 == 'ok')
-    steps.append({'name': 'own_prefix_rw', 'label': f'Own Key Prefix ({prefix}*) Read/Write', 'passed': own_ok, 'detail': f'SET/GET {own_key} -> {out2 or err1}'})
-
-    foreign_key = '__other_tenant_probe__:x'
-    rc3, out3, err3 = _run_redis(['SET', foreign_key, 'hack', 'EX', '5'], auth_user=redis_user, auth_pass=secret)
-    foreign_blocked = ('NOPERM' in err3 or 'NOPERM' in out3 or rc3 != 0)
-    steps.append({'name': 'cross_tenant_blocked', 'label': 'Cross-Tenant Key Access Blocked', 'passed': foreign_blocked, 'detail': err3 or out3 or 'Blocked'})
-
-    rc4, out4, err4 = _run_redis(['FLUSHALL'], auth_user=redis_user, auth_pass=secret)
-    cmd_blocked = ('NOPERM' in err4 or 'NOPERM' in out4 or rc4 != 0)
-    steps.append({'name': 'dangerous_cmd_blocked', 'label': 'Dangerous Admin Command (FLUSHALL) Blocked', 'passed': cmd_blocked, 'detail': err4 or out4 or 'Blocked'})
-
-    all_passed = all(s['passed'] for s in steps)
-    return {'success': True, 'username': username, 'redis_user': redis_user, 'all_passed': all_passed, 'steps': steps}
+        return {'error': 'Provision this account before testing Redis ACL'}
+    redis_user, prefix = row
+    probes = (
+        ('own_prefix_rw', 'Own key write allowed', ['SET', prefix + '__acl_probe', '0'], True),
+        ('cross_tenant_blocked', 'Foreign key denied', ['SET', '__foreign__:probe', '0'], False),
+        ('dangerous_cmd_blocked', 'FLUSHALL denied', ['FLUSHALL'], False),
+        ('foreign_channel_blocked', 'Foreign channel denied', ['PUBLISH', '__foreign__:probe', '0'], False),
+    )
+    steps = []
+    for name, label, command, allow in probes:
+        rc, out, err = _run_redis(['ACL', 'DRYRUN', redis_user, *command])
+        detail = out or err
+        passed = rc == 0 and out == 'OK' if allow else any(
+            phrase in detail.lower() for phrase in ('has no permissions', 'no permissions to')
+        )
+        steps.append({'name': name, 'label': label, 'passed': passed, 'detail': detail})
+    return {'success': True, 'username': username, 'redis_user': redis_user,
+            'all_passed': all(step['passed'] for step in steps), 'steps': steps}
 
 
 def set_redis_default_lockdown(lock_default: bool, db_path: str, actor: str = 'admin') -> Dict[str, Any]:
-    """Explicit opt-in toggle for Redis default user (warn: existing apps without ACL credentials need REDIS_USERNAME)."""
-    if lock_default:
-        rc, out, err = _run_redis(['ACL', 'SETUSER', 'default', 'off'])
-    else:
-        rc, out, err = _run_redis(['ACL', 'SETUSER', 'default', 'on', 'nopass', '~*', '&*', '+@all'])
-    if rc != 0 or 'OK' not in out:
-        return {'success': False, 'error': err or out or 'Failed updating Redis default user policy'}
-    persist = _ensure_redis_acl_persistence(_find_redis_conf())
-    if db_path and os.path.exists(db_path):
-        conn = sqlite3.connect(db_path)
-        try:
-            conn.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', ('platform_redis_lock_default', '1' if lock_default else '0'))
-            conn.commit()
-        finally:
-            conn.close()
-    _record_audit(db_path, actor, 'platform_redis_default_lockdown', 'redis', {'locked': bool(lock_default), 'persist': persist})
-    return {'success': True, 'locked': bool(lock_default), 'persist': persist}
+    if not lock_default:
+        return {'error': 'Unauthenticated Redis cannot be enabled from the panel'}
+    if not REDIS_ADMIN_FILE.is_file():
+        return {'error': 'Configure the root-only Redis management identity before disabling the default user'}
+    with _REDIS_LOCK:
+        rc, who, err = _run_redis(['ACL', 'WHOAMI'])
+        if rc or who in ('', 'default'):
+            return {'error': err or 'Redis management identity is not authenticated'}
+        rc, out, err = _run_redis(['ACL', 'SETUSER', 'default', 'reset', 'off'])
+        if rc or out != 'OK':
+            return {'error': err or out or 'Redis default lockdown failed'}
+        error = _save_redis_acl()
+        if error:
+            return {'error': f'Redis default access blocked in memory, but persistence failed: {error}'}
+        _run_redis(['CLIENT', 'KILL', 'USER', 'default'])
+        with closing(sqlite3.connect(db_path)) as conn, conn:
+            conn.execute("INSERT OR REPLACE INTO settings VALUES ('platform_redis_lock_default', '1')")
+    _record_audit(db_path, actor, 'platform_redis_default_lockdown', 'redis', {'locked': True})
+    return {'success': True, 'locked': True, 'message': 'Redis default access disabled'}
 
-
-# ==================== 4. LARAVEL APP DISCOVERY & MANAGED SERVICES ====================
 
 def _parse_safe_env_flags(env_file: pathlib.Path) -> Dict[str, Any]:
     """Read only non-secret configuration hints from Laravel .env."""
@@ -2192,7 +2199,10 @@ def control_laravel_service(db_path: str, actor: str, username: str, service_id:
             has_env = (app_p / '.env').is_file()
             steps.append({'name': 'env_exists', 'label': 'Environment (.env) File Check', 'passed': has_env, 'detail': 'Found .env' if has_env else 'Missing .env — complete installer or create .env so workers can boot cleanly'})
             if os.path.isfile(svc['runtime_bin']):
-                r_art = subprocess.run([svc['runtime_bin'], 'artisan', '--version'], cwd=str(app_p), capture_output=True, text=True, timeout=8)
+                r_art = subprocess.run(
+                    ['/usr/sbin/runuser', '-u', svc['username'], '--', svc['runtime_bin'], 'artisan', '--version'],
+                    cwd=str(app_p), capture_output=True, text=True, timeout=8,
+                )
                 steps.append({'name': 'artisan_exec', 'label': 'Artisan CLI Execution', 'passed': r_art.returncode == 0, 'detail': (r_art.stdout or r_art.stderr).strip()[:160]})
             if svc['service_type'] == 'horizon':
                 has_h = (app_p / 'vendor' / 'laravel' / 'horizon').is_dir()
@@ -2353,244 +2363,179 @@ def sync_and_reconcile_laravel_workers(collector: Any, db_path: str, actor: str,
 
 
 def _read_crontab_lines(username: str) -> List[str]:
-    if os.name == 'nt':
+    result = subprocess.run(['crontab', '-u', username, '-l'], capture_output=True,
+                            text=True, timeout=10, env={**os.environ, 'LC_ALL': 'C'})
+    if result.returncode == 0:
+        return result.stdout.splitlines()
+    if result.stderr.strip() == f'no crontab for {username}':
         return []
-    try:
-        r = subprocess.run(['crontab', '-u', username, '-l'], capture_output=True, text=True, timeout=10)
-        return r.stdout.splitlines() if r.returncode == 0 else []
-    except Exception:
-        return []
+    raise OSError(result.stderr.strip() or 'Could not read crontab')
 
 
 def _write_crontab_lines(username: str, text: str) -> Tuple[bool, str]:
-    if os.name == 'nt':
-        return True, ''
-    try:
-        p = subprocess.run(['crontab', '-u', username, '-'], input=text, capture_output=True, text=True, timeout=10)
-        return (p.returncode == 0), (p.stderr or p.stdout or '')
-    except Exception as e:
-        return False, str(e)
+    result = subprocess.run(['crontab', '-u', username, '-'], input=text,
+                            capture_output=True, text=True, timeout=10)
+    return result.returncode == 0, result.stderr or result.stdout
+
+
+def _platform_feature_enabled(db_path: str, username: str, feature: str) -> bool:
+    settings = load_platform_settings(db_path)
+    return (settings['platform_laravel_services_enabled'] == '1'
+            and feature in parse_allowed_laravel_types(settings['platform_laravel_allowed_types'])
+            and get_user_platform_permissions(db_path, username)[f'platform_laravel_{feature}'])
 
 
 def manage_laravel_scheduler_cron(
-    collector: Any, db_path: str, actor: str, username: str, app_path: str, php_branch: str = 'php84', operation: str = 'status', is_admin: bool = False
+    collector: Any, db_path: str, actor: str, username: str, app_path: str,
+    php_branch: str = 'php84', operation: str = 'status', is_admin: bool = False,
 ) -> Dict[str, Any]:
-    """Inspect, install, or remove Laravel Scheduler (* * * * * artisan schedule:run) in user's Webuzo crontab safely and non-invasively."""
-    username = str(username or '').strip()
-    if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
-        return {'success': False, 'error': 'Invalid username'}
-    if not is_admin and actor != username:
+    if username not in collector.get_webuzo_users() or (not is_admin and actor != username):
         return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
-
-    users = collector.get_webuzo_users() if collector else {}
-    if username not in users and actor != username:
-        return {'success': False, 'error': f'Account {username} not found'}
-
-    app_path = str(app_path or '').strip()
-    safe_app = _safe_home_subpath(username, app_path)
-    if not safe_app:
-        return {'success': False, 'error': f'Invalid or escaping project path: {app_path}'}
-    if not (safe_app / 'artisan').is_file():
-        return {'success': False, 'error': f'artisan not found in {safe_app}'}
-
+    if operation not in ('status', 'install', 'remove', 'uninstall'):
+        return {'error': 'Unsupported cron operation', 'status_code': 400}
+    if operation == 'install' and not _platform_feature_enabled(db_path, username, 'scheduler'):
+        return {'error': 'Scheduler is disabled by account policy', 'status_code': 403}
+    safe_app = _safe_home_subpath(username, str(app_path or '').strip())
+    if not safe_app or not (safe_app / 'artisan').is_file() or any(c in str(safe_app) for c in '\r\n'):
+        return {'error': 'Invalid Laravel project', 'status_code': 400}
     if not re.fullmatch(r'php\d{2,3}', php_branch):
-        php_branch = 'php84'
-    php_cand = f'/usr/local/apps/{php_branch}/bin/php'
-    php_bin = php_cand if os.path.isfile(php_cand) else ('/usr/bin/php' if os.path.isfile('/usr/bin/php') else 'php')
+        return {'error': 'Invalid PHP branch', 'status_code': 400}
+    candidate = f'/usr/local/apps/{php_branch}/bin/php'
+    php_bin = candidate if os.path.isfile(candidate) else '/usr/bin/php'
+    start = f'# BEGIN UNISELV SCHEDULER: {safe_app}'
+    end = f'# END UNISELV SCHEDULER: {safe_app}'
+    command = f"{shlex.quote(php_bin)} {shlex.quote(str(safe_app / 'artisan'))} schedule:run"
+    command = command.replace('%', '\\%')
+    cron_line = f'* * * * * {command} >> /dev/null 2>&1'
+    try:
+        with _CRON_LOCK:
+            lines = _read_crontab_lines(username)
+            begin = [i for i, line in enumerate(lines) if line == start]
+            finish = [i for i, line in enumerate(lines) if line == end]
+            if len(begin) != len(finish) or len(begin) > 1 or (begin and finish[0] != begin[0] + 2):
+                return {'error': 'Invalid existing plugin cron block. Review it before retrying.', 'status_code': 409}
+            installed = bool(begin)
+            if operation != 'status':
+                updated = lines[:begin[0]] + lines[finish[0]+1:] if installed else list(lines)
+                if operation == 'install':
+                    if any(not line.lstrip().startswith('#') and str(safe_app / 'artisan') in line
+                           and 'schedule:run' in line for line in updated):
+                        return {'error': 'A manually managed Scheduler already exists', 'status_code': 409}
+                    updated.extend((start, cron_line, end))
+                if updated != lines:
+                    if _read_crontab_lines(username) != lines:
+                        return {'error': 'Crontab changed. Retry the operation.', 'status_code': 409}
+                    ok, error = _write_crontab_lines(username, '\n'.join(updated) + '\n' if updated else '')
+                    if not ok:
+                        return {'error': f'Crontab write failed: {error}'}
+                    _record_audit(db_path, actor, 'scheduler_cron_' + operation, username, {'app_path': str(safe_app)})
+                installed = operation == 'install'
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {'error': f'Crontab operation failed: {exc}'}
+    return {'success': True, 'username': username, 'app_path': str(safe_app),
+            'cron_installed': installed, 'is_installed': installed,
+            'cron_line': cron_line, 'php_bin': php_bin}
 
-    tag_start = f'# BEGIN UNISELV SCHEDULER: {safe_app}'
-    tag_end = f'# END UNISELV SCHEDULER: {safe_app}'
-    cron_target_cmd = f'{php_bin} {safe_app}/artisan schedule:run >> /dev/null 2>&1'
-    cron_line = f'* * * * * {cron_target_cmd}'
 
-    current_lines = _read_crontab_lines(username)
+def _owns_webuzo_domain(username: str, domain: str) -> bool:
+    try:
+        with closing(sqlite3.connect(WEBUZO_DOMAINS_DB.absolute().as_uri() + '?mode=ro', uri=True, timeout=3)) as conn:
+            owners = conn.execute('SELECT DISTINCT user FROM domains WHERE lower(domain) = ?', (domain,)).fetchall()
+        return owners == [(username,)]
+    except sqlite3.Error:
+        return False
 
-    is_installed = False
-    for line in current_lines:
-        if tag_start in line or (f'{safe_app}/artisan' in line and 'schedule:run' in line):
-            is_installed = True
-            break
 
-    if operation == 'status':
-        return {
-            'success': True,
-            'username': username,
-            'app_path': str(safe_app),
-            'cron_installed': is_installed,
-            'is_installed': is_installed,
-            'cron_line': cron_line,
-            'php_bin': php_bin,
-        }
-
-    if operation == 'install':
-        filtered = []
-        inside_block = False
-        for line in current_lines:
-            if tag_start in line:
-                inside_block = True
-                continue
-            if inside_block and tag_end in line:
-                inside_block = False
-                continue
-            if not inside_block:
-                if f'{safe_app}/artisan' in line and 'schedule:run' in line:
-                    continue
-                filtered.append(line)
-
-        filtered.append(tag_start)
-        filtered.append(cron_line)
-        filtered.append(tag_end)
-        new_crontab = '\n'.join(filtered).strip() + '\n'
-
-        ok, err_msg = _write_crontab_lines(username, new_crontab)
-        if not ok:
-            return {'success': False, 'error': f'Failed to write crontab: {err_msg}'}
-
-        _record_audit(db_path, actor, 'scheduler_cron_installed', username, {
-            'app_path': str(safe_app),
-            'cron_line': cron_line,
-        })
-        return {
-            'success': True,
-            'username': username,
-            'app_path': str(safe_app),
-            'cron_installed': True,
-            'is_installed': True,
-            'cron_line': cron_line,
-            'message': f'Laravel Scheduler cron installed for {safe_app.name}.',
-        }
-
-    if operation in ('remove', 'uninstall'):
-        filtered = []
-        inside_block = False
-        for line in current_lines:
-            if tag_start in line:
-                inside_block = True
-                continue
-            if inside_block and tag_end in line:
-                inside_block = False
-                continue
-            if not inside_block:
-                if f'{safe_app}/artisan' in line and 'schedule:run' in line:
-                    continue
-                filtered.append(line)
-        new_crontab = '\n'.join(filtered).strip() + '\n'
-
-        ok, err_msg = _write_crontab_lines(username, new_crontab)
-        if not ok:
-            return {'success': False, 'error': f'Failed to write crontab: {err_msg}'}
-
-        _record_audit(db_path, actor, 'scheduler_cron_removed', username, {'app_path': str(safe_app)})
-        return {
-            'success': True,
-            'username': username,
-            'app_path': str(safe_app),
-            'cron_installed': False,
-            'is_installed': False,
-            'message': f'Laravel Scheduler cron removed for {safe_app.name}.',
-        }
-
-    return {'success': False, 'error': f'Unsupported cron operation: {operation}'}
+def _reload_reverb_config() -> None:
+    for command in ('configtest', 'graceful'):
+        result = subprocess.run([str(APACHECTL), command], capture_output=True, text=True, timeout=15)
+        if result.returncode:
+            raise OSError(f'Apache {command} failed: {result.stderr.strip() or result.stdout.strip()}')
 
 
 def manage_reverb_vhost_proxy(
-    collector: Any, db_path: str, actor: str, username: str, domain: str, port: int = 0, operation: str = 'status', is_admin: bool = False
+    collector: Any, db_path: str, actor: str, username: str, domain: str,
+    port: int = 0, operation: str = 'status', is_admin: bool = False,
 ) -> Dict[str, Any]:
-    """Manage dedicated Apache/LiteSpeed reverse proxy include file for Laravel Reverb WebSocket in /usr/local/apps/apache2/etc/conf.d/."""
-    username = str(username or '').strip()
-    if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
-        return {'success': False, 'error': 'Invalid username'}
-    if not is_admin and actor != username:
+    if username not in collector.get_webuzo_users() or (not is_admin and actor != username):
         return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
-
     domain = str(domain or '').strip().lower()
-    if not domain or not re.fullmatch(r'[a-z0-9.-]+\.[a-z]{2,}', domain):
-        return {'success': False, 'error': 'Invalid domain name'}
-
-    alloc = ensure_account_port_allocation(collector, db_path, username)
-    reverb_port = int(port or alloc.get('ports', {}).get('reverb_port') or 22241)
-
-    conf_dir = APACHE_CONF_DIR
-    conf_file = conf_dir / f'uniselv-reverb-{domain}.conf'
-    is_installed = conf_file.is_file()
-
-    if operation == 'status':
-        return {
-            'success': True,
-            'domain': domain,
-            'port': reverb_port,
-            'proxy_installed': is_installed,
-            'is_installed': is_installed,
-            'conf_file': str(conf_file) if is_installed else '',
-        }
-
-    if operation == 'install':
-        if not conf_dir.is_dir():
-            if os.name != 'nt':
-                return {'success': False, 'error': 'Webuzo Apache configuration directory missing: /usr/local/apps/apache2/etc/conf.d'}
-            conf_dir.mkdir(parents=True, exist_ok=True)
-
-        escaped_dom = domain.replace('.', r'\.')
-        snippet = (
-            f"# UNISELV Reverb WebSocket Reverse Proxy for {domain}\n"
-            f"<IfModule mod_rewrite.c>\n"
-            f"    RewriteEngine On\n"
-            f"    RewriteCond %{{HTTP_HOST}} ^(www\\.)?{escaped_dom}$ [NC]\n"
-            f"    RewriteCond %{{HTTP:Upgrade}} websocket [NC]\n"
-            f"    RewriteCond %{{HTTP:Connection}} upgrade [NC]\n"
-            f"    RewriteRule ^/app/?(.*) ws://127.0.0.1:{reverb_port}/app/$1 [P,L]\n"
-            f"    ProxyPassReverse /app http://127.0.0.1:{reverb_port}/app\n"
-            f"</IfModule>\n"
-        )
-
+    if len(domain) > 253 or not re.fullmatch(r'(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}', domain):
+        return {'error': 'Invalid domain name', 'status_code': 400}
+    if not _owns_webuzo_domain(username, domain):
+        return {'error': 'Forbidden: Domain does not belong to the selected account', 'status_code': 403}
+    if operation not in ('status', 'install', 'remove', 'uninstall'):
+        return {'error': 'Unsupported proxy operation', 'status_code': 400}
+    with closing(sqlite3.connect(db_path, timeout=5)) as conn:
+        row = conn.execute("SELECT port FROM managed_app_services WHERE username = ? "
+                           "AND service_type = 'reverb' AND enabled = 1 ORDER BY id LIMIT 1", (username,)).fetchone()
+    upstream = int(row[0]) if row else 0
+    if port and port != upstream:
+        return {'error': 'Requested port does not match the registered Reverb service', 'status_code': 403}
+    conf_file = APACHE_CONF_DIR / f'{domain}.conf'
+    legacy_file = LEGACY_APACHE_CONF_DIR / f'uniselv-reverb-{domain}.conf'
+    start, end = '# BEGIN UNISELV REVERB', '# END UNISELV REVERB'
+    with _REVERB_LOCK:
         try:
-            _atomic_write_text(conf_file, snippet, mode=0o644)
-        except Exception as exc:
-            return {'success': False, 'error': f'Failed to write proxy configuration: {exc}'}
-
-        if os.name != 'nt':
-            apachectl = '/usr/local/apps/apache2/bin/apachectl'
-            if os.path.isfile(apachectl):
-                t_res = subprocess.run([apachectl, 'configtest'], capture_output=True, text=True, timeout=10)
-                if t_res.returncode != 0:
-                    try:
-                        conf_file.unlink()
-                    except Exception:
-                        pass
-                    return {'success': False, 'error': f'Apache syntax validation failed: {t_res.stderr or t_res.stdout}'}
-                subprocess.run([apachectl, 'graceful'], capture_output=True, text=True, timeout=15)
-
-        _record_audit(db_path, actor, 'reverb_proxy_installed', username, {'domain': domain, 'port': reverb_port})
-        return {
-            'success': True,
-            'domain': domain,
-            'port': reverb_port,
-            'proxy_installed': True,
-            'is_installed': True,
-            'message': f'Reverb WebSocket reverse proxy successfully active for {domain}.',
-        }
-
-    if operation in ('remove', 'uninstall'):
-        if conf_file.is_file():
+            if conf_file.is_symlink() or legacy_file.is_symlink():
+                return {'error': 'Unexpected proxy configuration symlink'}
+            previous = conf_file.read_text() if conf_file.exists() else None
+            legacy = legacy_file.read_text() if legacy_file.exists() else None
+            lines = (previous or '').splitlines(keepends=True)
+            begin = [i for i, line in enumerate(lines) if line.rstrip() == start]
+            finish = [i for i, line in enumerate(lines) if line.rstrip() == end]
+            if len(begin) != len(finish) or len(begin) > 1 or (begin and begin[0] >= finish[0]):
+                return {'error': 'Malformed existing Reverb block'}
+            installed = bool(begin or legacy)
+            if operation == 'status':
+                return {'success': True, 'domain': domain, 'port': upstream, 'is_installed': installed, 'proxy_installed': installed}
+            if operation == 'install' and (not _platform_feature_enabled(db_path, username, 'reverb')
+                                           or not 1024 <= upstream <= 65535):
+                return {'error': 'An enabled managed Reverb service is required', 'status_code': 409}
+            if not APACHECTL.is_file():
+                return {'error': 'Webuzo Apache configuration is unavailable'}
+            if not installed and operation != 'install':
+                return {'success': True, 'domain': domain, 'port': upstream, 'is_installed': False, 'proxy_installed': False}
+            contents = ''.join(lines[:begin[0]] + lines[finish[0]+1:] if begin else lines)
+            if operation == 'install':
+                if contents and not contents.endswith('\n'):
+                    contents += '\n'
+                contents += (
+                    f'{start}\n'
+                    'RewriteEngine On\n'
+                    'RewriteCond %{HTTP:Upgrade} ^websocket$ [NC]\n'
+                    'RewriteCond %{HTTP:Connection} (?:^|[,[:space:]])upgrade(?:$|[,[:space:]]) [NC]\n'
+                    f'RewriteRule ^/app/([a-zA-Z0-9_-]+)$ ws://127.0.0.1:{upstream}/app/$1 [P,L]\n'
+                    f'{end}\n'
+                )
+            if APACHE_CONF_DIR.resolve() != APACHE_CONF_DIR.absolute():
+                return {'error': 'Unexpected Apache custom directory symlink'}
+            APACHE_CONF_DIR.mkdir(parents=True, exist_ok=True)
+        except (OSError, UnicodeError) as exc:
+            return {'error': f'Cannot read Apache proxy configuration: {exc}'}
+        try:
+            if contents:
+                _atomic_write_text(conf_file, contents, mode=0o644)
+            else:
+                conf_file.unlink(missing_ok=True)
+            if legacy is not None:
+                legacy_file.unlink()
+            _reload_reverb_config()
+        except (OSError, subprocess.SubprocessError) as exc:
             try:
-                conf_file.unlink()
-            except Exception as exc:
-                return {'success': False, 'error': f'Failed to remove proxy conf: {exc}'}
-            if os.name != 'nt':
-                apachectl = '/usr/local/apps/apache2/bin/apachectl'
-                if os.path.isfile(apachectl):
-                    subprocess.run([apachectl, 'graceful'], capture_output=True, text=True, timeout=15)
-
-        _record_audit(db_path, actor, 'reverb_proxy_removed', username, {'domain': domain})
-        return {
-            'success': True,
-            'domain': domain,
-            'proxy_installed': False,
-            'is_installed': False,
-            'message': f'Reverb WebSocket reverse proxy removed for {domain}.',
-        }
-
-    return {'success': False, 'error': f'Unsupported operation: {operation}'}
+                if previous is None:
+                    conf_file.unlink(missing_ok=True)
+                else:
+                    _atomic_write_text(conf_file, previous, mode=0o644)
+                if legacy is not None:
+                    _atomic_write_text(legacy_file, legacy, mode=0o644)
+                _reload_reverb_config()
+            except (OSError, subprocess.SubprocessError) as rollback:
+                return {'error': f'{exc}. Proxy rollback failed: {rollback}'}
+            return {'error': str(exc)}
+    installed = operation == 'install'
+    _record_audit(db_path, actor, 'reverb_proxy_' + operation, username, {'domain': domain, 'port': upstream})
+    return {'success': True, 'domain': domain, 'port': upstream, 'is_installed': installed, 'proxy_installed': installed}
 
 
 def get_active_resource_boosts(collector: Any, db_path: str) -> Dict[str, Any]:
@@ -2986,38 +2931,57 @@ def scan_app_logs_and_inodes(collector: Any, db_path: str, target_user: Optional
     return {'success': True, 'threshold_mib': thresh_bytes // (1024 * 1024), 'inodes': inodes, 'findings': findings[:100]}
 
 
-def truncate_app_log(db_path: str, actor: str, username: str, log_path: str, keep_lines: int = 1000, is_admin: bool = False, home_override: Optional[str] = None) -> Dict[str, Any]:
-    """Safely trim an oversized log file inside user home while preserving permissions/ownership."""
+def truncate_app_log(db_path: str, actor: str, username: str, log_path: str, keep_lines: int = 1000,
+                     is_admin: bool = False, home_override: Optional[str] = None) -> Dict[str, Any]:
     if not is_admin and actor != username:
         return {'error': 'Forbidden: Cannot truncate another account log', 'status_code': 403}
-    safe_p = _safe_home_subpath(username, log_path, home_override=home_override)
-    if not safe_p or not safe_p.is_file() or safe_p.is_symlink():
-        return {'success': False, 'error': 'Invalid or unsafe log path'}
-    if not (safe_p.name.endswith('.log') or safe_p.name == 'error_log'):
-        return {'success': False, 'error': 'Refusing truncation on non-log file'}
-
-    keep_lines = max(0, min(5000, int(keep_lines)))
-    before_bytes = safe_p.stat().st_size
-    tail_bytes = b''
-    if keep_lines > 0 and before_bytes > 0:
-        with open(safe_p, 'rb') as rf:
-            rf.seek(max(0, before_bytes - 262144))
-            tail_lines = rf.read().splitlines()[-keep_lines:]
-            tail_bytes = b'\n'.join(tail_lines) + (b'\n' if tail_lines else b'')
-
-    with open(safe_p, 'r+b') as wf:
-        wf.seek(0)
-        wf.write(tail_bytes)
-        wf.truncate(len(tail_bytes))
-        wf.flush()
-
-    after_bytes = safe_p.stat().st_size
-    freed_bytes = max(0, before_bytes - after_bytes)
-    _record_audit(db_path, actor, 'platform_log_truncated', username, {'log_path': str(safe_p), 'before_bytes': before_bytes, 'after_bytes': after_bytes, 'freed_bytes': freed_bytes})
-    return {'success': True, 'log_path': str(safe_p), 'before_bytes': before_bytes, 'after_bytes': after_bytes, 'freed_bytes': freed_bytes}
+    uid, _, home = _resolve_user_ids(username)
+    if os.name != 'nt' and uid <= 0:
+        return {'error': 'Expected an unprivileged hosting account', 'status_code': 403}
+    home = pathlib.Path(home_override or home)
+    path = pathlib.Path(log_path)
+    try:
+        relative = path.relative_to(home) if path.is_absolute() else path
+        if '..' in relative.parts or not (relative.name.endswith('.log') or relative.name == 'error_log'):
+            raise ValueError('Invalid log path')
+        keep_lines = max(0, min(5000, int(keep_lines)))
+        if os.name == 'nt':
+            # Portable test environment has no privileged worker or Linux openat.
+            safe = _safe_home_subpath(username, str(home / relative), str(home))
+            if not safe or safe != home / relative or not safe.is_file() or safe.stat().st_nlink != 1:
+                raise ValueError('Invalid log path')
+            before = safe.stat().st_size
+            with safe.open('r+b') as stream:
+                stream.seek(max(0, before - 262144))
+                lines = stream.read(262144).splitlines()[-keep_lines:] if keep_lines else []
+                tail = b'\n'.join(lines) + (b'\n' if lines else b'')
+                stream.seek(0)
+                stream.write(tail)
+                stream.truncate(len(tail))
+                after = len(tail)
+        else:
+            result = subprocess.run(
+                ['/usr/sbin/runuser', '-u', username, '--', '/usr/bin/python3', '-I',
+                 str(pathlib.Path(__file__).with_name('trim_log_worker.py')), str(home), relative.as_posix(), str(keep_lines)],
+                cwd='/', capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode:
+                return {'error': 'Cannot safely trim this account log', 'status_code': 400}
+            before, after = json.loads(result.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {'error': 'Cannot safely trim this account log', 'status_code': 400}
+    full_path = str(home / relative)
+    _record_audit(db_path, actor, 'platform_log_truncated', username,
+                  {'log_path': full_path, 'before_bytes': before, 'after_bytes': after})
+    return {'success': True, 'log_path': full_path, 'before_bytes': before, 'after_bytes': after,
+            'freed_bytes': max(0, before - after)}
 
 
 # ==================== 7. SERVER MIGRATION: POLICY BUNDLE EXPORT / IMPORT ====================
+
+def _portable_policy_setting(key: str) -> bool:
+    return not re.search(r'secret|token|pass(?:word|phrase)|credential|(?:^|_)(?:api|private|auth|access|signing)_?key(?:_|$)', key, re.I)
+
 
 def export_policy_bundle(db_path: str) -> Dict[str, Any]:
     """Export portable server policies, package mappings, permissions, OpenSwoole & Laravel service configs (no secrets)."""
@@ -3026,7 +2990,11 @@ def export_policy_bundle(db_path: str) -> Dict[str, Any]:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        settings = {r['key']: r['value'] for r in conn.execute('SELECT key, value FROM settings').fetchall()}
+        settings = {
+            row['key']: row['value']
+            for row in conn.execute('SELECT key, value FROM settings')
+            if _portable_policy_setting(row['key'])
+        }
         pkg_maps = [dict(r) for r in conn.execute('SELECT billing_package, resource_plan FROM package_mappings').fetchall()]
         role_perms = [dict(r) for r in conn.execute('SELECT role, permission, granted FROM role_permissions').fetchall()]
         acct_perms = [dict(r) for r in conn.execute('SELECT username, permission, granted FROM account_permissions').fetchall()]
@@ -3056,10 +3024,18 @@ def export_policy_bundle(db_path: str) -> Dict[str, Any]:
 
 def import_policy_bundle(collector: Any, db_path: str, actor: str, bundle: Dict[str, Any], dry_run: bool = False) -> Dict[str, Any]:
     """Validate and apply an exported policy bundle onto this server (transactional)."""
-    if not isinstance(bundle, dict) or int(bundle.get('schema_version') or 0) != 1:
+    if not isinstance(bundle, dict) or bundle.get('schema_version') not in (1, '1'):
         return {'success': False, 'error': 'Unsupported or invalid policy bundle schema'}
 
-    settings = bundle.get('settings') if isinstance(bundle.get('settings'), dict) else {}
+    raw_settings = bundle.get('settings', {})
+    if not isinstance(raw_settings, dict):
+        return {'success': False, 'error': 'Policy bundle settings must be an object'}
+    settings = {key: value for key, value in raw_settings.items() if _portable_policy_setting(key)}
+    for section in ('package_mappings', 'role_permissions', 'account_permissions',
+                    'openswoole_plan_policies', 'openswoole_account_policies', 'managed_app_services'):
+        rows = bundle.get(section, [])
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            return {'success': False, 'error': f'Policy bundle {section} must be an array of objects'}
     pkg_maps = bundle.get('package_mappings') if isinstance(bundle.get('package_mappings'), list) else []
     role_perms = bundle.get('role_permissions') if isinstance(bundle.get('role_permissions'), list) else []
     acct_perms = bundle.get('account_permissions') if isinstance(bundle.get('account_permissions'), list) else []
@@ -3115,15 +3091,23 @@ def import_policy_bundle(collector: Any, db_path: str, actor: str, bundle: Dict[
         conn.close()
 
     reinstalled_services = 0
+    service_errors = []
     for svc in lrv_svcs:
         if isinstance(svc, dict) and svc.get('username') in users:
             res = save_and_install_laravel_service(collector, db_path, actor, svc)
             if res.get('success'):
                 reinstalled_services += 1
+            else:
+                service_errors.append({'username': svc['username'], 'service_slug': svc.get('service_slug'),
+                                       'error': res.get('error', 'Service installation failed')})
 
     osw_mgr.reconcile_new_php_versions(db_path, automatic=False, force_all=False)
-    _record_audit(db_path, actor, 'platform_policy_bundle_imported', 'server', {'summary': summary, 'reinstalled_services': reinstalled_services})
-    return {'success': True, 'dry_run': False, 'summary': summary, 'reinstalled_services': reinstalled_services}
+    result = {'success': not service_errors, 'dry_run': False, 'summary': summary,
+              'policies_applied': True, 'reinstalled_services': reinstalled_services, 'service_errors': service_errors}
+    if service_errors:
+        result['error'] = 'Policies were saved but some managed services could not be installed'
+    _record_audit(db_path, actor, 'platform_policy_bundle_imported', 'server', result)
+    return result
 
 
 def get_platform_overview_payload(collector: Any, db_path: str, target_user: Optional[str] = None) -> Dict[str, Any]:

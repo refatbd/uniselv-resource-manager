@@ -1978,3 +1978,17 @@
 .uniselv-sample-note { color: #475569; font-size: .85rem; }
 #admin-host-cpu-usage { font-size: 2rem; }
 #admin-card-cpu-headroom { font-size: 1.35rem; }
+
+@media (max-width: 760px) {
+    #tab-snapshots .uniselv-table-wrap {
+        max-width: 100%;
+    }
+    #tab-snapshots .uniselv-table {
+        min-width: 0;
+    }
+    #tab-snapshots .uniselv-cmd-text {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        min-width: 0;
+    }
+}

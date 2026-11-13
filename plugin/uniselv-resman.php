@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.2.2
+Version: 1.2.7
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -360,7 +360,7 @@ function uniselv_csrf_token($user) {
 function uniselv_verify_csrf($user) {
     $token = isset($_POST['csrf_token']) ? $_POST['csrf_token'] : (isset($_SERVER['HTTP_X_CSRF_TOKEN']) ? $_SERVER['HTTP_X_CSRF_TOKEN'] : '');
     $expected = uniselv_csrf_token($user);
-    if (empty($token) || !hash_equals($expected, $token)) {
+    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !is_string($token) || $token === '' || !hash_equals($expected, $token)) {
         header('Content-Type: application/json', true, 403);
         echo json_encode(['error' => 'Security Refusal: Invalid or missing CSRF token']);
         exit(0);
@@ -407,10 +407,12 @@ function uniselv_resman_admin() {
             'save_account_permission', 'save_role_permission',
             'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php', 'run_governance',
             'openswoole_save_settings', 'openswoole_php_action', 'openswoole_save_policy', 'openswoole_enforce',
+            'openswoole_selftest', 'stop_process',
             'platform_save_settings', 'platform_install_deps', 'platform_selftest_laravel',
             'platform_redis_action', 'platform_enforce_runtimes', 'platform_import_policy',
             'platform_supervisor_action', 'save_user_platform_permissions',
-            'save_laravel_service', 'control_laravel_service', 'truncate_app_log'
+            'save_laravel_service', 'control_laravel_service', 'truncate_app_log',
+            'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'
         ];
         
         if (in_array($subact, $mutation_actions)) {
@@ -508,8 +510,8 @@ function uniselv_resman_admin() {
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'];
-            $ipc_timeout = in_array($subact, $long_ops) ? 45 : 15;
+            $long_ops = ['sync_plans', 'platform_import_policy', 'openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'];
+            $ipc_timeout = in_array($subact, $long_ops) ? 60 : 15;
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, true, $ipc_timeout);
             echo json_encode($resp);
         } else {
@@ -558,13 +560,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.2r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.7r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.2r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.7r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -595,14 +597,11 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </button>
                 </div>
             </details>
-            <button class="uniselv-btn btn-primary" onclick="UniselvResMan.syncNativePlans()">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ' . __u('bulk_sync', $locale) . '
-            </button>
         </div>
     </div>';
 
     // Tabs
-    echo '<div class="uniselv-tabs">
+    echo '<div class="uniselv-tabs" role="tablist" aria-label="Resource Manager sections">
         <button class="uniselv-tab-btn active" data-tab="overview">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> ' . __u('server_overview', $locale) . '
         </button>
@@ -1742,7 +1741,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 8px;">External billing systems (WHMCS post-provisioning hooks, Blesta events) can synchronize user plans securely with transactional rollback:</p>
                     <div style="background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.78rem; font-family: monospace; overflow-x: auto; margin-bottom: 8px;">
 Admin session required: port 2005, subact=adapter_sync, POST form data and the current CSRF token.<br>
-External integrations use subact=webhook with configured Bearer/HMAC authentication. The Webuzo routing layer must also authorize the request.<br>
+External integrations POST to <code>/uniselv-resman/webhook.php</code> on the Admin HTTPS port with configured Bearer/HMAC authentication.<br>
 Do not use the customer port (2003). An unattended external provider route has not been validated by this release; verify it with a dedicated test account before connecting billing.
                     </div>
                 </div>
@@ -2301,13 +2300,30 @@ function uniselv_resman_enduser() {
     global $globals, $SESS;
 
     $current_user = isset($SESS['user']) ? $SESS['user'] : '';
+    if ($current_user === '') {
+        http_response_code(403);
+        return;
+    }
 
     if (isset($_REQUEST['api']) && $_REQUEST['api'] === 'json') {
         header('Content-Type: application/json');
         $subact = isset($_REQUEST['subact']) ? $_REQUEST['subact'] : '';
         $params = $_POST;
 
-        if (in_array($subact, ['stop_process', 'mark_notification', 'save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'truncate_app_log'])) {
+        if ($subact === 'reseller_accounts') {
+            // The agent checks the authenticated identity against Webuzo's
+            // reseller inventory and enforces ownership on every account.
+            $response = $current_user === 'root'
+                ? ['error' => 'Reseller account required', 'status_code' => 403]
+                : UniselvApiClient::call('get_admin_accounts', [], $current_user, true);
+            if (!empty($response['status_code'])) http_response_code((int)$response['status_code']);
+            echo json_encode($response);
+            exit(0);
+        }
+
+        if (in_array($subact, ['stop_process', 'mark_notification', 'save_laravel_service', 'control_laravel_service',
+            'enduser_redis_action', 'truncate_app_log', 'sync_laravel_workers',
+            'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'])) {
             uniselv_verify_csrf($current_user);
         }
 
@@ -2355,6 +2371,9 @@ function uniselv_resman_enduser_theme() {
     global $globals, $SESS;
 
     $current_user = isset($SESS['user']) ? $SESS['user'] : '';
+    $reseller_accounts = !empty($SESS['is_reseller']) && $current_user !== 'root'
+        ? UniselvApiClient::call('get_admin_accounts', [], $current_user, true)
+        : [];
     $dash = UniselvApiClient::call('get_enduser_dashboard', [], $current_user, false);
     $procs = UniselvApiClient::call('get_enduser_processes', [], $current_user, false);
     $notifs = UniselvApiClient::call('get_enduser_notifications', [], $current_user, false);
@@ -2375,13 +2394,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.2r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.7r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.2r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.7r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2411,7 +2430,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     </div>';
 
     // Tabs
-    echo '<div class="uniselv-tabs">
+    echo '<div class="uniselv-tabs" role="tablist" aria-label="Resource Manager sections">
         <button class="uniselv-tab-btn active" data-tab="dashboard" id="tab-btn-dashboard">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> ' . __u('dashboard', $locale) . '
         </button>
@@ -3102,6 +3121,22 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     echo uniselv_render_developer_footer();
     echo '</div>'; // End container
+    if (($reseller_accounts['reseller_scope'] ?? null) === $current_user) {
+        echo '<section class="uniselv-card" aria-labelledby="resman-reseller-heading">';
+        echo '<h3 id="resman-reseller-heading">Reseller accounts</h3>';
+        echo '<div class="uniselv-table-wrap"><table class="uniselv-table"><thead><tr>';
+        echo '<th scope="col">Account</th><th scope="col">Domain</th><th scope="col">Plan</th>';
+        echo '<th scope="col">CPU</th><th scope="col">Memory</th></tr></thead><tbody>';
+        foreach ($reseller_accounts['accounts'] ?? [] as $account) {
+            echo '<tr>';
+            foreach (['username', 'domain', 'plan_name', 'cpu_percent', 'mem_formatted'] as $field) {
+                $value = (string)($account[$field] ?? '');
+                echo '<td>' . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . ($field === 'cpu_percent' ? '%' : '') . '</td>';
+            }
+            echo '</tr>';
+        }
+        echo '</tbody></table></div></section>';
+    }
     echo '<script>UniselvResMan.init(window.location.href, false, "' . htmlspecialchars($current_user) . '", "' . uniselv_csrf_token($current_user) . '");</script>';
 }
 

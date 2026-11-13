@@ -41,6 +41,34 @@ class TelemetryHistoryTests(unittest.TestCase):
     def history(self, username):
         return self.handler.action_enduser_history(username, {'range': '7d'})
 
+    def test_latest_account_samples_are_scoped_and_break_timestamp_ties(self):
+        with closing(self.handler.get_db()) as conn, conn:
+            conn.executemany(
+                'INSERT INTO samples(username, uid, timestamp, cpu_percent) VALUES (?, ?, ?, ?)',
+                [('one', 1, 100, 10), ('one', 1, 200, 20), ('one', 1, 200, 30),
+                 ('two', 2, 300, 40)],
+            )
+            latest = self.handler._latest_account_samples(conn, ['one', 'missing'])
+        self.assertEqual(set(latest), {'one'})
+        self.assertEqual(latest['one']['timestamp'], 200)
+        self.assertEqual(latest['one']['cpu_percent'], 30)
+
+    def test_chart_projection_preserves_points_across_batch_boundaries(self):
+        start = int(time.time()) - 2 * 86400
+        with closing(self.handler.get_db()) as conn, conn:
+            conn.executemany(
+                'INSERT INTO samples(username, uid, timestamp, cpu_percent, limit_cpu_quota) VALUES (?, 1, ?, ?, ?)',
+                [('account', start + i * 180, i % 100, 100 if i < 200 else 200) for i in range(650)],
+            )
+        full = self.handler.action_enduser_history('account', {'range': '7d'})
+        charts = self.handler.action_enduser_history('account', {'range': '7d', 'view': 'charts'})
+        self.assertEqual(full['total_samples'], 650)
+        self.assertEqual(full['summary']['cpu_peak'], 99)
+        self.assertGreater(len(full['hourly_usage']), 24)
+        self.assertEqual(charts['points'], full['points'])
+        self.assertEqual(charts['hourly_usage'], [])
+        self.assertEqual(charts['points'][-1]['limit_cpu'], 200)
+
     def test_minute_rollup_keeps_each_account_and_host_metrics(self):
         minute = (int(time.time()) - 3 * 86400) // 60 * 60
         accounts = ('first', 'second', 'third')

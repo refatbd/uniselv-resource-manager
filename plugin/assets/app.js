@@ -336,7 +336,7 @@ class UniselvLiveTelemetry {
             if (this.fresh()) { this.finish(null, this.cached, false); return; }
             if (Date.now() < this.retryAt) { this.finish(new Error('Telemetry reconnect pending'), null, false); return; }
             await new Promise(resolve => {
-                this.cancelRequest = this.app.callApi(action, {}, (error, data) => {
+                this.cancelRequest = this.app.callApi(action, action === 'dashboard' ? {view: 'live'} : {}, (error, data) => {
                     this.finish(error || (data?.error ? new Error('Telemetry request failed') : null), data, true);
                     resolve();
                 }, {timeoutMs: 15000});
@@ -408,23 +408,11 @@ const UniselvResMan = {
             }
         }
 
-        // URL Fragment / Hash Route Navigation
+        const defaultTab = this.isAdmin ? 'overview' : 'dashboard';
         const initialTab = this.resolveTabAlias(window.location.hash);
-        if (initialTab && document.querySelector(`.uniselv-tab-btn[data-tab="${initialTab}"]`)) {
-            this.switchTab(initialTab, false);
-        } else {
-            const defaultTab = this.isAdmin ? 'overview' : 'dashboard';
-            if (!window.location.hash) {
-                if (window.history && window.history.replaceState) {
-                    window.history.replaceState(null, null, '#' + defaultTab);
-                }
-            }
-            if (!this.isAdmin) {
-                this.loadEnduserSnapshotsIndex();
-            }
-            if (this.isAdmin) this.refreshLiveTelemetry();
-        }
-        if (!this.isAdmin) this.refreshLiveTelemetry(true);
+        const initialExists = initialTab && document.querySelector(`.uniselv-tab-btn[data-tab="${initialTab}"]`);
+        this.switchTab(initialExists ? initialTab : defaultTab, !window.location.hash);
+        if (!this.isAdmin && initialTab && initialTab !== 'dashboard') this.refreshLiveTelemetry(true);
     },
 
     resolveTabAlias: function(hash) {
@@ -498,7 +486,24 @@ const UniselvResMan = {
         }
         document.querySelectorAll('.uniselv-tab-btn').forEach(btn => {
             btn.setAttribute('aria-controls', 'tab-' + btn.dataset.tab);
-            btn.setAttribute('aria-pressed', String(btn.classList.contains('active')));
+            btn.setAttribute('role', 'tab');
+            if (!btn.id) btn.id = 'uniselv-tab-' + btn.dataset.tab;
+            const panel = document.getElementById('tab-' + btn.dataset.tab);
+            if (panel) {
+                panel.setAttribute('role', 'tabpanel');
+                panel.setAttribute('aria-labelledby', btn.id);
+            }
+            btn.addEventListener('keydown', event => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                const tabs = [...btn.closest('.uniselv-tabs').querySelectorAll('.uniselv-tab-btn')]
+                    .filter(tab => tab.getClientRects().length);
+                const index = tabs.indexOf(btn);
+                if (index < 0) return;
+                event.preventDefault();
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 :
+                    (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+                tabs[next].focus();
+            });
             btn.addEventListener('click', (e) => {
                 const targetTab = btn.getAttribute('data-tab');
                 this.switchTab(targetTab, true);
@@ -520,7 +525,8 @@ const UniselvResMan = {
 
         document.querySelectorAll('.uniselv-tab-btn').forEach(b => {
             b.classList.toggle('active', b === btn);
-            b.setAttribute('aria-pressed', String(b === btn));
+            b.setAttribute('aria-selected', String(b === btn));
+            b.tabIndex = b === btn ? 0 : -1;
         });
         document.querySelectorAll('.uniselv-tab-content').forEach(c => c.classList.remove('active'));
 
@@ -574,7 +580,9 @@ const UniselvResMan = {
                 this.initAccountsPagination();
             }
         } else {
-            if (resolved === 'processes') {
+            if (resolved === 'dashboard') {
+                this.refreshLiveTelemetry(true);
+            } else if (resolved === 'processes') {
                 const tf = document.getElementById('uniselv-usage-timeframe')?.value || 'today';
                 this.loadCurrentUsage(tf);
                 this.loadLiveProcesses();
@@ -676,7 +684,7 @@ const UniselvResMan = {
 
     requestLiveTelemetry: function(action, callback) {
         if (this.liveTelemetry) return this.liveTelemetry.read(action, callback);
-        return this.callApi(action, {}, callback); // Initial/static test contexts.
+        return this.callApi(action, action === 'dashboard' ? {view: 'live'} : {}, callback);
     },
 
     refreshLiveTelemetry: function(initial = false) {
@@ -1809,7 +1817,7 @@ const UniselvResMan = {
         if (!chartContainer) return;
         chartContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: #64748b;">Loading historical telemetry data...</div>';
 
-        this.latestRead('enduser-history', 'history', { range: range, username: this.currentUser }, (err, res) => {
+        this.latestRead('enduser-history', 'history', { range, view: 'charts', username: this.currentUser }, (err, res) => {
             if (err || !res || res.error) {
                 const message = String(err?.message || res?.error || this.translate('telemetry_offline', 'Telemetry offline'));
                 this.showUsageError(chartContainer, [], message, () => this.loadHistory(range));
@@ -5004,14 +5012,15 @@ const UniselvResMan = {
             const redisGlobalEn = settings.platform_redis_acl_enabled !== '0';
             isoHead.append(
                 mk('h6', { style: 'font-weight:700;margin:0;' }, `3. Redis ACL Tenant Isolation Policy (Redis ${redis.redis_version || 'N/A'}) & Dedicated Port Registry`),
-                mk('span', { class: `uniselv-badge ${redis.default_protected ? 'badge-normal' : 'badge-warning'}` }, redis.default_protected ? 'DEFAULT USER PROTECTED' : 'DEFAULT USER OPEN (LEGACY SAFE)')
+                mk('span', { class: `uniselv-badge ${redis.default_protected ? 'badge-normal' : 'badge-warning'}` }, redis.default_protected ? 'DEFAULT USER PROTECTED' : 'PASSWORDLESS ACCESS ENABLED')
             );
             isoBox.append(isoHead);
             const rBar = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
             const rSaveEn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Save Redis Policy');
             rSaveEn.onclick = () => this.savePlatformSettings();
-            const rLock = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, redis.default_protected ? 'Unlock Default User (Compatibility)' : 'Lock Default User (Strict Isolation)');
-            rLock.onclick = () => this.runAdminRedisAction('lock_default', !redis.default_protected);
+            const rLock = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Disable Passwordless Access');
+            rLock.onclick = () => this.runAdminRedisAction('lock_default', true);
+            rLock.disabled = redis.default_protected;
             rBar.append(
                 mkCheck('plt-redis-global-en', 'Allow Enduser Self-Service Redis ACL', redisGlobalEn),
                 rSaveEn,
@@ -5726,7 +5735,7 @@ const UniselvResMan = {
                 const proxyRow = mk('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;' });
                 proxyRow.append(this._mkCodeCopyBox(alloc.reverb_proxy_snippet, 'Copy Proxy Config'));
                 const proxyBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.78rem;' }, '🌐 Enable Proxy in Webuzo Apache VHost');
-                proxyBtn.onclick = () => this.manageReverbProxyDialog(disc, portsMap.reverb_port);
+                proxyBtn.onclick = () => this.manageReverbProxyDialog(disc);
                 proxyRow.append(proxyBtn);
                 pBox.append(proxyRow);
             }
@@ -5750,8 +5759,10 @@ const UniselvResMan = {
             const euR = (redis.accounts || [])[0];
             if (!redisGlobalOn && !euR) {
                 rBox.append(mk('div', { style: 'background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:10px 12px;font-size:0.83rem;' }, 'Self-service Redis ACL provisioning is disabled by your server administrator.'));
-            } else if (euR?.env_snippet) {
-                rBox.append(this._mkCodeCopyBox(euR.env_snippet, 'Copy Settings'));
+            } else if (this._euRedisProvision?.env_snippet) {
+                rBox.append(this._mkCodeCopyBox(this._euRedisProvision.env_snippet, 'Copy settings'));
+            } else if (euR) {
+                rBox.append(mk('p', {}, 'Redis credentials are shown only when generated. Store them in your application settings.'));
             } else {
                 rBox.append(mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0;' }, 'Click "Create My Redis ACL" to generate dedicated prefix-locked Redis credentials for your Laravel queues & cache.'));
             }
@@ -5829,6 +5840,7 @@ const UniselvResMan = {
             if (operation === 'test') {
                 this._euRedisResult = d;
             } else {
+                this._euRedisProvision = d.env_snippet ? { env_snippet: d.env_snippet } : null;
                 UniselvNotify.success(`Redis ACL updated for ${d.redis_user || 'your account'}.`);
             }
             this.loadEnduserServices();
@@ -5912,33 +5924,33 @@ const UniselvResMan = {
         });
     },
 
-    manageReverbProxyDialog: function(disc, reverbPort) {
+    manageReverbProxyDialog: function(disc) {
         const apps = disc || [];
-        const domain = apps[0]?.domain || (this.currentUser ? `${this.currentUser}.com` : '');
+        const domain = apps[0]?.domain || document.querySelector('.uniselv-brand-subtitle')?.textContent.match(/\(([^()]+\.[^()]+)\)/)?.[1];
         if (!domain) {
             UniselvNotify.warning('No active domain detected for Reverb WebSocket reverse proxy.');
             return;
         }
-        const port = reverbPort || 22241;
-
-        this.callApi('manage_reverb_vhost_proxy', { operation: 'status', domain: domain, port: port }, (err, res) => {
+        this.callApi('manage_reverb_vhost_proxy', { operation: 'status', domain: domain }, (err, res) => {
             const d = res?.data || res;
             if (err || !d?.success) {
                 UniselvNotify.error(err || d?.error || 'Failed to inspect Apache VHost proxy status');
                 return;
             }
             const isInstalled = !!d.is_installed;
+            const port = Number(d.port) || 0;
+            if (!isInstalled && !port) return UniselvNotify.warning('Enable a managed Reverb service for this account first.');
             UniselvModal.confirm({
                 title: `Reverb Apache Reverse Proxy (${domain})`,
                 message: isInstalled
                     ? `<div style="text-align:left;">
                         <p style="margin:0 0 8px 0;">A dedicated Apache reverse proxy include is currently <strong>active</strong> for domain <code>${this.escapeHtml(domain)}</code>:</p>
-                        <pre style="background:#0f172a;color:#86efac;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">/usr/local/apps/apache2/etc/conf.d/uniselv-reverb-${this.escapeHtml(domain)}.conf\n\nRouting /app & /apps -> ws://127.0.0.1:${port}</pre>
+                        <pre style="background:#0f172a;color:#86efac;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">/var/webuzo-data/apache2/custom/domains/${this.escapeHtml(domain)}.conf\n\nWebSocket /app/ → 127.0.0.1:${port}</pre>
                         <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Click below to safely remove this proxy configuration and reload Apache.</p>
                        </div>`
                     : `<div style="text-align:left;">
                         <p style="margin:0 0 8px 0;">Automatically configure Apache reverse proxy for <code>${this.escapeHtml(domain)}</code>:</p>
-                        <pre style="background:#0f172a;color:#f8fafc;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">Include /usr/local/apps/apache2/etc/conf.d/uniselv-reverb-${this.escapeHtml(domain)}.conf\nProxyPass /app ws://127.0.0.1:${port}/app\nProxyPassReverse /app ws://127.0.0.1:${port}/app</pre>
+                        <pre style="background:#0f172a;color:#f8fafc;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">Include /var/webuzo-data/apache2/custom/domains/${this.escapeHtml(domain)}.conf\nWebSocket /app/ → 127.0.0.1:${port}</pre>
                         <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">This uses modular Apache include files without modifying your vhost files directly, performs an <code>apachectl configtest</code>, and reloads gracefully.</p>
                        </div>`,
                 icon: isInstalled ? 'warning' : 'info',
@@ -5947,7 +5959,7 @@ const UniselvResMan = {
                 onConfirm: () => {
                     const nextOp = isInstalled ? 'remove' : 'install';
                     UniselvNotify.info(`${isInstalled ? 'Removing' : 'Enabling'} Reverb Apache proxy...`);
-                    this.callApi('manage_reverb_vhost_proxy', { operation: nextOp, domain: domain, port: port }, (pErr, pRes) => {
+                    this.callApi('manage_reverb_vhost_proxy', { operation: nextOp, domain: domain }, (pErr, pRes) => {
                         const pd = pRes?.data || pRes;
                         if (pErr || !pd?.success) {
                             UniselvNotify.error(pErr || pd?.error || `Failed to ${nextOp} Reverb proxy`);

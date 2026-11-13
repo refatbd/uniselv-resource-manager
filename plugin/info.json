@@ -1,7 +1,7 @@
 {
   "name": "UNISELV Resource Manager",
   "slug": "uniselv-resman",
-  "version": "1.2.2",
+  "version": "1.2.7",
   "author": "<a href=\"https://refat.ovh\" target=\"_blank\">Refat Rahman</a>",
   "developer": {
     "name": "Refat Rahman",
@@ -11,8 +11,8 @@
     "instagram": "https://www.instagram.com/refat_official",
     "telegram": "https://t.me/refatbd"
   },
-  "requires": "3.0.0",
-  "compatibility": [],
+  "requires": "4.9.1",
+  "compatibility": ["4.9.1"],
   "download_url": "https://refat.ovh/plugins/uniselv-resman/",
   "download_link": "https://refat.ovh/plugins/uniselv-resman/uniselv-resman.zip",
   "last_updated": "2026-11-13",

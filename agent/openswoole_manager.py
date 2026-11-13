@@ -1546,7 +1546,8 @@ def run_openswoole_self_test(
             scripts_to_clean.append(script_path)
             script_path.write_text(
                 '<?php\n'
-                '$srv = new OpenSwoole\\HTTP\\Server("127.0.0.1", 0);\n'
+                '$serverClass = class_exists("OpenSwoole\\\\HTTP\\\\Server") ? "OpenSwoole\\\\HTTP\\\\Server" : "Swoole\\\\Http\\\\Server";\n'
+                '$srv = new $serverClass("127.0.0.1", 0);\n'
                 f'$srv->set(["worker_num" => {int(workers)}, "daemonize" => false, "log_file" => "/dev/null"]);\n'
                 '$srv->on("request", function($req, $res) { $res->end("ok"); });\n'
                 '$srv->start();\n',

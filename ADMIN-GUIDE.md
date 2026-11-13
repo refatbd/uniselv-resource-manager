@@ -4,6 +4,10 @@ A comprehensive guide for system administrators managing server resources, tenan
 
 ---
 
+## Clean Webuzo setup
+
+On a fresh Webuzo installation, install Apache and a supported PHP-FPM branch, create a hosting account, then assign that account a native **Resource Limit Plan** before activating UNISELV Resource Manager. Webuzo creates the native PHP pool when the first hosting account is configured. The isolation installer uses the pool and plan to calculate resource limits. Assign native plans to all accounts that will be managed by the plugin.
+
 ## Release 1.1.10 installation and recovery
 
 Activation installs the Apache FastCGI retry integration automatically and validates the native Apache configuration before reload. See bundled `docs/apache-fcgi-integration.md` for ownership, supported layout, verification and rollback. Do not paste a duplicate per-domain rule.
@@ -93,7 +97,7 @@ When a customer experiences a legitimate traffic spike (e.g. product launch, vir
 ## 6. External Billing Adapters (WHMCS & Blesta)
 
 UNISELV Resource Manager includes built-in adapters for external hosting automation:
-- **Webhook Endpoint:** Internal IPC action `run_adapter_sync`.
+- **Webhook Endpoint:** HTTPS POST to `/uniselv-resman/webhook.php` on the Webuzo Admin port. Configure the local `webhook_bearer_token` or `webhook_secret` first. If both are configured, send both `Authorization: Bearer …` and `X-Uniselv-Signature: sha256=…`. Compute the signature over the exact request body. These settings stay local when exporting or importing policies.
 - **Supported Events:**
   - `package_change`: Automatically updates user plan assignments upon invoice payment or plan upgrade in WHMCS/Blesta.
   - `account_suspend`: Restricts limits or freezes workloads.

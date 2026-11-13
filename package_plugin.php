@@ -16,7 +16,7 @@ function buildReleaseZip(string $root, string $target, string $prefix): array {
     $entries = [];
     foreach ($it as $file) {
         $rel = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
-        if (preg_match('~(^|/)(\.git|__pycache__|node_modules|\.pytest_cache)(/|$)~', $rel) || preg_match('~\.(pyc|zip|log|bak)$~', $rel)) continue;
+        if (preg_match('~(^|/)(\.git|\.gitignore|\.idea|\.vscode|\.DS_Store|\.env(?:\.[^/]+)?|tests|__pycache__|node_modules|\.pytest_cache|docs)(/|$)~', $rel) || preg_match('~\.(pyc|zip|log|bak)$~', $rel)) continue;
         if ($file->isLink()) throw new RuntimeException('Refusing symlink in package: '.$rel);
         $entries[$rel] = $file;
     }

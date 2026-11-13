@@ -191,7 +191,7 @@ class PlatformManagerTestCase(unittest.TestCase):
         calls = []
         kv_store = {}
 
-        def fake_redis(args, auth_user='', auth_pass='', timeout=5.0):
+        def fake_redis(args, auth_user='', auth_pass='', timeout=5.0, **kwargs):
             calls.append((args, auth_user))
             cmd = args[0] if args else ''
             if cmd == 'PING':
@@ -200,8 +200,13 @@ class PlatformManagerTestCase(unittest.TestCase):
                 return 0, 'redis_version:8.2.2\n', ''
             if cmd == 'ACL' and len(args) >= 2 and args[1] == 'GETUSER':
                 return 0, 'flags\non\nnopass', ''
-            if cmd == 'ACL' and len(args) >= 2 and args[1] in ('SETUSER', 'DELUSER', 'SAVE'):
+            if cmd == 'ACL' and args[1] == 'DELUSER':
+                return 0, '1', ''
+            if cmd == 'ACL' and args[1] in ('SETUSER', 'SAVE'):
                 return 0, 'OK', ''
+            if cmd == 'ACL' and args[1] == 'DRYRUN':
+                allowed = args[3] == 'SET' and args[4].startswith('starter1:')
+                return (0, 'OK', '') if allowed else (1, '', 'User has no permissions to run this command')
             if cmd == 'SET' and args[1].startswith('starter1:'):
                 kv_store[args[1]] = args[2]
                 return 0, 'OK', ''
@@ -225,17 +230,18 @@ class PlatformManagerTestCase(unittest.TestCase):
             self.assertTrue(prov['success'])
             self.assertEqual(prov['redis_user'], 'u_starter1')
             self.assertEqual(prov['key_prefix'], 'starter1:')
-            self.assertIn('aclfile', conf_path.read_text(encoding='utf-8'))
+            self.assertIn((['ACL', 'SAVE'], ''), calls)
 
             test_res = pm.test_redis_acl_isolation(self.db_path, 'starter1')
             self.assertTrue(test_res['success'])
             self.assertTrue(test_res['all_passed'])
-            self.assertEqual(len(test_res['steps']), 3)
+            self.assertEqual(len(test_res['steps']), 4)
+            self.assertFalse(any(args[0] == 'FLUSHALL' for args, _ in calls))
 
             st_scoped = pm.get_redis_isolation_status(self.collector, self.db_path, scoped_user='starter1')
             st_admin = pm.get_redis_isolation_status(self.collector, self.db_path, scoped_user=None)
-            self.assertTrue(len(st_scoped['accounts'][0]['password']) > 8)
-            self.assertEqual(st_admin['accounts'][0]['password'], '')
+            self.assertNotIn('password', st_scoped['accounts'][0])
+            self.assertNotIn('password', st_admin['accounts'][0])
 
             rev = pm.revoke_redis_acl(self.db_path, 'starter1', actor='admin')
             self.assertTrue(rev['success'])
@@ -280,6 +286,7 @@ class PlatformManagerTestCase(unittest.TestCase):
             conn.execute("INSERT OR REPLACE INTO package_mappings (billing_package, resource_plan, updated_at) VALUES ('starter_pkg', 'starter', 1)")
             conn.execute("INSERT OR REPLACE INTO openswoole_plan_policies (plan_name, allowed, max_workers_override, max_task_workers_override, updated_at, updated_by) VALUES ('starter', 1, 2, 1, 1, 'root')")
             conn.execute("INSERT OR REPLACE INTO redis_acl_accounts (username, redis_user, key_prefix, password_hash, password_plain_enc, enabled, updated_at) VALUES ('starter1', 'u_starter1', 'starter1:', 'h1', 'TOP_SECRET_REDIS_TOKEN_123', 1, 1)")
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('webhook_secret', 'local-webhook-secret')")
             conn.commit()
         finally:
             conn.close()
@@ -289,10 +296,12 @@ class PlatformManagerTestCase(unittest.TestCase):
         raw_json = json.dumps(exp['bundle'])
         self.assertNotIn('TOP_SECRET_REDIS_TOKEN_123', raw_json)
         self.assertNotIn('password_plain_enc', raw_json)
+        self.assertNotIn('webhook_secret', exp['bundle']['settings'])
 
         # Modify bundle and test dry-run vs real apply
         bundle = exp['bundle']
         bundle['settings']['platform_log_threshold_mib'] = '500'
+        bundle['settings']['webhook_secret'] = 'foreign-webhook-secret'
         dry = pm.import_policy_bundle(self.collector, self.db_path, 'root', bundle, dry_run=True)
         self.assertTrue(dry['success'])
         self.assertTrue(dry['dry_run'])
@@ -302,6 +311,15 @@ class PlatformManagerTestCase(unittest.TestCase):
         self.assertTrue(applied['success'])
         self.assertFalse(applied['dry_run'])
         self.assertEqual(pm.load_platform_settings(self.db_path)['platform_log_threshold_mib'], '500')
+        conn = sqlite3.connect(self.db_path)
+        try:
+            self.assertEqual(conn.execute("SELECT value FROM settings WHERE key = 'webhook_secret'").fetchone(),
+                             ('local-webhook-secret',))
+        finally:
+            conn.close()
+        invalid = pm.import_policy_bundle(self.collector, self.db_path, 'root',
+                                          {'schema_version': 1, 'package_mappings': ['invalid']}, dry_run=True)
+        self.assertFalse(invalid['success'])
 
     def test_ipc_rbac_platform_guards(self):
         if sys.platform == 'win32':
@@ -565,8 +583,9 @@ class PlatformManagerTestCase(unittest.TestCase):
         with mock.patch.object(pm, '_find_redis_cli', return_value=None):
             eu_red = pm.get_redis_isolation_status(self.collector, self.db_path, scoped_user='starter1')
             ad_red = pm.get_redis_isolation_status(self.collector, self.db_path, scoped_user=None)
-        self.assertIn('REDIS_URL=redis://u_starter1:SecrEtUrl99@127.0.0.1:6379/0', eu_red['accounts'][0]['env_snippet'])
-        self.assertIn('REDIS_URL=redis://u_starter1:<use_provisioned_secret>@127.0.0.1:6379/0', ad_red['accounts'][0]['env_snippet'])
+        self.assertNotIn('env_snippet', eu_red['accounts'][0])
+        self.assertNotIn('SecrEtUrl99', str(eu_red))
+        self.assertNotIn('env_snippet', ad_red['accounts'][0])
 
         # Strict control_laravel_service test must FAIL if .env is missing or unit is inactive
         conn = sqlite3.connect(self.db_path)
@@ -840,7 +859,7 @@ class PlatformManagerTestCase(unittest.TestCase):
             self.assertTrue(inst['success'])
             self.assertTrue(inst['is_installed'])
             self.assertIn('BEGIN UNISELV SCHEDULER', crontab_content[0])
-            self.assertIn('artisan schedule:run', crontab_content[0])
+            self.assertIn('schedule:run', crontab_content[0])
 
             # 3. Status: Now installed
             st2 = pm.manage_laravel_scheduler_cron(self.collector, self.db_path, 'starter1', 'starter1', app_path=str(app_dir), php_branch='php84', operation='status')
@@ -861,8 +880,20 @@ class PlatformManagerTestCase(unittest.TestCase):
         def _fake_run(cmd, **kwargs):
             return mock.MagicMock(returncode=0, stdout='Syntax OK\n', stderr='')
 
+        apachectl = conf_d / 'apachectl'
+        apachectl.touch()
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("INSERT INTO managed_app_services (username, uid, service_type, service_slug, app_path, port, unit_name, created_at, updated_at) VALUES ('starter1', 1001, 'reverb', 'reverb', '/home/starter1/app', 22241, 'reverb.service', 1, 1)")
+            conn.commit()
+        finally:
+            conn.close()
         with mock.patch.object(pm, 'APACHE_CONF_DIR', conf_d), \
+             mock.patch.object(pm, 'APACHECTL', apachectl), \
+             mock.patch.object(pm, '_owns_webuzo_domain', side_effect=lambda user, domain: domain == 'example.com'), \
              mock.patch('subprocess.run', side_effect=_fake_run):
+            self.assertEqual(pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'starter1', 'starter1', 'foreign.example', 22241)['status_code'], 403)
+            self.assertEqual(pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'starter1', 'starter1', 'example.com', 6379)['status_code'], 403)
             # 1. Status: initially not installed
             st = pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'root', 'starter1', 'example.com', 22241, 'status', is_admin=True)
             self.assertTrue(st['success'])
@@ -872,12 +903,10 @@ class PlatformManagerTestCase(unittest.TestCase):
             inst = pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'root', 'starter1', 'example.com', 22241, 'install', is_admin=True)
             self.assertTrue(inst['success'])
             self.assertTrue(inst['is_installed'])
-            target_conf = conf_d / 'uniselv-reverb-example.com.conf'
+            target_conf = conf_d / 'example.com.conf'
             self.assertTrue(target_conf.exists())
             conf_text = target_conf.read_text(encoding='utf-8')
             self.assertIn('ws://127.0.0.1:22241/app', conf_text)
-            self.assertIn('ProxyPassReverse /app', conf_text)
-            self.assertIn('example.com', conf_text)
 
             # 3. Remove
             rem = pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'root', 'starter1', 'example.com', 22241, 'remove', is_admin=True)

@@ -246,6 +246,14 @@ def init_db(db_path: str):
         conn.executescript(SCHEMA_SQL)
         conn.commit()
 
+        # Retain the legacy column for upgrades, but erase its plaintext values.
+        conn.execute("PRAGMA secure_delete = ON")
+        cleared = conn.execute("UPDATE redis_acl_accounts SET password_plain_enc = '' "
+                               "WHERE coalesce(password_plain_enc, '') != ''").rowcount
+        conn.commit()
+        if cleared:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
         # Dynamic schema migration for existing databases
         cur = conn.cursor()
         cur.execute("PRAGMA table_info(samples)")

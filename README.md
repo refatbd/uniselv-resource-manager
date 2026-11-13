@@ -1,4 +1,4 @@
-Current runtime release: **1.2.0**. Full Platform Operations & Zero-Terminal App Services suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab) with OS build preflight & one-click toolchain/Composer installer, managed Laravel Queue Workers / Horizon / Reverb WebSocket / Scheduler services inside `golden-<uid>.slice`, per-account dedicated ports, Redis ACL tenant isolation, Node.js/Python/heavy-binary containment guard, app log watchdog, and server-to-server policy migration, alongside the dedicated Admin **OpenSwoole** multi-PHP governance console. See [changelog](CHANGELOG.md).
+Current runtime release: **1.2.7**. Full Platform Operations & Zero-Terminal App Services suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab) with OS build preflight & one-click toolchain/Composer installer, managed Laravel Queue Workers / Horizon / Reverb WebSocket / Scheduler services inside `golden-<uid>.slice`, per-account dedicated ports, Redis ACL tenant isolation, Node.js/Python/heavy-binary containment guard, app log watchdog, and server-to-server policy migration, alongside the dedicated Admin **OpenSwoole** multi-PHP governance console. See [changelog](CHANGELOG.md).
 
 > Previous release **1.1.36**, 2026-11-04. Plan-proportional PHP worker ceiling calculation and dynamic CPUWeight.
 > Previous release **1.1.35**, 2026-11-01. PAM Session Guard cron fast-path bypass and slice reuse.
@@ -31,7 +31,7 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
                                         v
 +-----------------------------------------------------------------------------------+
 |                Privileged Background Daemon (`uniselv-resman-agent`)              |
-|  - Systemd Service: MemoryMax=64M, TasksMax=32, AmbientCapabilities=CAP_KILL      |
+|  - Systemd Service: MemoryMax=128M, TasksMax=64      |
 |  - `collector.py`: High-resolution cgroups v2 delta accounting (10s interval)     |
 |  - `ipc_server.py`: Request router with caller authorization & IDOR isolation     |
 |  - `schema.py`: SQLite WAL bounded storage (`/var/lib/uniselv-resource-manager/`) |
@@ -91,7 +91,7 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
   - Configurable sliding-window thresholds: Telemetry Samples (default 30d), Diagnostic Snapshots (14d), Resource Throttling Events (30d), Audit Trail Logs (90d).
   - Storage quota monitor: Live progress bar showing exact SQLite database footprint against a 100 MiB safety threshold with table row counts.
   - On-Demand Optimization: One-click "Prune & Optimize Database Now" action triggering WAL checkpoint truncation and filesystem VACUUM.
-  - Continuous tracking of daemon RSS memory (bounded by `MemoryMax=64M`).
+  - Continuous tracking of daemon RSS memory (bounded by `MemoryMax=128M`).
 
 ---
 

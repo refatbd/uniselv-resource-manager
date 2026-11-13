@@ -358,6 +358,22 @@ class IpcRequestHandler:
         self.collector = collector
         self.golden_shield = GoldenShieldManager(db_conn_factory=self.get_db)
         self.maintenance_mode = self._load_maintenance_mode()
+        self._overview_shield_lock = threading.Lock()
+        self._overview_shield_sample = None
+
+    @staticmethod
+    def _latest_account_samples(conn, usernames):
+        query = "SELECT * FROM samples WHERE username = ? ORDER BY timestamp DESC, id DESC LIMIT 1"
+        return {name: dict(row) for name in usernames
+                if (row := conn.execute(query, (name,)).fetchone()) is not None}
+
+    def _overview_shield_status(self):
+        with self._overview_shield_lock:
+            sample = self._overview_shield_sample
+            if sample is None or time.monotonic() >= sample[0]:
+                status = self.golden_shield.get_status()
+                sample = self._overview_shield_sample = (time.monotonic() + 3, status)
+            return dict(sample[1])
 
     def _load_maintenance_mode(self) -> bool:
         """Load persisted maintenance state from SQLite settings."""
@@ -506,6 +522,8 @@ class IpcRequestHandler:
 
             # Common / Enduser endpoints
             if action == 'get_enduser_dashboard':
+                if params.get('view') == 'live':
+                    return self.action_enduser_dashboard(target_user, include_diagnostics=False)
                 return self.action_enduser_dashboard(target_user)
             elif action == 'get_enduser_history':
                 return self.action_enduser_history(target_user, params)
@@ -1124,7 +1142,7 @@ class IpcRequestHandler:
             }
         }
 
-    def action_enduser_dashboard(self, username: str) -> Dict[str, Any]:
+    def action_enduser_dashboard(self, username: str, *, include_diagnostics: bool = True) -> Dict[str, Any]:
         users = self.collector.get_webuzo_users()
         if username not in users:
             conn_fb = self.get_db()
@@ -1272,9 +1290,11 @@ class IpcRequestHandler:
                 'alert_threshold_mem': self.collector.settings.get('alert_threshold_mem', 80),
                 'alert_threshold_tasks': self.collector.settings.get('alert_threshold_tasks', 80),
             },
-            'php_workers': self.get_php_workers_by_version(uid),
-            'upgrade_recommendation': self.get_account_upgrade_recommendations(username),
-            'optimization_guidance': self.get_account_optimization_guidance(username)
+            **({
+                'php_workers': self.get_php_workers_by_version(uid),
+                'upgrade_recommendation': self.get_account_upgrade_recommendations(username),
+                'optimization_guidance': self.get_account_optimization_guidance(username),
+            } if include_diagnostics else {}),
         }
 
     _history_changed = threading.Condition()
@@ -1283,7 +1303,7 @@ class IpcRequestHandler:
 
     def action_enduser_history(self, username: str, params: Dict[str, Any]) -> Dict[str, Any]:
         time_range = str(params.get('range', 'today'))
-        key = (username, time_range)
+        key = (username, time_range, params.get('view') == 'charts')
         if time_range == 'custom':
             key += (str(params.get('start')), str(params.get('end')))
         deadline = time.monotonic() + 11
@@ -1346,6 +1366,7 @@ class IpcRequestHandler:
 
     def _query_enduser_history(self, username: str, params: Dict[str, Any]) -> Dict[str, Any]:
         time_range = str(params.get('range', 'today'))
+        charts_only = params.get('view') == 'charts'
         now = int(time.time())
 
         local_now = time.localtime(now)
@@ -1388,19 +1409,20 @@ class IpcRequestHandler:
         limits = ('limit_cpu_quota', 'limit_mem_max_bytes', 'limit_tasks_max', 'limit_io_read_bps',
                   'limit_io_write_bps', 'limit_io_read_iops', 'limit_io_write_iops')
 
-        # Each bucket is a disjoint range of idx_samples_user_time. Grouping the
-        # raw rows by a calculated bucket makes SQLite sort the full history.
+        # Keep each temporary GROUP BY bounded to an index range of 24 buckets.
+        # This avoids one statement per bucket and a sort of the entire history.
         def aggregate_query(fields):
             return f"""
             WITH aggregated AS (
-                SELECT {', '.join(fields)}
+                SELECT (timestamp - ?) / ? AS bucket, {', '.join(fields)}
                 FROM samples WHERE username = ? AND timestamp BETWEEN ? AND ?
+                GROUP BY bucket
             )
             SELECT a.*, {', '.join(f's.{col}' for col in limits)}
             FROM aggregated a JOIN samples s ON s.id = (
                 SELECT id FROM samples WHERE username = ? AND timestamp = a.latest
                 ORDER BY id DESC LIMIT 1
-            )
+            ) ORDER BY a.bucket
         """
 
         chart_query = aggregate_query(projection)
@@ -1409,12 +1431,13 @@ class IpcRequestHandler:
         def buckets(conn, query, width, origin, earliest, latest):
             first_bucket = (earliest - origin) // width
             last_bucket = (latest - origin) // width
-            for bucket in range(first_bucket, last_bucket + 1):
+            for bucket in range(first_bucket, last_bucket + 1, 24):
                 first = origin + bucket * width
-                row = conn.execute(query, (username, max(first, earliest),
-                                           min(first + width - 1, latest), username)).fetchone()
-                if row is not None:
-                    yield first, row
+                last = first + 24 * width - 1
+                rows = conn.execute(query, (origin, width, username, max(first, earliest),
+                                            min(last, latest), username))
+                for row in rows:
+                    yield origin + row['bucket'] * width, row
 
         def limit(row, column):
             value = row[column]
@@ -1461,7 +1484,7 @@ class IpcRequestHandler:
                         ORDER BY timestamp DESC LIMIT 1)
             """, (username, start_ts, end_ts) * 2).fetchone()
             earliest, latest = bounds
-            if earliest is not None:
+            if earliest is not None and not charts_only:
                 hour_origin = midnight % 3600
                 hourly = list(buckets(conn, hourly_query, 3600, hour_origin, earliest, latest))
                 total_len = sum(row['total_samples'] for _, row in hourly)
@@ -1496,6 +1519,7 @@ class IpcRequestHandler:
                     })
                 hourly_usage.reverse()
 
+            if earliest is not None:
                 observed_span = latest - earliest + 1
                 for _, row in buckets(conn, chart_query, (observed_span + 299) // 300, earliest, earliest, latest):
                     cpu_limit, mem_limit, tasks_limit, io_limit, iops_limit = row_limits(row)
@@ -1966,13 +1990,7 @@ class IpcRequestHandler:
             cur = conn.cursor()
             cur.execute("SELECT * FROM system_metrics ORDER BY timestamp DESC LIMIT 1")
             sys_m = cur.fetchone()
-            cur.execute("""
-                SELECT s.* FROM samples s
-                INNER JOIN (
-                    SELECT username, MAX(timestamp) as max_ts FROM samples GROUP BY username
-                ) latest ON s.username = latest.username AND s.timestamp = latest.max_ts
-            """)
-            latest_user_samples = {r['username']: dict(r) for r in cur.fetchall()}
+            latest_user_samples = self._latest_account_samples(conn, users)
         finally:
             conn.close()
 
@@ -2011,7 +2029,7 @@ class IpcRequestHandler:
             'maintenance_mode': self.maintenance_mode
         }
 
-        gs_status = self.golden_shield.get_status()
+        gs_status = self._overview_shield_status()
         calc = gs_status.get('calculated_policy') or gs_status.get('configured_policy') or {}
         # Display configured policy, not an unapplied Auto recommendation in Manual mode.
         policy = gs_status.get('configured_policy') or {}
@@ -2084,14 +2102,7 @@ class IpcRequestHandler:
         users = self.collector.get_webuzo_users()
         conn = self.get_db()
         try:
-            cur = conn.cursor()
-            cur.execute("""
-                SELECT s.* FROM samples s
-                INNER JOIN (
-                    SELECT username, MAX(timestamp) as max_ts FROM samples GROUP BY username
-                ) latest ON s.username = latest.username AND s.timestamp = latest.max_ts
-            """)
-            latest_samples = {r['username']: dict(r) for r in cur.fetchall()}
+            latest_samples = self._latest_account_samples(conn, users)
         finally:
             conn.close()
 
