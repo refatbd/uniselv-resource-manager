@@ -4806,7 +4806,7 @@ const UniselvResMan = {
                 chromeActions.append(bInstChrome);
             } else {
                 const bTestChrome = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Run Smoke Test');
-                bTestChrome.onclick = () => this.testAdminChrome();
+                bTestChrome.onclick = () => this.testAdminChrome(bTestChrome);
                 const bSyncChrome = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Sync OS Permissions');
                 bSyncChrome.onclick = () => this.syncChromePermissions();
                 const bUninstChrome = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Uninstall Chrome');
@@ -4831,6 +4831,19 @@ const UniselvResMan = {
             matrixBulk.append(bAllowAllChrome, bRevokeAllChrome, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, 'Synchronizes immediately with Linux group "uniselv-chrome".'));
             matrixBody.append(matrixBulk);
 
+            const matrixFilterRow = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;' });
+            const searchInput = mk('input', {
+                type: 'text',
+                placeholder: '🔍 Quick search account or plan...',
+                class: 'uniselv-form-input',
+                style: 'max-width:240px;font-size:0.78rem;padding:4px 10px;height:28px;'
+            });
+            const filterAll = mk('button', { class: 'uniselv-btn btn-sm btn-primary', type: 'button', style: 'font-size:0.72rem;padding:3px 8px;' }, `All (${chromeTotalUsers})`);
+            const filterAllowed = mk('button', { class: 'uniselv-btn btn-sm btn-outline', type: 'button', style: 'font-size:0.72rem;padding:3px 8px;' }, `Allowed (${chromeAllowedCount})`);
+            const filterExcluded = mk('button', { class: 'uniselv-btn btn-sm btn-outline', type: 'button', style: 'font-size:0.72rem;padding:3px 8px;' }, `Excluded (${chromeTotalUsers - chromeAllowedCount})`);
+            matrixFilterRow.append(searchInput, filterAll, filterAllowed, filterExcluded);
+            matrixBody.append(matrixFilterRow);
+
             const uMatrix = chrome.user_matrix || [];
             if (uMatrix.length) {
                 const mWrap = mk('div', { class: 'uniselv-table-wrap', style: 'max-height:300px;overflow-y:auto;' });
@@ -4838,8 +4851,33 @@ const UniselvResMan = {
                 const mh = mt.createTHead().insertRow();
                 ['Account', 'Plan', 'Chrome Access', 'OS Group Membership', 'Quick Action'].forEach(c => mh.append(mk('th', {}, c)));
                 const mb = mt.createTBody();
+
+                let currentFilter = 'all';
+                const filterRows = () => {
+                    const q = searchInput.value.toLowerCase().trim();
+                    const trs = mb.querySelectorAll('tr');
+                    trs.forEach(tr => {
+                        const u = tr.dataset.username || '';
+                        const p = tr.dataset.plan || '';
+                        const granted = tr.dataset.granted === '1';
+                        const matchesSearch = !q || u.includes(q) || p.includes(q);
+                        let matchesFilter = true;
+                        if (currentFilter === 'allowed') matchesFilter = granted;
+                        if (currentFilter === 'excluded') matchesFilter = !granted;
+                        tr.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+                    });
+                };
+                searchInput.oninput = filterRows;
+                filterAll.onclick = () => { currentFilter = 'all'; filterAll.className = 'uniselv-btn btn-sm btn-primary'; filterAllowed.className = 'uniselv-btn btn-sm btn-outline'; filterExcluded.className = 'uniselv-btn btn-sm btn-outline'; filterRows(); };
+                filterAllowed.onclick = () => { currentFilter = 'allowed'; filterAllowed.className = 'uniselv-btn btn-sm btn-primary'; filterAll.className = 'uniselv-btn btn-sm btn-outline'; filterExcluded.className = 'uniselv-btn btn-sm btn-outline'; filterRows(); };
+                filterExcluded.onclick = () => { currentFilter = 'excluded'; filterExcluded.className = 'uniselv-btn btn-sm btn-primary'; filterAll.className = 'uniselv-btn btn-sm btn-outline'; filterAllowed.className = 'uniselv-btn btn-sm btn-outline'; filterRows(); };
+
                 uMatrix.forEach(row => {
                     const tr = mb.insertRow();
+                    tr.dataset.username = (row.username || '').toLowerCase();
+                    tr.dataset.plan = (row.plan_name || '').toLowerCase();
+                    tr.dataset.granted = row.granted ? '1' : '0';
+
                     const chk = mk('input', { type: 'checkbox' });
                     chk.checked = Boolean(row.granted);
                     chk.onchange = () => this.toggleUserChromePermission(row.username, chk.checked);
@@ -5934,7 +5972,7 @@ const UniselvResMan = {
             const euToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
             euToolbar.append(this._mkCodeCopyBox(`CHROME_PATH=${euChrome.executable_path || '/usr/bin/google-chrome'}`, 'Copy Path'));
             const bEuTest = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '🧪 Run Chrome Smoke Test');
-            bEuTest.onclick = () => this.runEnduserChromeTest();
+            bEuTest.onclick = () => this.runEnduserChromeTest(bEuTest);
             bEuTest.disabled = !euChromeOk;
             const bEuKill = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, '🧹 Stop All My Chrome Processes');
             bEuKill.onclick = () => this.killEnduserChromeProcesses();
@@ -5964,6 +6002,11 @@ const UniselvResMan = {
                 });
                 procWrap.append(pt);
                 euChromeBox.append(procWrap);
+            } else {
+                euChromeBox.append(mk('div', { style: 'font-size:0.78rem;color:#64748b;margin-bottom:10px;padding:6px 10px;background:#ffffff;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;gap:6px;' },
+                    mk('span', { style: 'color:#16a34a;font-weight:700;' }, '●'),
+                    'Active Headless Instances: 0 (No background Chrome processes consuming server memory)'
+                ));
             }
 
             const snipDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;' });
@@ -6042,10 +6085,21 @@ const UniselvResMan = {
         }, { timeoutMs: 30000 });
     },
 
-    testAdminChrome: function() {
+    testAdminChrome: function(btn) {
         const outBox = document.getElementById('plt-chrome-test-output');
-        if (outBox) outBox.textContent = 'Running headless smoke test as root...';
+        const origText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Testing Engine...';
+        }
+        if (outBox) {
+            outBox.innerHTML = '<div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Running headless smoke test as root...</div>';
+        }
         this.callApi('run_admin_chrome_test', { username: 'root' }, (err, res) => {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = origText || 'Run Smoke Test';
+            }
             const d = res?.data || res;
             if (!outBox) return;
             outBox.replaceChildren();
@@ -6094,10 +6148,21 @@ const UniselvResMan = {
         });
     },
 
-    runEnduserChromeTest: function() {
+    runEnduserChromeTest: function(btn) {
         const outBox = document.getElementById('eu-chrome-test-output');
-        if (outBox) outBox.textContent = 'Executing headless smoke test as your user account...';
+        const origText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Testing Engine...';
+        }
+        if (outBox) {
+            outBox.innerHTML = '<div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Executing headless smoke test under your account identity...</div>';
+        }
         this.callApi('enduser_chrome_test', {}, (err, res) => {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = origText || '🧪 Run Chrome Smoke Test';
+            }
             const d = res?.data || res;
             if (!outBox) return;
             outBox.replaceChildren();
