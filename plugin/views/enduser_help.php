@@ -37,6 +37,7 @@ sort($uniselvEuPhp);
     <div class="uniselv-help-cats">
         <button class="uniselv-cat-btn active" data-cat="all" onclick="UniselvResMan.setHelpCategory('all')">All Documentation</button>
         <button class="uniselv-cat-btn" data-cat="quickstart" onclick="UniselvResMan.setHelpCategory('quickstart')">Getting Started</button>
+        <button class="uniselv-cat-btn" data-cat="laravel" onclick="UniselvResMan.setHelpCategory('laravel')">Laravel &amp; App Blueprint</button>
         <button class="uniselv-cat-btn" data-cat="features" onclick="UniselvResMan.setHelpCategory('features')">Features & Tools</button>
         <button class="uniselv-cat-btn" data-cat="metrics" onclick="UniselvResMan.setHelpCategory('metrics')">Understanding Metrics</button>
         <button class="uniselv-cat-btn" data-cat="scenarios" onclick="UniselvResMan.setHelpCategory('scenarios')">Practical Guides</button>
@@ -192,6 +193,60 @@ sort($uniselvEuPhp);
 
                 <p><strong>Q: Is it safe to stop a process?</strong><br>
                 A: Stop only an eligible process you recognize as stuck. It interrupts its work and can fail an active request, import, backup or checkout. Database transactions do not guarantee application-level consistency for every interrupted task.</p>
+            </div>
+        </div>
+
+        <!-- LARAVEL DEVELOPER INTEGRATION BLUEPRINT (ZERO-TOUCH SERVER PHILOSOPHY) -->
+        <div class="uniselv-help-card" data-cat="laravel" id="help-topic-laravel-blueprint" style="border-top: 3px solid #f97316;">
+            <span class="uniselv-help-badge" style="background:#fff7ed;color:#ea580c;border:1px solid #ffedd5;">Zero-Touch Architecture</span>
+            <h4 class="uniselv-help-card-title">Laravel Developer Integration Blueprint</h4>
+            <div class="uniselv-help-card-desc">
+                <p>UNISELV operates on a strict <strong>Zero-Touch Application Philosophy</strong>. The server never modifies your application source code, <code>.env</code> file, or project repository. Instead, UNISELV provisions secure server-level isolation (Cgroups v2, Redis ACLs, dedicated ports, Supervisor drop-ins, and Webuzo Cron) and lets you configure your Laravel application cleanly using standard environment variables.</p>
+
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">1. Redis ACL &amp; Key-Prefix Isolation</h5>
+                <p style="font-size:0.83rem;margin:0 0 6px 0;">To protect shared server resources, each tenant account is assigned an isolated Redis ACL user restricted strictly to keys matching <code>&lt;account&gt;:*</code>. In your Laravel project's <code>.env</code>, configure:</p>
+                <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_USERNAME=u_yourusername
+REDIS_PASSWORD=your_isolated_acl_password
+REDIS_PREFIX=yourusername:
+HORIZON_PREFIX=yourusername:horizon:
+CACHE_PREFIX=yourusername:cache:</code></pre>
+
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">2. Laravel Reverb WebSocket &amp; VHost Reverse Proxy</h5>
+                <p style="font-size:0.83rem;margin:0 0 6px 0;">Each account has a dedicated private port (e.g. <code>22241</code>) assigned to Reverb. In your <code>.env</code>:</p>
+                <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>REVERB_APP_ID=your-app-id
+REVERB_APP_KEY=your-app-key
+REVERB_APP_SECRET=your-app-secret
+REVERB_HOST="127.0.0.1"
+REVERB_PORT=22241
+REVERB_SCHEME=http
+
+# Client-facing WebSocket configuration:
+VITE_REVERB_HOST="yourdomain.com"
+VITE_REVERB_PORT=443
+VITE_REVERB_SCHEME=https</code></pre>
+                <p style="font-size:0.82rem;color:#475569;margin:0 0 10px 0;">Click <strong>"🌐 Enable Proxy in Webuzo Apache VHost"</strong> in <em>App Services &amp; Tools</em>. This creates a non-invasive include file (<code>/usr/local/apps/apache2/etc/conf.d/uniselv-reverb-{domain}.conf</code>) that forwards <code>/app</code> and <code>/apps</code> to your private Reverb port over SSL automatically.</p>
+
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">3. Non-Root Supervisor Drop-In Workers</h5>
+                <p style="font-size:0.83rem;margin:0 0 6px 0;">You do not need root access to manage workers. Drop a standard Supervisor config file into your scoped configuration folder: <code>/home/&lt;user&gt;/.uniselv-supervisor/conf.d/worker.conf</code>:</p>
+                <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>[program:laravel-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/local/apps/php84/bin/php /home/user/public_html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/home/user/.uniselv-logs/queue.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=2</code></pre>
+                <p style="font-size:0.82rem;color:#475569;margin:0 0 10px 0;">The UNISELV agent auto-detects this file, launches your workers under your account's isolated Cgroup slice, and provides <strong>Restart</strong>, <strong>Test</strong>, and <strong>Logs</strong> tools in your panel.</p>
+
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">4. Laravel Scheduler (Automated Webuzo Cron)</h5>
+                <p style="font-size:0.83rem;margin:0 0 6px 0;">Under <em>App Services &amp; Tools</em>, click <strong>"⏱️ Webuzo Cron"</strong> in the Laravel Scheduler row. UNISELV safely registers the 1-minute runner in your user crontab without terminal commands:</p>
+                <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>* * * * * /usr/local/apps/php84/bin/php /home/user/public_html/artisan schedule:run > /dev/null 2>&1</code></pre>
             </div>
         </div>
 

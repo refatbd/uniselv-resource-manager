@@ -3330,6 +3330,95 @@ const UniselvResMan = {
                     this.updateEqualizer('admin-eq-load', loadPct, true);
                 }
             }
+
+            // Real-time Top Consumers Table Update
+            if (Array.isArray(res.top_consumers)) {
+                this.renderTopConsumers(res.top_consumers);
+            }
+
+            // Real-time Active Resource Boosts Countdown Banner Update
+            if (res.active_boosts) {
+                this.renderActiveBoostsBanner(res.active_boosts);
+            }
+        });
+    },
+
+    renderTopConsumers: function(consumers) {
+        const tbody = document.getElementById('uniselv-top-consumers-tbody');
+        if (!tbody) return;
+        if (!consumers || !consumers.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">No account telemetry recorded yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        consumers.forEach(acc => {
+            const tr = document.createElement('tr');
+            const pct = Number(acc.cpu_allowance_percent) || 0;
+            const badge = pct > 90 ? 'badge-critical' : (pct > 60 ? 'badge-warning' : 'badge-normal');
+            const statusTxt = pct > 90 ? 'CRITICAL' : (pct > 60 ? 'ELEVATED' : 'NORMAL');
+            const sampleTime = acc.last_sample_epoch ? new Date(acc.last_sample_epoch * 1000).toLocaleTimeString() : 'Unavailable';
+            
+            tr.innerHTML = `
+                <td><strong>${this.escapeHtml(acc.username)}</strong><br><small style="color:#64748b;">${this.escapeHtml(acc.domain || '')}</small></td>
+                <td><span class="uniselv-badge badge-normal">${this.escapeHtml(String(acc.plan_name || 'default').toUpperCase())}</span></td>
+                <td>${Number(acc.cpu_percent || 0).toFixed(1)}%</td>
+                <td><span class="uniselv-badge ${badge}">${pct.toFixed(1)}% (${statusTxt})</span></td>
+                <td>${this.escapeHtml(acc.mem_formatted || '0 B')}</td>
+                <td>${acc.tasks_current || 0} / ${acc.tasks_max || '-'}</td>
+                <td>${acc.throttled_events || 0}</td>
+                <td>${sampleTime}</td>
+                <td>
+                    <button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.openOverrideModal('${this.escapeHtml(acc.username)}', '${this.escapeHtml(acc.plan_name || '')}')">Grant Boost</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    },
+
+    renderActiveBoostsBanner: function(boostsData) {
+        const banner = document.getElementById('uniselv-active-boosts-banner');
+        if (!banner) return;
+        const list = boostsData?.boosts || [];
+        if (!list.length) {
+            banner.innerHTML = '';
+            banner.style.display = 'none';
+            return;
+        }
+        banner.style.display = 'block';
+        let itemsHtml = list.map(b => `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.7);padding:6px 12px;border-radius:6px;margin-top:6px;font-size:0.83rem;">
+                <div>
+                    <strong>${this.escapeHtml(b.username)}</strong>: Plan boosted from <code>${this.escapeHtml(b.original_plan || 'base')}</code> &rarr; <span class="uniselv-badge badge-warning" style="font-weight:700;">${this.escapeHtml(String(b.target_plan).toUpperCase())}</span>
+                    <span style="color:#64748b;margin-left:8px;">(${this.escapeHtml(b.reason || 'Manual boost')})</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="color:#b45309;font-weight:700;">⏳ ${b.remaining_minutes} min remaining</span>
+                    <button class="uniselv-btn btn-danger btn-sm" style="padding:2px 8px;font-size:0.75rem;" onclick="UniselvResMan.revokePlanOverride(${b.id}, '${this.escapeHtml(b.username)}')">Revoke Now</button>
+                </div>
+            </div>
+        `).join('');
+
+        banner.innerHTML = `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #f59e0b;padding:10px 14px;border-radius:8px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-weight:700;color:#92400e;font-size:0.88rem;">🚀 Active Temporary Resource Boosts (${list.length})</span>
+                    <span style="font-size:0.78rem;color:#b45309;">Auto-reverts to original plan when countdown expires</span>
+                </div>
+                ${itemsHtml}
+            </div>
+        `;
+    },
+
+    revokePlanOverride: function(id, username) {
+        if (!confirm(`Are you sure you want to revoke the temporary resource boost for ${username}? This will immediately restore their original plan limits.`)) return;
+        this.callApi('cancel_temporary_override', { id: id, username: username }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Failed to revoke temporary override');
+            } else {
+                UniselvNotify.success(`Resource boost revoked for ${username}. Original plan restored.`);
+                this.loadAdminOverview();
+            }
         });
     },
 
@@ -4342,6 +4431,32 @@ const UniselvResMan = {
             toolLine.append(mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-critical'}` }, `${name}: ${ok ? 'OK' : 'Missing'}`));
         });
         toolLine.append(mk('span', { class: `uniselv-badge ${d.policy_manifest_ok ? 'badge-normal' : 'badge-critical'}`, title: d.policy_manifest_path || '' }, `Policy JSON: ${d.policy_manifest_ok ? 'OK' : 'Missing'}`));
+
+        const missingTools = Object.entries(tools).filter(([_, ok]) => !ok);
+        if (missingTools.length > 0 && this.isAdmin) {
+            const instBtn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', style: 'padding:2px 8px;font-size:0.75rem;margin-left:auto;' }, '🛠️ Install Missing Build Dependencies Now');
+            instBtn.onclick = () => {
+                UniselvModal.confirm({
+                    title: 'Install Missing OS Build Dependencies?',
+                    message: `The server is missing build tools (<strong>${missingTools.map(([n]) => n).join(', ')}</strong>). This will run an automated package manager update and install required compilers and header packages.`,
+                    icon: 'warning',
+                    confirmText: 'Install Dependencies',
+                    onConfirm: () => {
+                        UniselvNotify.info('Starting background installation of build dependencies...');
+                        this.callApi('install_build_dependencies', { target: 'toolchain' }, (iErr, iRes) => {
+                            const id = iRes?.data || iRes;
+                            if (iErr || !id?.success) {
+                                UniselvNotify.error(iErr || id?.error || 'Failed to start build dependency installation');
+                            } else {
+                                UniselvNotify.success(id.message || 'Build dependency installation started in background.');
+                                if (this.isAdmin) setTimeout(() => this.runOpenSwooleDiagnostics(), 4000);
+                            }
+                        });
+                    }
+                });
+            };
+            toolLine.append(instBtn);
+        }
         box.append(toolLine);
 
         const wrap = mk('div', { class: 'uniselv-table-wrap' });
@@ -4807,9 +4922,12 @@ const UniselvResMan = {
                 svcs.forEach(s => {
                     const tr = tb.insertRow();
                     const actTd = mk('div', { style: 'display:flex;gap:4px;flex-wrap:wrap;' });
-                    [['start', 'Start'], ['stop', 'Stop'], ['restart', 'Restart'], [s.enabled ? 'disable' : 'enable', s.enabled ? 'Disable' : 'Enable'], ['test', 'Test'], ['logs', 'Logs'], ['uninstall', 'Remove']].forEach(([op, lbl]) => {
+                    [['start', 'Start'], ['stop', 'Stop'], ['restart', 'Restart'], [s.enabled ? 'disable' : 'enable', s.enabled ? 'Disable' : 'Enable'], ['test', 'Test'], ['logs', 'Logs'], ['uninstall', s.orphaned ? 'Clean / Remove' : 'Remove']].forEach(([op, lbl]) => {
                         const b = mk('button', { class: `uniselv-btn btn-sm ${op === 'uninstall' ? 'btn-danger' : 'btn-outline'}`, type: 'button', style: 'padding:3px 7px;font-size:0.74rem;' }, lbl);
-                        b.onclick = () => this.controlLaravelService(s.id, op, false, s.username);
+                        b.onclick = () => {
+                            if (op === 'uninstall' && !confirm(`Are you sure you want to stop and remove worker "${s.service_slug}" for ${s.username}?`)) return;
+                            this.controlLaravelService(s.id, op, false, s.username);
+                        };
                         actTd.append(b);
                     });
                     const cells = [
@@ -4818,7 +4936,7 @@ const UniselvResMan = {
                         s.app_path,
                         s.php_branch,
                         s.service_type === 'reverb' ? `Port ${s.port || '-'}` : `${s.workers}w (${s.queues})`,
-                        mk('span', { class: `uniselv-badge ${s.runtime_active ? 'badge-normal' : (s.active_state === 'failed' ? 'badge-critical' : 'badge-warning')}` }, `${s.active_state || 'inactive'} · ${s.slice || '-'}`),
+                        mk('span', { class: `uniselv-badge ${s.orphaned ? 'badge-critical' : (s.runtime_active ? 'badge-normal' : (s.active_state === 'failed' ? 'badge-critical' : 'badge-warning'))}` }, s.orphaned ? `⚠️ Orphaned (Missing Project)` : `${s.active_state || 'inactive'} · ${s.slice || '-'}`),
                         actTd
                     ];
                     cells.forEach(v => {
@@ -5343,6 +5461,25 @@ const UniselvResMan = {
         });
     },
 
+    syncLaravelWorkersAdmin: function() {
+        const username = document.getElementById('plt-acct-select')?.value || this._pltSelectedUser || '';
+        const btn = document.getElementById('plt-sync-btn');
+        if (btn) btn.disabled = true;
+        UniselvNotify.info(username ? `Scanning and reconciling workers for ${username}...` : 'Auto-detecting and reconciling workers across all accounts...');
+        this.callApi('sync_laravel_workers', { ...(username ? { username } : {}), auto_prune: true }, (err, res) => {
+            if (btn) btn.disabled = false;
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Worker auto-detection failed');
+                return;
+            }
+            const synced = d.synced_count ?? (d.synced || []).length;
+            const pruned = d.pruned_count ?? (d.pruned || []).length;
+            UniselvNotify.success(`Sync complete: ${synced} active worker(s) synced, ${pruned} orphaned config(s) cleaned up.`);
+            this.loadPlatformAdmin();
+        }, { timeoutMs: 45000 });
+    },
+
     truncateAppLog: function(username, logPath, isEnduser) {
         this.callApi('truncate_app_log', { username, log_path: logPath, keep_lines: 1000 }, (err, res) => {
             const d = res?.data || res;
@@ -5503,10 +5640,19 @@ const UniselvResMan = {
                 ]
             ].forEach(([feat, statusTxt, ok, guide]) => {
                 const tr = permTb.insertRow();
+                let guideCellContent = mk('span', { style: 'font-size:0.8rem;color:#475569;' }, guide);
+                if (feat === 'Laravel Scheduler' && ok) {
+                    const wrapGuide = mk('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;' });
+                    wrapGuide.append(guideCellContent);
+                    const cronBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:2px 8px;font-size:0.75rem;white-space:nowrap;' }, '⏱️ Webuzo Cron');
+                    cronBtn.onclick = () => this.manageSchedulerCronDialog(disc, latestPhp, true);
+                    wrapGuide.append(cronBtn);
+                    guideCellContent = wrapGuide;
+                }
                 [
                     mk('strong', {}, feat),
                     mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-warning'}` }, statusTxt),
-                    mk('span', { style: 'font-size:0.8rem;color:#475569;' }, guide)
+                    guideCellContent
                 ].forEach(v => {
                     const td = tr.insertCell();
                     td.append(v);
@@ -5538,17 +5684,20 @@ const UniselvResMan = {
                     const tr = sb.insertRow();
                     const acts = mk('div', { style: 'display:flex;gap:4px;flex-wrap:wrap;' });
                     const btns = [['restart', 'Restart'], ['test', 'Test'], ['logs', 'Logs']];
-                    if (s.source !== 'project_dropin') btns.push(['uninstall', 'Remove']);
+                    btns.push(['uninstall', s.orphaned ? 'Clean / Remove' : 'Remove']);
                     btns.forEach(([op, lbl]) => {
                         const b = mk('button', { class: `uniselv-btn btn-sm ${op === 'uninstall' ? 'btn-danger' : 'btn-outline'}`, type: 'button', style: 'padding:3px 7px;font-size:0.74rem;' }, lbl);
-                        b.onclick = () => this.controlLaravelService(s.id, op, true);
+                        b.onclick = () => {
+                            if (op === 'uninstall' && !confirm(`Are you sure you want to stop and remove worker "${s.service_slug}"?${s.source === 'project_dropin' ? ' This will delete its supervisor drop-in configuration.' : ''}`)) return;
+                            this.controlLaravelService(s.id, op, true);
+                        };
                         acts.append(b);
                     });
                     [
                         s.source === 'project_dropin' ? `SUPERVISOR (${s.service_slug})` : `${s.service_type.toUpperCase()} (${s.service_slug})`,
                         s.app_path,
                         s.service_type === 'reverb' ? `Port ${s.port || '-'}` : `${s.workers}w (${s.queues})`,
-                        mk('span', { class: `uniselv-badge ${s.runtime_active ? 'badge-normal' : 'badge-warning'}` }, s.active_state || 'inactive'),
+                        mk('span', { class: `uniselv-badge ${s.orphaned ? 'badge-critical' : (s.runtime_active ? 'badge-normal' : (s.active_state === 'failed' ? 'badge-critical' : 'badge-warning'))}` }, s.orphaned ? '⚠️ Orphaned (Missing Project)' : (s.active_state || 'inactive')),
                         acts
                     ].forEach(v => {
                         const td = tr.insertCell();
@@ -5574,7 +5723,12 @@ const UniselvResMan = {
             ));
             if (alloc.reverb_proxy_snippet) {
                 pBox.append(mk('div', { style: 'font-size:0.78rem;color:#64748b;margin-bottom:6px;' }, 'Reverb WebSocket /domain vhost proxy template (apply in Webuzo custom vhost config or request support):'));
-                pBox.append(this._mkCodeCopyBox(alloc.reverb_proxy_snippet, 'Copy Proxy Config'));
+                const proxyRow = mk('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;' });
+                proxyRow.append(this._mkCodeCopyBox(alloc.reverb_proxy_snippet, 'Copy Proxy Config'));
+                const proxyBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.78rem;' }, '🌐 Enable Proxy in Webuzo Apache VHost');
+                proxyBtn.onclick = () => this.manageReverbProxyDialog(disc, portsMap.reverb_port);
+                proxyRow.append(proxyBtn);
+                pBox.append(proxyRow);
             }
             host.append(pBox);
 
@@ -5653,6 +5807,21 @@ const UniselvResMan = {
         });
     },
 
+    syncLaravelWorkers: function() {
+        UniselvNotify.info('Scanning projects and auto-detecting workers...');
+        this.callApi('sync_laravel_workers', { auto_prune: true }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Worker auto-detection failed');
+                return;
+            }
+            const synced = d.synced_count ?? (d.synced || []).length;
+            const pruned = d.pruned_count ?? (d.pruned || []).length;
+            UniselvNotify.success(`Auto-detection complete: ${synced} active worker(s) synced, ${pruned} orphaned config(s) cleaned up.`);
+            this.loadEnduserServices();
+        }, { timeoutMs: 35000 });
+    },
+
     runEnduserRedisAction: function(operation) {
         this.callApi('enduser_redis_action', { operation }, (err, res) => {
             const d = res?.data || res;
@@ -5664,6 +5833,132 @@ const UniselvResMan = {
             }
             this.loadEnduserServices();
         }, { timeoutMs: 30000 });
+    },
+
+    killStuckCliTasks: function() {
+        UniselvModal.confirm({
+            title: 'Terminate Stuck Background CLI Processes?',
+            message: 'This will safely terminate runaway or hanging CLI background tasks (artisan commands, queue workers, bash/python scripts) owned by your account. <strong>Web server processes (PHP-FPM, Apache/LiteSpeed) are strictly protected and will remain running uninterrupted.</strong>',
+            icon: 'danger',
+            confirmText: 'Kill Stuck CLI Tasks',
+            isDanger: true,
+            onConfirm: () => {
+                UniselvNotify.info('Scanning and terminating stuck CLI processes...');
+                this.callApi('kill_stuck_cli_processes', {}, (err, res) => {
+                    const d = res?.data || res;
+                    if (err || !d?.success) {
+                        UniselvNotify.error(err || d?.error || 'Failed to terminate CLI tasks');
+                    } else {
+                        const count = d.killed_count || 0;
+                        if (count > 0) {
+                            UniselvNotify.success(`Successfully terminated ${count} stuck CLI process(es). Details: ${(d.killed_pids || []).join(', ')}`);
+                        } else {
+                            UniselvNotify.info('No runaway or stuck CLI processes were found.');
+                        }
+                        this.loadLiveProcesses();
+                    }
+                });
+            }
+        });
+    },
+
+    manageSchedulerCronDialog: function(disc, phpBranch, isEnduser) {
+        const apps = disc || [];
+        const appPath = apps[0]?.app_path || '';
+        if (!appPath) {
+            UniselvNotify.warning('No Laravel application directory detected yet. Once your project is created in your home folder, click here to manage its Webuzo Cron.');
+            return;
+        }
+
+        this.callApi('manage_laravel_scheduler_cron', { operation: 'status', app_path: appPath, php_branch: phpBranch }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Failed to check scheduler cron status');
+                return;
+            }
+            const isInstalled = !!d.is_installed;
+            const cronLine = d.cron_line || `* * * * * /usr/local/apps/${phpBranch}/bin/php ${appPath}/artisan schedule:run > /dev/null 2>&1`;
+
+            UniselvModal.confirm({
+                title: 'Laravel Scheduler Webuzo Cron Manager',
+                message: isInstalled
+                    ? `<div style="text-align:left;">
+                        <p style="margin:0 0 8px 0;">The Laravel scheduler is currently <strong>active</strong> in your Webuzo system crontab:</p>
+                        <pre style="background:#0f172a;color:#86efac;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">${this.escapeHtml(cronLine)}</pre>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Click below to safely remove it from crontab.</p>
+                       </div>`
+                    : `<div style="text-align:left;">
+                        <p style="margin:0 0 8px 0;">Install the 1-minute Laravel scheduler job directly into your Webuzo account crontab:</p>
+                        <pre style="background:#0f172a;color:#f8fafc;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">${this.escapeHtml(cronLine)}</pre>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Runs safely as tenant user without terminal access.</p>
+                       </div>`,
+                icon: isInstalled ? 'warning' : 'info',
+                confirmText: isInstalled ? 'Remove Cron Job' : 'Install into Webuzo Cron',
+                isDanger: isInstalled,
+                onConfirm: () => {
+                    const nextOp = isInstalled ? 'remove' : 'install';
+                    UniselvNotify.info(`${isInstalled ? 'Removing' : 'Installing'} scheduler cron...`);
+                    this.callApi('manage_laravel_scheduler_cron', { operation: nextOp, app_path: appPath, php_branch: phpBranch }, (cErr, cRes) => {
+                        const cd = cRes?.data || cRes;
+                        if (cErr || !cd?.success) {
+                            UniselvNotify.error(cErr || cd?.error || `Failed to ${nextOp} scheduler cron`);
+                        } else {
+                            UniselvNotify.success(cd.message || `Scheduler cron successfully ${nextOp}ed!`);
+                            this.loadEnduserServices();
+                        }
+                    });
+                }
+            });
+        });
+    },
+
+    manageReverbProxyDialog: function(disc, reverbPort) {
+        const apps = disc || [];
+        const domain = apps[0]?.domain || (this.currentUser ? `${this.currentUser}.com` : '');
+        if (!domain) {
+            UniselvNotify.warning('No active domain detected for Reverb WebSocket reverse proxy.');
+            return;
+        }
+        const port = reverbPort || 22241;
+
+        this.callApi('manage_reverb_vhost_proxy', { operation: 'status', domain: domain, port: port }, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(err || d?.error || 'Failed to inspect Apache VHost proxy status');
+                return;
+            }
+            const isInstalled = !!d.is_installed;
+            UniselvModal.confirm({
+                title: `Reverb Apache Reverse Proxy (${domain})`,
+                message: isInstalled
+                    ? `<div style="text-align:left;">
+                        <p style="margin:0 0 8px 0;">A dedicated Apache reverse proxy include is currently <strong>active</strong> for domain <code>${this.escapeHtml(domain)}</code>:</p>
+                        <pre style="background:#0f172a;color:#86efac;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">/usr/local/apps/apache2/etc/conf.d/uniselv-reverb-${this.escapeHtml(domain)}.conf\n\nRouting /app & /apps -> ws://127.0.0.1:${port}</pre>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Click below to safely remove this proxy configuration and reload Apache.</p>
+                       </div>`
+                    : `<div style="text-align:left;">
+                        <p style="margin:0 0 8px 0;">Automatically configure Apache reverse proxy for <code>${this.escapeHtml(domain)}</code>:</p>
+                        <pre style="background:#0f172a;color:#f8fafc;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">Include /usr/local/apps/apache2/etc/conf.d/uniselv-reverb-${this.escapeHtml(domain)}.conf\nProxyPass /app ws://127.0.0.1:${port}/app\nProxyPassReverse /app ws://127.0.0.1:${port}/app</pre>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">This uses modular Apache include files without modifying your vhost files directly, performs an <code>apachectl configtest</code>, and reloads gracefully.</p>
+                       </div>`,
+                icon: isInstalled ? 'warning' : 'info',
+                confirmText: isInstalled ? 'Remove Proxy Config' : 'Enable Reverse Proxy',
+                isDanger: isInstalled,
+                onConfirm: () => {
+                    const nextOp = isInstalled ? 'remove' : 'install';
+                    UniselvNotify.info(`${isInstalled ? 'Removing' : 'Enabling'} Reverb Apache proxy...`);
+                    this.callApi('manage_reverb_vhost_proxy', { operation: nextOp, domain: domain, port: port }, (pErr, pRes) => {
+                        const pd = pRes?.data || pRes;
+                        if (pErr || !pd?.success) {
+                            UniselvNotify.error(pErr || pd?.error || `Failed to ${nextOp} Reverb proxy`);
+                        } else {
+                            UniselvNotify.success(pd.message || `Reverb reverse proxy ${nextOp}ed successfully!`);
+                            this.loadEnduserServices();
+                        }
+                    });
+                }
+            });
+        });
     }
 };
 

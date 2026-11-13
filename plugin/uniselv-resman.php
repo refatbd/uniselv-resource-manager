@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.2.0
+Version: 1.2.2
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -499,11 +499,16 @@ function uniselv_resman_admin() {
             'save_user_platform_permissions' => 'save_user_platform_permissions',
             'save_laravel_service' => 'save_laravel_service',
             'control_laravel_service' => 'control_laravel_service',
-            'truncate_app_log' => 'truncate_app_log'
+            'truncate_app_log' => 'truncate_app_log',
+            'sync_laravel_workers' => 'sync_laravel_workers',
+            'manage_laravel_scheduler_cron' => 'manage_laravel_scheduler_cron',
+            'manage_reverb_vhost_proxy' => 'manage_reverb_vhost_proxy',
+            'get_active_resource_boosts' => 'get_active_resource_boosts',
+            'kill_stuck_cli_processes' => 'kill_stuck_cli_processes'
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service'];
+            $long_ops = ['openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'];
             $ipc_timeout = in_array($subact, $long_ops) ? 45 : 15;
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, true, $ipc_timeout);
             echo json_encode($resp);
@@ -553,13 +558,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.0r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.2r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.0r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.2r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -658,6 +663,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     $l15 = isset($host['load15']) && !empty($host['telemetry_available']) ? number_format((float)$host['load15'], 2) : '—';
 
     echo '<div id="tab-overview" class="uniselv-tab-content active">
+        <div id="uniselv-active-boosts-banner"></div>
         <div class="uniselv-status-row" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
             <div class="uniselv-live-badge" id="admin-telemetry-freshness" role="status">
                 <span class="uniselv-live-dot"></span>
@@ -892,7 +898,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     // Top consumers
     echo '<div class="uniselv-card mb-4">
         <h5 style="margin-bottom: 14px; font-weight: 700;">Top Resource Consumers</h5>
-        <p class="uniselv-sample-note">Account samples captured at page load. Refresh Now updates the overview cards. Reload the page to update this table.</p>
+        <p class="uniselv-sample-note">Live account telemetry. Updates automatically on Refresh Now.</p>
         <div class="uniselv-table-wrap">
             <table class="uniselv-table">
                 <thead>
@@ -908,7 +914,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody>';
+                <tbody id="uniselv-top-consumers-tbody">';
     if (!empty($accounts['accounts'])) {
         $consumers = $accounts['accounts'];
         usort($consumers, function($a, $b) { return ($b['cpu_percent'] <=> $a['cpu_percent']) ?: ($b['mem_used_bytes'] <=> $a['mem_used_bytes']); });
@@ -1875,6 +1881,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="uniselv-btn btn-outline" id="plt-refresh-btn" onclick="UniselvResMan.loadPlatformAdmin()">Refresh</button>
+                    <button class="uniselv-btn btn-outline" id="plt-sync-btn" onclick="UniselvResMan.syncLaravelWorkersAdmin()">🔄 Auto-Detect &amp; Sync Workers</button>
                     <button class="uniselv-btn btn-outline" id="plt-scan-logs-btn" onclick="UniselvResMan.scanPlatformLogs()">Scan Logs &amp; Inodes</button>
                     <button class="uniselv-btn btn-outline" id="plt-enforce-btn" onclick="UniselvResMan.enforcePlatformRuntimes()">Contain Runtimes &amp; Heavy Binaries</button>
                     <button class="uniselv-btn btn-primary" id="plt-export-btn" onclick="UniselvResMan.exportPlatformPolicy()">Export Policy JSON</button>
@@ -2321,11 +2328,15 @@ function uniselv_resman_enduser() {
             'control_laravel_service' => 'control_laravel_service',
             'enduser_redis_action' => 'enduser_redis_action',
             'scan_app_logs' => 'scan_app_logs',
-            'truncate_app_log' => 'truncate_app_log'
+            'truncate_app_log' => 'truncate_app_log',
+            'sync_laravel_workers' => 'sync_laravel_workers',
+            'manage_laravel_scheduler_cron' => 'manage_laravel_scheduler_cron',
+            'manage_reverb_vhost_proxy' => 'manage_reverb_vhost_proxy',
+            'kill_stuck_cli_processes' => 'kill_stuck_cli_processes'
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action'];
+            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'];
             $ipc_timeout = in_array($subact, $long_ops) ? 35 : 15;
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, false, $ipc_timeout);
             echo json_encode($resp);
@@ -2364,13 +2375,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.0r1' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.2.2r1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.0r1' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.2.2r1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2885,9 +2896,12 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
         <!-- 4. Active Account Processes (cPanel Parity) -->
         <div class="uniselv-card mb-4" id="uniselv-active-processes-card">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                 <h5 style="margin:0; font-weight:700; font-size:1.05rem; color:#1e293b;">Active Processes</h5>
-                <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadLiveProcesses()" title="Refresh Processes">Refresh Processes</button>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadLiveProcesses()" title="Refresh Processes">Refresh Processes</button>
+                    <button class="uniselv-cpanel-btn" style="background:#fef2f2;color:#991b1b;border-color:#fca5a5;" onclick="UniselvResMan.killStuckCliTasks()" title="Safely terminate hanging CLI/queue processes without affecting web traffic">⚡ Kill Stuck CLI Tasks</button>
+                </div>
             </div>
             <div class="uniselv-table-wrap">
                 <table class="uniselv-table" style="margin-bottom:0;">
@@ -3072,6 +3086,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="uniselv-btn btn-outline" onclick="UniselvResMan.loadEnduserServices()">Refresh Services</button>
+                    <button class="uniselv-btn btn-primary" onclick="UniselvResMan.syncLaravelWorkers()">🔄 Auto-Detect &amp; Sync Workers</button>
                     <button class="uniselv-btn btn-outline" onclick="UniselvResMan.scanEnduserLogs()">Scan App Logs</button>
                 </div>
             </div>

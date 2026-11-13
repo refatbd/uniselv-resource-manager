@@ -720,6 +720,226 @@ class PlatformManagerTestCase(unittest.TestCase):
             deny = pm.control_laravel_service(self.db_path, 'otheruser', 'otheruser', 'dropin:starter1:laravel-worker', 'logs', is_admin=False)
             self.assertEqual(deny.get('status_code'), 403)
 
+    def test_orphaned_dropin_detection_and_removal(self):
+        home_dir = self.base / 'home_orphan'
+        app_dir = home_dir / 'deleted.example.com'  # Directory does not exist on disk!
+        dropin = home_dir / '.uniselv-supervisor' / 'conf.d' / 'dead-worker.conf'
+        dropin.parent.mkdir(parents=True, exist_ok=True)
+        dropin.write_text(
+            f"[program:dead-worker]\n"
+            f"directory={app_dir}\n"
+            f"command=/usr/local/apps/php84/bin/php {app_dir}/artisan queue:work\n"
+            f"numprocs=1\n",
+            encoding='utf-8',
+        )
+
+        with mock.patch.object(pm, '_resolve_user_ids', return_value=(1001, 1001, str(home_dir))), \
+             mock.patch.object(pm, '_query_supervisor_program', return_value={'managed': True, 'program_name': 'uniselv-1001-dead-worker', 'active_state': 'failed', 'sub_state': 'FATAL', 'main_pid': 0, 'slice': 'golden-1001.slice (supervisor)'}):
+            # 1. Detection: Must be identified as orphaned
+            listed = pm.list_laravel_services(self.collector, self.db_path, target_user='starter1')
+            drop_svcs = [s for s in listed['services'] if s.get('id') == 'dropin:starter1:dead-worker']
+            self.assertEqual(len(drop_svcs), 1)
+            svc = drop_svcs[0]
+            self.assertTrue(svc.get('orphaned'))
+            self.assertEqual(svc.get('active_state'), 'orphaned')
+            self.assertEqual(svc.get('sub_state'), 'missing project')
+            self.assertFalse(svc.get('runtime_active'))
+            self.assertEqual(svc.get('conf_file'), str(dropin))
+
+            # 2. Removal: Calling uninstall must remove the .conf file and reload supervisorctl
+            sup_calls = []
+            def _fake_run_sup(args, **kwargs):
+                sup_calls.append(args)
+                return mock.MagicMock(returncode=0, stdout='ok\n', stderr='')
+
+            with mock.patch.object(pm, '_run_supervisorctl', side_effect=_fake_run_sup):
+                uninst = pm.control_laravel_service(self.db_path, 'starter1', 'starter1', 'dropin:starter1:dead-worker', 'uninstall', is_admin=False)
+                self.assertTrue(uninst['success'])
+                self.assertTrue(uninst['uninstalled'])
+                self.assertFalse(dropin.exists())
+                # Verify supervisor stop and reread/update were triggered
+                ops_found = [args[0] for args in sup_calls]
+                self.assertIn('stop', ops_found)
+                self.assertIn('reread', ops_found)
+                self.assertIn('update', ops_found)
+
+    def test_sync_and_reconcile_laravel_workers(self):
+        home_dir = self.base / 'home_sync'
+        active_app = home_dir / 'live.example.com'
+        (active_app / 'storage' / 'logs').mkdir(parents=True)
+        (active_app / 'artisan').write_text('#!/usr/bin/env php\n', encoding='utf-8')
+        (active_app / 'composer.json').write_text('{"name": "test/live-app"}\n', encoding='utf-8')
+        (active_app / '.env').write_text('APP_ENV=production\n', encoding='utf-8')
+
+        conf_dir = home_dir / '.uniselv-supervisor' / 'conf.d'
+        conf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Active worker drop-in
+        live_dropin = conf_dir / 'live-worker.conf'
+        live_dropin.write_text(
+            f"[program:live-worker]\n"
+            f"directory={active_app}\n"
+            f"command=/usr/local/apps/php84/bin/php {active_app}/artisan queue:work\n",
+            encoding='utf-8',
+        )
+
+        # Dead/orphaned worker drop-in pointing to missing directory
+        dead_app = home_dir / 'deleted.example.com'
+        dead_dropin = conf_dir / 'dead-worker.conf'
+        dead_dropin.write_text(
+            f"[program:dead-worker]\n"
+            f"directory={dead_app}\n"
+            f"command=/usr/local/apps/php84/bin/php {dead_app}/artisan queue:work\n",
+            encoding='utf-8',
+        )
+
+        sup_calls = []
+        def _fake_run_sup(args, **kwargs):
+            sup_calls.append(args)
+            return mock.MagicMock(returncode=0, stdout='reloaded\n', stderr='')
+
+        with mock.patch.object(pm, '_resolve_user_ids', return_value=(1001, 1001, str(home_dir))), \
+             mock.patch.object(pm, '_run_supervisorctl', side_effect=_fake_run_sup):
+            res = pm.sync_and_reconcile_laravel_workers(self.collector, self.db_path, 'starter1', 'starter1', auto_prune=True, is_admin=False)
+            self.assertTrue(res['success'])
+            self.assertEqual(res['pruned_count'], 1)
+            self.assertIn('dead-worker', [p['slug'] for p in res['pruned']])
+            self.assertFalse(dead_dropin.exists())
+            self.assertTrue(live_dropin.exists())
+            self.assertGreaterEqual(res['synced_count'], 1)
+            ops_found = [args[0] for args in sup_calls]
+            self.assertIn('stop', ops_found)
+            self.assertIn('reread', ops_found)
+            self.assertIn('update', ops_found)
+
+    def test_manage_laravel_scheduler_cron(self):
+        home_dir = self.base / 'home_starter1_cron'
+        app_dir = home_dir / 'myproject'
+        app_dir.mkdir(parents=True)
+        (app_dir / 'artisan').write_text('#!/usr/bin/env php\n', encoding='utf-8')
+
+        crontab_content = ["# Existing cron jobs\n0 0 * * * /backup.sh\n"]
+
+        def _fake_read_cron(u):
+            return [line for line in crontab_content[0].splitlines() if line.strip()]
+
+        def _fake_write_cron(u, text):
+            crontab_content[0] = text
+            return True, ''
+
+        with mock.patch.object(pm, '_resolve_user_ids', return_value=(1001, 1001, str(home_dir))), \
+             mock.patch.object(pm, '_read_crontab_lines', side_effect=_fake_read_cron), \
+             mock.patch.object(pm, '_write_crontab_lines', side_effect=_fake_write_cron):
+            # 1. Status: Not installed initially
+            st = pm.manage_laravel_scheduler_cron(self.collector, self.db_path, 'starter1', 'starter1', app_path=str(app_dir), php_branch='php84', operation='status')
+            self.assertTrue(st['success'])
+            self.assertFalse(st['is_installed'])
+
+            # 2. Install
+            inst = pm.manage_laravel_scheduler_cron(self.collector, self.db_path, 'starter1', 'starter1', app_path=str(app_dir), php_branch='php84', operation='install')
+            self.assertTrue(inst['success'])
+            self.assertTrue(inst['is_installed'])
+            self.assertIn('BEGIN UNISELV SCHEDULER', crontab_content[0])
+            self.assertIn('artisan schedule:run', crontab_content[0])
+
+            # 3. Status: Now installed
+            st2 = pm.manage_laravel_scheduler_cron(self.collector, self.db_path, 'starter1', 'starter1', app_path=str(app_dir), php_branch='php84', operation='status')
+            self.assertTrue(st2['success'])
+            self.assertTrue(st2['is_installed'])
+
+            # 4. Remove
+            rem = pm.manage_laravel_scheduler_cron(self.collector, self.db_path, 'starter1', 'starter1', app_path=str(app_dir), php_branch='php84', operation='remove')
+            self.assertTrue(rem['success'])
+            self.assertFalse(rem['is_installed'])
+            self.assertNotIn('BEGIN UNISELV SCHEDULER', crontab_content[0])
+            self.assertIn('/backup.sh', crontab_content[0])
+
+    def test_manage_reverb_vhost_proxy(self):
+        conf_d = self.base / 'apache_conf_d'
+        conf_d.mkdir(parents=True)
+
+        def _fake_run(cmd, **kwargs):
+            return mock.MagicMock(returncode=0, stdout='Syntax OK\n', stderr='')
+
+        with mock.patch.object(pm, 'APACHE_CONF_DIR', conf_d), \
+             mock.patch('subprocess.run', side_effect=_fake_run):
+            # 1. Status: initially not installed
+            st = pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'root', 'starter1', 'example.com', 22241, 'status', is_admin=True)
+            self.assertTrue(st['success'])
+            self.assertFalse(st['is_installed'])
+
+            # 2. Install
+            inst = pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'root', 'starter1', 'example.com', 22241, 'install', is_admin=True)
+            self.assertTrue(inst['success'])
+            self.assertTrue(inst['is_installed'])
+            target_conf = conf_d / 'uniselv-reverb-example.com.conf'
+            self.assertTrue(target_conf.exists())
+            conf_text = target_conf.read_text(encoding='utf-8')
+            self.assertIn('ws://127.0.0.1:22241/app', conf_text)
+            self.assertIn('ProxyPassReverse /app', conf_text)
+            self.assertIn('example.com', conf_text)
+
+            # 3. Remove
+            rem = pm.manage_reverb_vhost_proxy(self.collector, self.db_path, 'root', 'starter1', 'example.com', 22241, 'remove', is_admin=True)
+            self.assertTrue(rem['success'])
+            self.assertFalse(rem['is_installed'])
+            self.assertFalse(target_conf.exists())
+
+    def test_get_active_resource_boosts(self):
+        import time
+        conn = sqlite3.connect(self.db_path)
+        now = time.time()
+        try:
+            conn.execute("""
+                INSERT INTO temporary_overrides (username, uid, original_plan, override_plan, created_at, expires_at, reason, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, ('starter1', 1001, 'starter', 'turbo', now - 100, now + 1800, 'Flash sale promo', 'active'))
+            conn.commit()
+        finally:
+            conn.close()
+
+        boosts_res = pm.get_active_resource_boosts(self.collector, self.db_path)
+        self.assertTrue(boosts_res['success'])
+        self.assertEqual(boosts_res['count'], 1)
+        b = boosts_res['boosts'][0]
+        self.assertEqual(b['username'], 'starter1')
+        self.assertEqual(b['target_plan'], 'turbo')
+        self.assertGreater(b['remaining_seconds'], 1500)
+        self.assertGreaterEqual(b['remaining_minutes'], 25)
+
+    def test_kill_stuck_cli_processes(self):
+        home_dir = self.base / 'home_starter1_proc'
+        home_dir.mkdir(parents=True)
+
+        proc_dir_artisan = self.base / '10001'
+        proc_dir_artisan.mkdir(parents=True)
+        (proc_dir_artisan / 'cmdline').write_bytes(b'/usr/local/apps/php84/bin/php\x00/home/starter1/artisan\x00queue:work\x00')
+
+        proc_dir_fpm = self.base / '10002'
+        proc_dir_fpm.mkdir(parents=True)
+        (proc_dir_fpm / 'cmdline').write_bytes(b'php-fpm:\x00pool\x00starter1\x00')
+
+        fake_stat_user = mock.MagicMock(st_uid=1001)
+
+        killed_signals = []
+        def _fake_kill(pid, sig):
+            killed_signals.append((pid, sig))
+
+        def _fake_stat(path):
+            return fake_stat_user
+
+        with mock.patch.object(pm, '_resolve_user_ids', return_value=(1001, 1001, str(home_dir))), \
+             mock.patch.object(pm.os, 'name', 'posix'), \
+             mock.patch('glob.glob', return_value=[str(proc_dir_artisan), str(proc_dir_fpm)]), \
+             mock.patch('os.stat', side_effect=_fake_stat), \
+             mock.patch('os.kill', side_effect=_fake_kill):
+            res = pm.kill_stuck_cli_processes(self.collector, self.db_path, 'starter1', 'starter1', is_admin=False)
+            self.assertTrue(res['success'])
+            self.assertEqual(res['killed_count'], 1)
+            pids = [k['pid'] for k in res['killed']]
+            self.assertIn(10001, pids)
+            self.assertNotIn(10002, pids)  # php-fpm strictly protected
+
 
 if __name__ == '__main__':
     unittest.main()

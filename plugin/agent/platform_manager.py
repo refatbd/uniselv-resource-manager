@@ -33,6 +33,7 @@ PLATFORM_DIR = pathlib.Path('/var/lib/uniselv-resource-manager/platform')
 DEP_JOB_FILE = PLATFORM_DIR / 'dep_job.json'
 SYSTEMD_DIR = pathlib.Path('/etc/systemd/system')
 SUPERVISOR_CONF_DIR = pathlib.Path('/etc/supervisor/conf.d')
+APACHE_CONF_DIR = pathlib.Path('/usr/local/apps/apache2/etc/conf.d')
 SUDOERS_DIR = pathlib.Path('/etc/sudoers.d')
 APP_SOCKET_ROOT = pathlib.Path('/run/uniselv-apps')
 SYSTEM_COMPOSER_BIN = pathlib.Path('/usr/local/bin/composer')
@@ -276,6 +277,17 @@ def _find_supervisorctl_bin() -> str:
         if os.path.isfile(cand) and os.access(cand, os.X_OK):
             return cand
     return shutil.which('supervisorctl') or ''
+
+
+def _run_supervisorctl(args: List[str], timeout: int = 20) -> subprocess.CompletedProcess:
+    """Run supervisorctl safely with timeout, returning CompletedProcess across platforms."""
+    ctl = _find_supervisorctl_bin() or '/usr/bin/supervisorctl'
+    if os.name == 'nt':
+        return subprocess.CompletedProcess(args=[ctl, *args], returncode=0, stdout='ok\n', stderr='')
+    try:
+        return subprocess.run([ctl, *args], capture_output=True, text=True, timeout=timeout)
+    except Exception as exc:
+        return subprocess.CompletedProcess(args=[ctl, *args], returncode=1, stdout='', stderr=str(exc))
 
 
 def _find_supervisord_bin() -> str:
@@ -1266,7 +1278,7 @@ def _cleanup_user_supervisor_artifacts(username: str, uid: int) -> Dict[str, Any
 
 
 def _parse_user_supervisor_dropin(
-    conf_file: pathlib.Path, username: str, home_dir: str, max_workers: int
+    conf_file: pathlib.Path, username: str, home_dir: str, max_workers: int, require_artisan: bool = False
 ) -> List[Dict[str, Any]]:
     """Safely parse user drop-in .conf file without trusting user=, shell operators, or paths outside home."""
     import configparser
@@ -1298,7 +1310,16 @@ def _parse_user_supervisor_dropin(
         if not raw_dir and art_tok.endswith('/artisan'):
             raw_dir = str(pathlib.Path(art_tok).parent)
         safe_dir = _safe_home_subpath(username, raw_dir, home_override=home_dir if os.name == 'nt' else None)
-        if not safe_dir or not (safe_dir / 'artisan').is_file():
+        if not safe_dir:
+            if raw_dir:
+                try:
+                    safe_dir = pathlib.Path(raw_dir)
+                except Exception:
+                    safe_dir = pathlib.Path(home_dir)
+            else:
+                safe_dir = pathlib.Path(home_dir)
+        art_exists = bool(safe_dir and (safe_dir / 'artisan').is_file())
+        if require_artisan and not art_exists:
             continue
         # Normalize artisan argument safely inside safe_dir
         art_arg = art_tok if pathlib.Path(art_tok).name == 'artisan' else str(safe_dir / 'artisan')
@@ -1318,8 +1339,8 @@ def _parse_user_supervisor_dropin(
             if cand_log and cand_log.parent.is_dir():
                 log_path = cand_log
         if log_path is None:
-            st_logs = safe_dir / 'storage' / 'logs'
-            log_path = (st_logs / 'worker.log') if st_logs.is_dir() else (pathlib.Path(home_dir) / '.uniselv-logs' / f'{raw_prog}.log')
+            st_logs = safe_dir / 'storage' / 'logs' if safe_dir else None
+            log_path = (st_logs / 'worker.log') if (st_logs and st_logs.is_dir()) else (pathlib.Path(home_dir) / '.uniselv-logs' / f'{raw_prog}.log')
 
         programs.append({
             'slug': raw_prog,
@@ -1388,7 +1409,7 @@ def sync_user_supervisor_scope(
         for cf in sorted(dropin_dir.glob('*.conf')):
             if cf.is_symlink():
                 continue
-            for p in _parse_user_supervisor_dropin(cf, username, home_dir, budget['max_queue_workers']):
+            for p in _parse_user_supervisor_dropin(cf, username, home_dir, budget['max_queue_workers'], require_artisan=True):
                 programs_by_slug[p['slug']] = p
 
     # Also bridge any enabled queue service registered in managed_app_services when no explicit drop-in overrides it
@@ -1853,6 +1874,16 @@ def list_laravel_services(collector: Any, db_path: str, target_user: Optional[st
                 sup_st = _query_supervisor_program(uid, rendered_slug, prog_app_dir)
                 cmd_bin = (prog.get('command') or '').split()[0] if prog.get('command') else ''
                 m_php_br = re.search(r'/(php\d{2,3})/', cmd_bin)
+
+                # Check if the configured project directory and artisan file still exist
+                is_dir_alive = bool(prog_app_dir and os.path.isdir(prog_app_dir))
+                is_artisan_alive = bool(is_dir_alive and (pathlib.Path(prog_app_dir) / 'artisan').is_file())
+                is_orphaned = not is_artisan_alive
+
+                active_st = sup_st.get('active_state') or ('inactive' if not sup_st.get('managed') else 'active')
+                if is_orphaned:
+                    active_st = 'orphaned'
+
                 services.append({
                     'id': f'dropin:{u}:{pslug}',
                     'source': 'project_dropin',
@@ -1869,13 +1900,15 @@ def list_laravel_services(collector: Any, db_path: str, target_user: Optional[st
                     'enabled': 1,
                     'runner': 'supervisor',
                     'program_name': sup_st.get('program_name') or full_prog,
-                    'runtime_active': sup_st.get('active_state') == 'active',
-                    'active_state': sup_st.get('active_state') or ('inactive' if not sup_st.get('managed') else 'active'),
-                    'sub_state': sup_st.get('sub_state') or '',
-                    'main_pid': sup_st.get('main_pid') or 0,
+                    'runtime_active': (sup_st.get('active_state') == 'active') and not is_orphaned,
+                    'active_state': active_st,
+                    'sub_state': 'missing project' if is_orphaned else (sup_st.get('sub_state') or ''),
+                    'main_pid': 0 if is_orphaned else (sup_st.get('main_pid') or 0),
                     'slice': sup_st.get('slice') or f'golden-{uid}.slice (supervisor)',
                     'systemd_enabled': True,
                     'stdout_logfile': prog.get('stdout_logfile', ''),
+                    'orphaned': is_orphaned,
+                    'conf_file': str(cf),
                 })
 
     discovered = discover_laravel_apps(target_user, available_php=available_php) if target_user else []
@@ -2037,6 +2070,7 @@ def control_laravel_service(db_path: str, actor: str, username: str, service_id:
         app_dir = home_dir
         log_candidates = [pathlib.Path(home_dir) / '.uniselv-logs' / f'{pslug}.log']
         dropin_dir = pathlib.Path(home_dir) / '.uniselv-supervisor' / 'conf.d'
+        matched_conf_file = None
         if dropin_dir.is_dir():
             for cf in sorted(dropin_dir.glob('*.conf')):
                 if cf.is_symlink() or not cf.is_file():
@@ -2044,11 +2078,14 @@ def control_laravel_service(db_path: str, actor: str, username: str, service_id:
                 for pr in _parse_user_supervisor_dropin(cf, du, home_dir, 16):
                     pr_slug = _slugify(pr.get('slug') or pr.get('name') or 'laravel-worker', 'laravel-worker')
                     if pr_slug == pslug:
+                        matched_conf_file = cf
                         if pr.get('app_path') or pr.get('directory'):
                             app_dir = pr.get('app_path') or pr.get('directory')
                         if pr.get('stdout_logfile'):
                             log_candidates.insert(0, pathlib.Path(pr['stdout_logfile']))
                         break
+                if matched_conf_file:
+                    break
         sup_st = _query_supervisor_program(uid, rendered_slug, app_dir if app_dir != home_dir else '')
         pname = sup_st.get('program_name') or f'uniselv-{uid}-{rendered_slug}'
         if op == 'logs':
@@ -2070,10 +2107,46 @@ def control_laravel_service(db_path: str, actor: str, username: str, service_id:
             ]
             return {'success': True, 'service_id': service_id, 'unit_name': pname, 'all_passed': all(s['passed'] for s in steps), 'steps': steps}
         if op in ('start', 'stop', 'restart'):
-            if os.name != 'nt' and sup_st.get('managed'):
-                ctl = _find_supervisorctl_bin() or '/usr/bin/supervisorctl'
-                subprocess.run([ctl, op, f'{pname}:*'], capture_output=True, text=True, timeout=20)
+            if sup_st.get('managed'):
+                _run_supervisorctl([op, f'{pname}:*'], timeout=20)
             return {'success': True, 'service_id': service_id, 'operation': op, 'unit_name': pname}
+        if op in ('uninstall', 'remove', 'purge'):
+            if sup_st.get('managed'):
+                _run_supervisorctl(['stop', f'{pname}:*'], timeout=20)
+
+            removed_files = []
+            if matched_conf_file and matched_conf_file.is_file():
+                try:
+                    matched_conf_file.unlink()
+                    removed_files.append(str(matched_conf_file))
+                except Exception as ex:
+                    return {'success': False, 'error': f'Failed to remove drop-in configuration: {ex}'}
+            elif dropin_dir.is_dir():
+                for cf in sorted(dropin_dir.glob('*.conf')):
+                    if cf.stem == pslug or cf.stem == f'laravel-worker-{pslug}' or cf.stem == 'laravel-worker':
+                        try:
+                            cf.unlink()
+                            removed_files.append(str(cf))
+                        except Exception as ex:
+                            return {'success': False, 'error': f'Failed to remove drop-in configuration: {ex}'}
+
+            _run_supervisorctl(['reread'], timeout=20)
+            _run_supervisorctl(['update'], timeout=20)
+
+            _record_audit(db_path, actor, 'dropin_worker_removed', du, {
+                'program_name': pname,
+                'slug': pslug,
+                'removed_files': removed_files,
+            })
+            return {
+                'success': True,
+                'service_id': service_id,
+                'operation': op,
+                'unit_name': pname,
+                'uninstalled': True,
+                'active_state': 'removed',
+                'message': f'Supervisor worker [{pslug}] stopped and configuration removed.',
+            }
         return {'success': False, 'error': 'Manage configuration changes inside your Laravel project settings'}
 
     conn = sqlite3.connect(db_path)
@@ -2202,6 +2275,401 @@ def control_laravel_service(db_path: str, actor: str, username: str, service_id:
         return {'success': True, 'unit_name': sup_st.get('program_name') if is_sup else unit, 'active_state': act_state, 'main_pid': pid_val, 'slice': sl_val}
     finally:
         conn.close()
+
+
+def sync_and_reconcile_laravel_workers(collector: Any, db_path: str, actor: str, target_user: str, auto_prune: bool = True, is_admin: bool = False) -> Dict[str, Any]:
+    """Scan tenant Laravel applications, validate supervisor drop-in configs, prune orphaned configurations, and re-sync Supervisor."""
+    target_user = str(target_user or '').strip()
+    if not target_user or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', target_user):
+        return {'success': False, 'error': 'Invalid target account username'}
+    if not is_admin and actor != target_user:
+        return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
+
+    users = collector.get_webuzo_users() if collector else {}
+    uinfo = users.get(target_user, {})
+    uid = int(uinfo.get('uid', 0) or 0)
+    _, _, home_dir = _resolve_user_ids(target_user, uid)
+    dropin_dir = pathlib.Path(home_dir) / '.uniselv-supervisor' / 'conf.d'
+
+    pruned: List[Dict[str, Any]] = []
+    orphaned: List[Dict[str, Any]] = []
+
+    if dropin_dir.is_dir() and not dropin_dir.is_symlink():
+        for cf in sorted(dropin_dir.glob('*.conf')):
+            if cf.is_symlink() or not cf.is_file():
+                continue
+            progs = _parse_user_supervisor_dropin(cf, target_user, home_dir, 16)
+            file_has_valid_prog = False
+            for prog in progs:
+                p_dir = prog.get('app_path') or prog.get('directory') or ''
+                is_alive = bool(p_dir and os.path.isdir(p_dir) and (pathlib.Path(p_dir) / 'artisan').is_file())
+                pslug = _slugify(prog.get('slug') or prog.get('name') or 'laravel-worker', 'laravel-worker')
+                rendered_slug = pslug if 'laravel-worker' in pslug else f'laravel-worker-{pslug}'
+                full_prog = f'uniselv-{uid}-{rendered_slug}'
+                if not is_alive:
+                    orphaned.append({'file': cf.name, 'slug': pslug, 'program': full_prog, 'path': p_dir})
+                    if auto_prune:
+                        _run_supervisorctl(['stop', f'{full_prog}:*'], timeout=15)
+                else:
+                    file_has_valid_prog = True
+
+            if auto_prune and not file_has_valid_prog and orphaned:
+                try:
+                    cf.unlink()
+                    pruned.extend([o for o in orphaned if o['file'] == cf.name])
+                except Exception:
+                    pass
+
+        if auto_prune and pruned:
+            _run_supervisorctl(['reread'], timeout=20)
+            _run_supervisorctl(['update'], timeout=20)
+
+    discovered = discover_laravel_apps(target_user)
+    sync_res = sync_user_supervisor_scope(collector, db_path, target_user)
+
+    _record_audit(db_path, actor, 'workers_scanned_and_synced', target_user, {
+        'pruned_count': len(pruned),
+        'discovered_count': len(discovered),
+    })
+
+    msg = f"Scan complete: {len(discovered)} active Laravel app(s) detected"
+    if pruned:
+        msg += f", {len(pruned)} orphaned worker config(s) pruned"
+    else:
+        msg += ", no orphaned workers found"
+
+    return {
+        'success': True,
+        'username': target_user,
+        'scanned_apps': len(discovered),
+        'synced_count': len(discovered),
+        'discovered_apps': discovered,
+        'pruned_count': len(pruned),
+        'pruned': pruned,
+        'pruned_orphans': pruned,
+        'supervisor_sync': sync_res,
+        'message': msg + '.'
+    }
+
+
+def _read_crontab_lines(username: str) -> List[str]:
+    if os.name == 'nt':
+        return []
+    try:
+        r = subprocess.run(['crontab', '-u', username, '-l'], capture_output=True, text=True, timeout=10)
+        return r.stdout.splitlines() if r.returncode == 0 else []
+    except Exception:
+        return []
+
+
+def _write_crontab_lines(username: str, text: str) -> Tuple[bool, str]:
+    if os.name == 'nt':
+        return True, ''
+    try:
+        p = subprocess.run(['crontab', '-u', username, '-'], input=text, capture_output=True, text=True, timeout=10)
+        return (p.returncode == 0), (p.stderr or p.stdout or '')
+    except Exception as e:
+        return False, str(e)
+
+
+def manage_laravel_scheduler_cron(
+    collector: Any, db_path: str, actor: str, username: str, app_path: str, php_branch: str = 'php84', operation: str = 'status', is_admin: bool = False
+) -> Dict[str, Any]:
+    """Inspect, install, or remove Laravel Scheduler (* * * * * artisan schedule:run) in user's Webuzo crontab safely and non-invasively."""
+    username = str(username or '').strip()
+    if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
+        return {'success': False, 'error': 'Invalid username'}
+    if not is_admin and actor != username:
+        return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
+
+    users = collector.get_webuzo_users() if collector else {}
+    if username not in users and actor != username:
+        return {'success': False, 'error': f'Account {username} not found'}
+
+    app_path = str(app_path or '').strip()
+    safe_app = _safe_home_subpath(username, app_path)
+    if not safe_app:
+        return {'success': False, 'error': f'Invalid or escaping project path: {app_path}'}
+    if not (safe_app / 'artisan').is_file():
+        return {'success': False, 'error': f'artisan not found in {safe_app}'}
+
+    if not re.fullmatch(r'php\d{2,3}', php_branch):
+        php_branch = 'php84'
+    php_cand = f'/usr/local/apps/{php_branch}/bin/php'
+    php_bin = php_cand if os.path.isfile(php_cand) else ('/usr/bin/php' if os.path.isfile('/usr/bin/php') else 'php')
+
+    tag_start = f'# BEGIN UNISELV SCHEDULER: {safe_app}'
+    tag_end = f'# END UNISELV SCHEDULER: {safe_app}'
+    cron_target_cmd = f'{php_bin} {safe_app}/artisan schedule:run >> /dev/null 2>&1'
+    cron_line = f'* * * * * {cron_target_cmd}'
+
+    current_lines = _read_crontab_lines(username)
+
+    is_installed = False
+    for line in current_lines:
+        if tag_start in line or (f'{safe_app}/artisan' in line and 'schedule:run' in line):
+            is_installed = True
+            break
+
+    if operation == 'status':
+        return {
+            'success': True,
+            'username': username,
+            'app_path': str(safe_app),
+            'cron_installed': is_installed,
+            'is_installed': is_installed,
+            'cron_line': cron_line,
+            'php_bin': php_bin,
+        }
+
+    if operation == 'install':
+        filtered = []
+        inside_block = False
+        for line in current_lines:
+            if tag_start in line:
+                inside_block = True
+                continue
+            if inside_block and tag_end in line:
+                inside_block = False
+                continue
+            if not inside_block:
+                if f'{safe_app}/artisan' in line and 'schedule:run' in line:
+                    continue
+                filtered.append(line)
+
+        filtered.append(tag_start)
+        filtered.append(cron_line)
+        filtered.append(tag_end)
+        new_crontab = '\n'.join(filtered).strip() + '\n'
+
+        ok, err_msg = _write_crontab_lines(username, new_crontab)
+        if not ok:
+            return {'success': False, 'error': f'Failed to write crontab: {err_msg}'}
+
+        _record_audit(db_path, actor, 'scheduler_cron_installed', username, {
+            'app_path': str(safe_app),
+            'cron_line': cron_line,
+        })
+        return {
+            'success': True,
+            'username': username,
+            'app_path': str(safe_app),
+            'cron_installed': True,
+            'is_installed': True,
+            'cron_line': cron_line,
+            'message': f'Laravel Scheduler cron installed for {safe_app.name}.',
+        }
+
+    if operation in ('remove', 'uninstall'):
+        filtered = []
+        inside_block = False
+        for line in current_lines:
+            if tag_start in line:
+                inside_block = True
+                continue
+            if inside_block and tag_end in line:
+                inside_block = False
+                continue
+            if not inside_block:
+                if f'{safe_app}/artisan' in line and 'schedule:run' in line:
+                    continue
+                filtered.append(line)
+        new_crontab = '\n'.join(filtered).strip() + '\n'
+
+        ok, err_msg = _write_crontab_lines(username, new_crontab)
+        if not ok:
+            return {'success': False, 'error': f'Failed to write crontab: {err_msg}'}
+
+        _record_audit(db_path, actor, 'scheduler_cron_removed', username, {'app_path': str(safe_app)})
+        return {
+            'success': True,
+            'username': username,
+            'app_path': str(safe_app),
+            'cron_installed': False,
+            'is_installed': False,
+            'message': f'Laravel Scheduler cron removed for {safe_app.name}.',
+        }
+
+    return {'success': False, 'error': f'Unsupported cron operation: {operation}'}
+
+
+def manage_reverb_vhost_proxy(
+    collector: Any, db_path: str, actor: str, username: str, domain: str, port: int = 0, operation: str = 'status', is_admin: bool = False
+) -> Dict[str, Any]:
+    """Manage dedicated Apache/LiteSpeed reverse proxy include file for Laravel Reverb WebSocket in /usr/local/apps/apache2/etc/conf.d/."""
+    username = str(username or '').strip()
+    if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
+        return {'success': False, 'error': 'Invalid username'}
+    if not is_admin and actor != username:
+        return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
+
+    domain = str(domain or '').strip().lower()
+    if not domain or not re.fullmatch(r'[a-z0-9.-]+\.[a-z]{2,}', domain):
+        return {'success': False, 'error': 'Invalid domain name'}
+
+    alloc = ensure_account_port_allocation(collector, db_path, username)
+    reverb_port = int(port or alloc.get('ports', {}).get('reverb_port') or 22241)
+
+    conf_dir = APACHE_CONF_DIR
+    conf_file = conf_dir / f'uniselv-reverb-{domain}.conf'
+    is_installed = conf_file.is_file()
+
+    if operation == 'status':
+        return {
+            'success': True,
+            'domain': domain,
+            'port': reverb_port,
+            'proxy_installed': is_installed,
+            'is_installed': is_installed,
+            'conf_file': str(conf_file) if is_installed else '',
+        }
+
+    if operation == 'install':
+        if not conf_dir.is_dir():
+            if os.name != 'nt':
+                return {'success': False, 'error': 'Webuzo Apache configuration directory missing: /usr/local/apps/apache2/etc/conf.d'}
+            conf_dir.mkdir(parents=True, exist_ok=True)
+
+        escaped_dom = domain.replace('.', r'\.')
+        snippet = (
+            f"# UNISELV Reverb WebSocket Reverse Proxy for {domain}\n"
+            f"<IfModule mod_rewrite.c>\n"
+            f"    RewriteEngine On\n"
+            f"    RewriteCond %{{HTTP_HOST}} ^(www\\.)?{escaped_dom}$ [NC]\n"
+            f"    RewriteCond %{{HTTP:Upgrade}} websocket [NC]\n"
+            f"    RewriteCond %{{HTTP:Connection}} upgrade [NC]\n"
+            f"    RewriteRule ^/app/?(.*) ws://127.0.0.1:{reverb_port}/app/$1 [P,L]\n"
+            f"    ProxyPassReverse /app http://127.0.0.1:{reverb_port}/app\n"
+            f"</IfModule>\n"
+        )
+
+        try:
+            _atomic_write_text(conf_file, snippet, mode=0o644)
+        except Exception as exc:
+            return {'success': False, 'error': f'Failed to write proxy configuration: {exc}'}
+
+        if os.name != 'nt':
+            apachectl = '/usr/local/apps/apache2/bin/apachectl'
+            if os.path.isfile(apachectl):
+                t_res = subprocess.run([apachectl, 'configtest'], capture_output=True, text=True, timeout=10)
+                if t_res.returncode != 0:
+                    try:
+                        conf_file.unlink()
+                    except Exception:
+                        pass
+                    return {'success': False, 'error': f'Apache syntax validation failed: {t_res.stderr or t_res.stdout}'}
+                subprocess.run([apachectl, 'graceful'], capture_output=True, text=True, timeout=15)
+
+        _record_audit(db_path, actor, 'reverb_proxy_installed', username, {'domain': domain, 'port': reverb_port})
+        return {
+            'success': True,
+            'domain': domain,
+            'port': reverb_port,
+            'proxy_installed': True,
+            'is_installed': True,
+            'message': f'Reverb WebSocket reverse proxy successfully active for {domain}.',
+        }
+
+    if operation in ('remove', 'uninstall'):
+        if conf_file.is_file():
+            try:
+                conf_file.unlink()
+            except Exception as exc:
+                return {'success': False, 'error': f'Failed to remove proxy conf: {exc}'}
+            if os.name != 'nt':
+                apachectl = '/usr/local/apps/apache2/bin/apachectl'
+                if os.path.isfile(apachectl):
+                    subprocess.run([apachectl, 'graceful'], capture_output=True, text=True, timeout=15)
+
+        _record_audit(db_path, actor, 'reverb_proxy_removed', username, {'domain': domain})
+        return {
+            'success': True,
+            'domain': domain,
+            'proxy_installed': False,
+            'is_installed': False,
+            'message': f'Reverb WebSocket reverse proxy removed for {domain}.',
+        }
+
+    return {'success': False, 'error': f'Unsupported operation: {operation}'}
+
+
+def get_active_resource_boosts(collector: Any, db_path: str) -> Dict[str, Any]:
+    """Retrieve all currently active temporary plan overrides with remaining countdown minutes."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    boosts = []
+    now = time.time()
+    try:
+        rows = conn.execute("SELECT * FROM temporary_overrides WHERE expires_at > ? ORDER BY expires_at ASC", (now,)).fetchall()
+        for r in rows:
+            d = dict(r)
+            rem_sec = max(0, int(d['expires_at'] - now))
+            boosts.append({
+                'id': d.get('id'),
+                'username': d['username'],
+                'original_plan': d.get('original_plan') or '',
+                'override_plan': d.get('override_plan') or '',
+                'target_plan': d.get('override_plan') or '',
+                'created_at': d.get('created_at'),
+                'expires_at': d['expires_at'],
+                'remaining_seconds': rem_sec,
+                'remaining_minutes': (rem_sec + 59) // 60,
+                'reason': d.get('reason') or '',
+            })
+    finally:
+        conn.close()
+    return {'success': True, 'count': len(boosts), 'boosts': boosts}
+
+
+def kill_stuck_cli_processes(collector: Any, db_path: str, actor: str, username: str, is_admin: bool = False) -> Dict[str, Any]:
+    """Safely terminate hung or runaway background CLI/artisan processes for a user, while strictly preserving PHP-FPM web workers."""
+    username = str(username or '').strip()
+    if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
+        return {'success': False, 'error': 'Invalid username'}
+    if not is_admin and actor != username:
+        return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
+
+    users = collector.get_webuzo_users() if collector else {}
+    uinfo = users.get(username, {})
+    uid = int(uinfo.get('uid', 0) or 0)
+    _, _, _ = _resolve_user_ids(username, uid)
+
+    killed = []
+    if os.name != 'nt' and uid >= 500:
+        import glob
+        for pid_dir in glob.glob('/proc/[0-9]*'):
+            pid_str = os.path.basename(pid_dir)
+            if not pid_str.isdigit():
+                continue
+            pid = int(pid_str)
+            try:
+                st = os.stat(pid_dir)
+                if st.st_uid != uid:
+                    continue
+                cmdline_file = os.path.join(pid_dir, 'cmdline')
+                if not os.path.isfile(cmdline_file):
+                    continue
+                with open(cmdline_file, 'rb') as f:
+                    cmd_raw = f.read().replace(b'\x00', b' ').decode('utf-8', errors='replace').strip()
+
+                if 'php-fpm' in cmd_raw or 'fpm' in cmd_raw or 'httpd' in cmd_raw:
+                    continue
+
+                is_target = any(k in cmd_raw for k in ('artisan', 'queue:work', 'schedule:run', 'bash', 'python', 'node'))
+                if is_target:
+                    os.kill(pid, 15)
+                    killed.append({'pid': pid, 'cmd': cmd_raw[:120]})
+            except Exception:
+                pass
+
+    _record_audit(db_path, actor, 'stuck_cli_processes_killed', username, {'killed_count': len(killed), 'pids': [k['pid'] for k in killed]})
+    return {
+        'success': True,
+        'username': username,
+        'killed_count': len(killed),
+        'killed': killed,
+        'message': f'Terminated {len(killed)} background CLI task(s). Web FPM workers were safely preserved.',
+    }
 
 
 def run_laravel_services_selftest(collector: Any, db_path: str, username: str, php_branch: str = 'php84') -> Dict[str, Any]:

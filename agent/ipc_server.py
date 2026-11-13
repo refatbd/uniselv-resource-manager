@@ -480,7 +480,8 @@ class IpcRequestHandler:
                     'stop_enduser_process', 'get_enduser_snapshots', 'get_snapshots_index', 'get_snapshot_detail',
                     'get_enduser_notifications', 'mark_notification', 'get_enduser_support_export', 'get_branding_settings',
                     'get_enduser_openswoole', 'get_enduser_platform_services', 'save_laravel_service',
-                    'control_laravel_service', 'enduser_redis_action', 'scan_app_logs', 'truncate_app_log'}
+                    'control_laravel_service', 'sync_laravel_workers', 'enduser_redis_action', 'scan_app_logs', 'truncate_app_log',
+                    'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'}
                 reseller_admin = {'get_admin_accounts', 'get_admin_account_detail', 'set_temporary_override', 'cancel_temporary_override', 'get_audit_log', 'get_admin_audit_limits', 'audit_limits'}
                 if action not in reseller_common | reseller_admin:
                     return {'error': 'Forbidden: Server-wide action requires root', 'status_code': 403}
@@ -532,12 +533,20 @@ class IpcRequestHandler:
                 return self.action_save_laravel_service(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
             elif action == 'control_laravel_service':
                 return self.action_control_laravel_service(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'sync_laravel_workers':
+                return self.action_sync_laravel_workers(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
             elif action == 'enduser_redis_action':
                 return self.action_enduser_redis_action(user, target_user, params)
             elif action == 'scan_app_logs':
                 return platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path, target_user=target_user)
             elif action == 'truncate_app_log':
                 return self.action_truncate_app_log(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'manage_laravel_scheduler_cron':
+                return self.action_manage_laravel_scheduler_cron(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'manage_reverb_vhost_proxy':
+                return self.action_manage_reverb_vhost_proxy(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
+            elif action == 'kill_stuck_cli_processes':
+                return self.action_kill_stuck_cli_processes(user, target_user, params, is_root_admin=(is_admin and not restricted_reseller))
             elif action == 'get_branding_settings':
                 return self.action_get_branding_settings()
             elif action == 'process_webhook':
@@ -562,6 +571,8 @@ class IpcRequestHandler:
                 return self.action_set_temporary_override(user, params, is_reseller=is_reseller)
             elif action == 'cancel_temporary_override':
                 return self.action_cancel_temporary_override(user, params, is_reseller=is_reseller)
+            elif action == 'get_active_resource_boosts':
+                return platform_manager.get_active_resource_boosts(self.collector, self.db_path)
             elif action == 'get_permissions':
                 return self.action_get_permissions(params)
             elif action == 'save_account_permission':
@@ -2030,6 +2041,30 @@ class IpcRequestHandler:
         host_dict['telemetry_available'] = bool(sys_m)
         host_dict['last_sample_epoch'] = sys_dict.get('timestamp')
 
+        # Real-time top consumers calculation from latest samples
+        top_list = sorted(
+            [
+                {
+                    'username': uname,
+                    'domain': udata.get('domain', ''),
+                    'plan_name': udata.get('plan_name', 'default'),
+                    'cpu_percent': latest_user_samples.get(uname, {}).get('cpu_percent', 0.0),
+                    'cpu_allowance_percent': latest_user_samples.get(uname, {}).get('cpu_allowance_percent', 0.0),
+                    'mem_used_bytes': latest_user_samples.get(uname, {}).get('mem_current_bytes', 0),
+                    'mem_formatted': format_bytes(latest_user_samples.get(uname, {}).get('mem_current_bytes', 0)),
+                    'tasks_current': latest_user_samples.get(uname, {}).get('tasks_current', 0),
+                    'tasks_max': self.collector.get_plan_limits(udata.get('plan_name', 'default')).get('maxtask', 0),
+                    'throttled_events': latest_user_samples.get(uname, {}).get('cpu_throttled_events', 0),
+                    'last_sample_epoch': latest_user_samples.get(uname, {}).get('timestamp', 0)
+                }
+                for uname, udata in users.items()
+            ],
+            key=lambda x: (x.get('cpu_allowance_percent') or 0, x.get('cpu_percent') or 0, x.get('mem_used_bytes') or 0),
+            reverse=True
+        )[:5]
+
+        active_boosts = platform_manager.get_active_resource_boosts(self.collector, self.db_path)
+
         return {
             'server': host_dict,
             'host': host_dict,
@@ -2040,7 +2075,9 @@ class IpcRequestHandler:
                 'webuzo_panel_mem_formatted': format_bytes(panel_mem),
                 'agent_daemon_mem_formatted': format_bytes(agent_mem)
             },
-            'total_accounts': total_accounts
+            'total_accounts': total_accounts,
+            'top_consumers': top_list,
+            'active_boosts': active_boosts
         }
 
     def action_admin_accounts(self, params: Dict[str, Any], actor: str = 'root', is_reseller: bool = False) -> Dict[str, Any]:
@@ -4640,6 +4677,14 @@ class IpcRequestHandler:
             self.db_path, actor, target_user, service_id, op, is_admin=is_root_admin
         )
 
+    def action_sync_laravel_workers(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        req_user = str(params.get('username') or '').strip()
+        eff_user = req_user if (is_root_admin and req_user) else target_user
+        auto_prune = bool(params.get('auto_prune', True))
+        return platform_manager.sync_and_reconcile_laravel_workers(
+            self.collector, self.db_path, actor, eff_user, auto_prune=auto_prune, is_admin=is_root_admin
+        )
+
     def action_enduser_redis_action(self, actor: str, target_user: str, params: Dict[str, Any]) -> Dict[str, Any]:
         op = str(params.get('operation') or '').strip().lower()
         settings = platform_manager.load_platform_settings(self.db_path)
@@ -4667,6 +4712,33 @@ class IpcRequestHandler:
             keep_lines = 1000
         return platform_manager.truncate_app_log(
             self.db_path, actor, eff_user, log_path, keep_lines=keep_lines, is_admin=is_root_admin
+        )
+
+    def action_manage_laravel_scheduler_cron(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        req_user = str(params.get('username') or '').strip()
+        eff_user = req_user if (is_root_admin and req_user) else target_user
+        app_path = str(params.get('app_path') or '').strip()
+        php_branch = str(params.get('php_branch') or 'php84').strip()
+        op = str(params.get('operation') or 'status').strip().lower()
+        return platform_manager.manage_laravel_scheduler_cron(
+            self.collector, self.db_path, actor, eff_user, app_path=app_path, php_branch=php_branch, operation=op, is_admin=is_root_admin
+        )
+
+    def action_manage_reverb_vhost_proxy(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        req_user = str(params.get('username') or '').strip()
+        eff_user = req_user if (is_root_admin and req_user) else target_user
+        domain = str(params.get('domain') or '').strip()
+        port = int(params.get('port') or 0)
+        op = str(params.get('operation') or 'status').strip().lower()
+        return platform_manager.manage_reverb_vhost_proxy(
+            self.collector, self.db_path, actor, eff_user, domain=domain, port=port, operation=op, is_admin=is_root_admin
+        )
+
+    def action_kill_stuck_cli_processes(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:
+        req_user = str(params.get('username') or '').strip()
+        eff_user = req_user if (is_root_admin and req_user) else target_user
+        return platform_manager.kill_stuck_cli_processes(
+            self.collector, self.db_path, actor, eff_user, is_admin=is_root_admin
         )
 
     def action_get_platform_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
