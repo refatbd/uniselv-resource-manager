@@ -2791,12 +2791,25 @@ def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str,
                         break
 
                 age_sec = 0
+                ppid = 0
                 stat_raw = pathlib.Path(entry.path, 'stat').read_text(encoding='utf-8', errors='replace')
                 rp = stat_raw.rfind(')')
-                if rp > 0 and boot_time > 0:
+                if rp > 0:
                     fields = stat_raw[rp + 2:].split()
-                    start_ticks = int(fields[19])
-                    age_sec = max(0, int(time.time() - (boot_time + (start_ticks / clk_tck))))
+                    if len(fields) > 1:
+                        try:
+                            ppid = int(fields[1])
+                        except Exception:
+                            pass
+                    if boot_time > 0 and len(fields) > 19:
+                        try:
+                            start_ticks = int(fields[19])
+                            age_sec = max(0, int(time.time() - (boot_time + (start_ticks / clk_tck))))
+                        except Exception:
+                            pass
+
+                is_chrome = comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(hb in cmd_l for hb in ('--headless', 'google-chrome', 'chromium'))
+                is_chrome_child = is_chrome and ('--type=' in cmd_l or 'crashpad' in comm_l or 'crashpad' in cmd_l)
 
                 procs.append({
                     'pid': pid,
@@ -2810,6 +2823,9 @@ def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str,
                     'current_cgroup': cg,
                     'expected_slice': exp_slice,
                     'contained': contained,
+                    'ppid': ppid,
+                    'is_chrome': is_chrome,
+                    'is_chrome_child': is_chrome_child,
                 })
             except Exception:
                 continue
@@ -2841,12 +2857,10 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
                 contained_moves += 1
                 _record_audit(db_path, 'system', 'platform_runtime_contained', p['username'], {'pid': p['pid'], 'kind': p['kind'], 'slice': p['expected_slice']})
 
-    # Unauthorized Chrome Engine enforcement
+    # 1. Unauthorized Chrome Engine enforcement
     for p in procs:
-        comm_l = str(p.get('comm', '')).lower()
-        cmd_l = str(p.get('cmdline', '')).lower()
-        is_chrome_proc = comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in cmd_l for h in ('--headless', 'google-chrome'))
-        if is_chrome_proc and p.get('kind') == 'heavy_binary' and p['pid'] not in terminated:
+        is_chrome_proc = p.get('is_chrome') or (str(p.get('comm', '')).lower() in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in str(p.get('cmdline', '')).lower() for h in ('--headless', 'google-chrome', 'chromium')))
+        if is_chrome_proc and p['pid'] not in terminated:
             uname = p['username']
             u_perms = get_user_platform_permissions(db_path, uname)
             chrome_allowed = chrome_globally_on and u_perms.get('platform_chrome', False)
@@ -2858,9 +2872,66 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
                         'reason': 'chrome_globally_disabled' if not chrome_globally_on else 'permission_revoked'
                     })
 
+    # 2. Authorized Chrome Concurrency & Timeout Governance (Root Browser Instances Only)
+    chrome_max_conc = max(1, int(settings.get('platform_chrome_max_concurrent', '2') or 2))
+    chrome_max_sec = max(30, int(settings.get('platform_chrome_max_sec', '300') or 300))
+    by_user_chrome_roots: Dict[str, List[Dict[str, Any]]] = {}
+    by_user_chrome_all: Dict[str, List[Dict[str, Any]]] = {}
+
+    for p in procs:
+        is_chrome_proc = p.get('is_chrome') or (str(p.get('comm', '')).lower() in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in str(p.get('cmdline', '')).lower() for h in ('--headless', 'google-chrome', 'chromium')))
+        if is_chrome_proc and p['pid'] not in terminated:
+            uname = p['username']
+            u_perms = get_user_platform_permissions(db_path, uname)
+            chrome_allowed = chrome_globally_on and u_perms.get('platform_chrome', False)
+            if chrome_allowed:
+                by_user_chrome_all.setdefault(uname, []).append(p)
+                is_child = p.get('is_chrome_child') or ('--type=' in str(p.get('cmdline', '')).lower() or 'crashpad' in str(p.get('comm', '')).lower() or 'crashpad' in str(p.get('cmdline', '')).lower())
+                if not is_child:
+                    by_user_chrome_roots.setdefault(uname, []).append(p)
+
+    for uname, rlist in by_user_chrome_roots.items():
+        rlist.sort(key=lambda x: x['age_sec'], reverse=True)
+        for idx, rp in enumerate(rlist):
+            if rp['pid'] in terminated:
+                continue
+            over_age = rp['age_sec'] > chrome_max_sec
+            over_conc = idx >= chrome_max_conc
+            if (over_age or over_conc) and mode == 'enforce':
+                if osw_mgr._safe_stop_pid(rp['uid'], rp['pid'], 0):
+                    terminated.append(rp['pid'])
+                    _record_audit(db_path, 'system', 'platform_chrome_stopped', uname, {
+                        'pid': rp['pid'], 'comm': rp['comm'], 'age_sec': rp['age_sec'],
+                        'reason': 'timeout' if over_age else 'concurrency_cap',
+                    })
+                    # Terminate children of this terminated root instance
+                    root_pid = rp['pid']
+                    for cp in by_user_chrome_all.get(uname, []):
+                        if cp['pid'] not in terminated and (cp.get('ppid') == root_pid or str(root_pid) in str(cp.get('cmdline', ''))):
+                            if osw_mgr._safe_stop_pid(cp['uid'], cp['pid'], 0):
+                                terminated.append(cp['pid'])
+
+    # 3. Clean up orphaned Chrome helper workers if their parent root PID is already gone
+    active_chrome_pids = {p['pid'] for p in procs if p.get('is_chrome')}
+    for uname, clist in by_user_chrome_all.items():
+        for cp in clist:
+            if cp['pid'] not in terminated and cp.get('is_chrome_child'):
+                parent_dead = cp.get('ppid') not in active_chrome_pids
+                if parent_dead and cp.get('age_sec', 0) > 60 and mode == 'enforce':
+                    if osw_mgr._safe_stop_pid(cp['uid'], cp['pid'], 0):
+                        terminated.append(cp['pid'])
+                        _record_audit(db_path, 'system', 'platform_chrome_orphan_stopped', uname, {
+                            'pid': cp['pid'], 'comm': cp['comm'], 'age_sec': cp['age_sec']
+                        })
+
+    # 4. Heavy Binary Guard for standalone non-Chrome binaries (ffmpeg, wkhtmltopdf, libreoffice)
     if hb_guard:
         by_user_hb: Dict[str, List[Dict[str, Any]]] = {}
         for p in procs:
+            is_chrome_proc = p.get('is_chrome') or (str(p.get('comm', '')).lower() in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in str(p.get('cmdline', '')).lower() for h in ('--headless', 'google-chrome', 'chromium')))
+            if is_chrome_proc:
+                # Authorized Chrome processes are handled by dedicated Chrome governance above
+                continue
             if p['kind'] == 'heavy_binary' and p['pid'] not in terminated:
                 by_user_hb.setdefault(p['username'], []).append(p)
         for uname, hlist in by_user_hb.items():
