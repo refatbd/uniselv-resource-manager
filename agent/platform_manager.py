@@ -3285,6 +3285,28 @@ def get_chrome_engine_status(collector: Any, db_path: str) -> Dict[str, Any]:
     }
 
 
+def _refresh_user_process_groups(username: str) -> None:
+    """Refreshes supplementary process groups for user's web services and applications."""
+    if os.name == 'nt':
+        return
+    try:
+        # 1. Touch restart.txt in any Passenger/WSGI/Node app directories under /home/<username>/*/tmp/
+        user_home = f"/home/{username}"
+        if os.path.isdir(user_home):
+            for entry in os.scandir(user_home):
+                if entry.is_dir():
+                    tmp_dir = os.path.join(entry.path, "tmp")
+                    if os.path.isdir(tmp_dir):
+                        try:
+                            Path(os.path.join(tmp_dir, "restart.txt")).touch()
+                        except Exception:
+                            pass
+        # 2. Reload/restart user PHP-FPM service if present (e.g. Webuzo wpiso-fpm)
+        subprocess.run(['systemctl', 'reload-or-restart', f'wpiso-fpm-php*-{username}.service'], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+
 def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
     """Enforces Linux group ownership, 0750 permissions, and per-user membership in 'uniselv-chrome'."""
     settings = load_platform_settings(db_path)
@@ -3349,9 +3371,11 @@ def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
                 if allowed and not is_member:
                     subprocess.run(['usermod', '-a', '-G', CHROME_GROUP_NAME, uname], capture_output=True, timeout=10)
                     current_members.add(uname)
+                    _refresh_user_process_groups(uname)
                 elif not allowed and is_member:
                     subprocess.run(['gpasswd', '-d', uname, CHROME_GROUP_NAME], capture_output=True, timeout=10)
                     current_members.discard(uname)
+                    _refresh_user_process_groups(uname)
             except Exception:
                 pass
         synced.append({'username': uname, 'allowed': allowed, 'member': uname in current_members})
