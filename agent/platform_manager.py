@@ -3368,14 +3368,28 @@ def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
 
         if os.name != 'nt':
             try:
-                if allowed and not is_member:
-                    subprocess.run(['usermod', '-a', '-G', CHROME_GROUP_NAME, uname], capture_output=True, timeout=10)
-                    current_members.add(uname)
-                    _refresh_user_process_groups(uname)
-                elif not allowed and is_member:
-                    subprocess.run(['gpasswd', '-d', uname, CHROME_GROUP_NAME], capture_output=True, timeout=10)
-                    current_members.discard(uname)
-                    _refresh_user_process_groups(uname)
+                if allowed:
+                    if not is_member:
+                        subprocess.run(['usermod', '-a', '-G', CHROME_GROUP_NAME, uname], capture_output=True, timeout=10)
+                        current_members.add(uname)
+                        _refresh_user_process_groups(uname)
+                    # Enforce POSIX file ACLs directly on Chrome binaries and parent directories.
+                    # This guarantees execution even when Webuzo process launcher drops supplementary groups!
+                    for b in binaries:
+                        subprocess.run(['setfacl', '-m', f'u:{uname}:rx', b], capture_output=True, timeout=10)
+                    for pdir in ['/opt/google', '/opt/google/chrome']:
+                        if os.path.exists(pdir):
+                            subprocess.run(['setfacl', '-m', f'u:{uname}:rx', pdir], capture_output=True, timeout=10)
+                else:
+                    if is_member:
+                        subprocess.run(['gpasswd', '-d', uname, CHROME_GROUP_NAME], capture_output=True, timeout=10)
+                        current_members.discard(uname)
+                        _refresh_user_process_groups(uname)
+                    for b in binaries:
+                        subprocess.run(['setfacl', '-x', f'u:{uname}', b], capture_output=True, timeout=10)
+                    for pdir in ['/opt/google', '/opt/google/chrome']:
+                        if os.path.exists(pdir):
+                            subprocess.run(['setfacl', '-x', f'u:{uname}', pdir], capture_output=True, timeout=10)
             except Exception:
                 pass
         synced.append({'username': uname, 'allowed': allowed, 'member': uname in current_members})
@@ -3397,7 +3411,7 @@ def install_chrome_engine(collector: Any, db_path: str, actor: str = 'admin') ->
 
     try:
         subprocess.run(['apt-get', 'update', '-y'], capture_output=True, timeout=120)
-        deps = ['wget', 'ca-certificates', 'fonts-liberation', 'libnss3', 'libgbm1', 'xdg-utils']
+        deps = ['wget', 'ca-certificates', 'fonts-liberation', 'libnss3', 'libgbm1', 'xdg-utils', 'acl']
         subprocess.run(['apt-get', 'install', '-y', *deps], capture_output=True, timeout=180)
 
         deb_url = 'https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb'
