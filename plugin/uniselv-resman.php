@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.3.0
+Version: 1.3.1
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -568,13 +568,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.3.0r2' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.3.1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.3.0r2' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.3.1' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -2405,13 +2405,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.3.0r2' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.3.1' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.3.0r2' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.3.1' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2761,6 +2761,19 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     $php_workers = isset($dash['php_workers']) ? $dash['php_workers'] : ['total_workers' => 0, 'total_busy' => 0, 'total_idle' => 0, 'by_version' => []];
     $upgrade = isset($dash['upgrade_recommendation']) ? $dash['upgrade_recommendation'] : [];
     $opt = isset($dash['optimization_guidance']) ? $dash['optimization_guidance'] : [];
+    $chrome_info = isset($dash['chrome']) ? $dash['chrome'] : [];
+    $chrome_ok = !empty($chrome_info['effective_allowed']);
+    $chrome_running = !empty($chrome_info['running_count']) ? (int)$chrome_info['running_count'] : 0;
+    $chrome_procs = isset($chrome_info['running_processes']) ? (array)$chrome_info['running_processes'] : [];
+    $chrome_rss = 0.0;
+    $chrome_max_age = 0;
+    foreach ($chrome_procs as $cp) {
+        $chrome_rss += (float)($cp['rss_mib'] ?? 0);
+        if (($cp['age_sec'] ?? 0) > $chrome_max_age) {
+            $chrome_max_age = (int)$cp['age_sec'];
+        }
+    }
+    $chrome_age_formatted = $chrome_max_age > 0 ? (floor($chrome_max_age / 60) . 'm ' . ($chrome_max_age % 60) . 's') : 'Idle on-demand';
 
     echo '<!-- PHP Workers & Optimization Guidance (U10, U16, U17) -->
     <div class="uniselv-grid" style="grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; margin-top: 20px;">
@@ -2832,7 +2845,43 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         }
         echo '</ul></div>';
     }
-    echo '</div>
+    echo '</div>';
+
+    // Column 3: Headless Chrome & Automation Telemetry Hub (U-Hub)
+    echo '<div class="uniselv-card" id="uniselv-card-chrome-summary">
+        <div class="uniselv-card-header" style="margin-bottom: 12px;">
+            <h5 style="margin: 0; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color: #0284c7;"><circle cx="12" cy="12" r="10" stroke-width="2"/><circle cx="12" cy="12" r="4" stroke-width="2"/><line x1="21.17" y1="8" x2="12" y2="8" stroke-width="2"/><line x1="3.95" y1="6.06" x2="8.54" y2="14" stroke-width="2"/><line x1="10.88" y1="21.94" x2="15.46" y2="14" stroke-width="2"/></svg>
+                Chrome &amp; Automation Hub
+            </h5>
+            <span class="uniselv-badge ' . ($chrome_ok ? 'badge-normal' : 'badge-warning') . '" id="uniselv-badge-chrome-status">
+                ' . ($chrome_ok ? 'ACTIVE &amp; PERMITTED' : 'RESTRICTED') . '
+            </span>
+        </div>
+        <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Headless browser runtime, live task duration, and dedicated sandbox memory usage.</p>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; text-align: center;">
+            <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
+                <div style="font-size: 0.8rem; color: #64748b;">Active Tasks</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: #1e293b;" id="uniselv-val-chrome-procs">' . $chrome_running . '</div>
+            </div>
+            <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
+                <div style="font-size: 0.8rem; color: #64748b;">Chrome RAM</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: #0284c7;" id="uniselv-val-chrome-rss">' . round($chrome_rss, 1) . ' MiB</div>
+            </div>
+            <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
+                <div style="font-size: 0.8rem; color: #64748b;">Runtime State</div>
+                <div style="font-size: 0.88rem; font-weight: 700; color: ' . ($chrome_running > 0 ? '#16a34a' : '#64748b') . '; margin-top: 4px;" id="uniselv-val-chrome-state">' . ($chrome_running > 0 ? $chrome_age_formatted : 'IDLE') . '</div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.runEnduserChromeTest(this)" ' . ($chrome_ok ? '' : 'disabled') . '>🧪 Test Health</button>
+            <button class="uniselv-btn btn-danger btn-sm" onclick="UniselvResMan.killEnduserChromeProcesses()">🧹 Free RAM</button>
+            <button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.switchTab(\'services\')">⚙️ Advanced Hub</button>
+        </div>
+        <div id="eu-chrome-test-output-dash" style="margin-top: 10px;"></div>
+    </div>
     </div>';
 
     echo '</div>'; // End Tab 1

@@ -46,7 +46,7 @@ function buildReleaseZip(string $root, string $target, string $prefix): array {
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
     $root=__DIR__.'/plugin';$info=json_decode(file_get_contents($root.'/info.json'),true,512,JSON_THROW_ON_ERROR);$v=$info['version'];
     if (!preg_match('/^Version:\s*'.preg_quote($v,'/').'\s*$/m',file_get_contents($root.'/uniselv-resman.php'))) throw new RuntimeException('Version mismatch');
-    if (!str_contains(file_get_contents($root.'/uniselv-resman.php'),$v.'r2')) throw new RuntimeException('Asset release key mismatch');
+    if (!str_contains(file_get_contents($root.'/uniselv-resman.php'),$v)) throw new RuntimeException('Asset release key mismatch');
     $result=buildReleaseZip($root,__DIR__.'/uniselv-resman-'.$v.'.zip','uniselv-resman');
     copy($result['path'],__DIR__.'/uniselv-resman.zip');file_put_contents(__DIR__.'/uniselv-resman.zip.sha256',$result['sha256'].'  uniselv-resman.zip'."\n");
     echo json_encode($result,JSON_PRETTY_PRINT)."\n";

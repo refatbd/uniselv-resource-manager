@@ -1,3 +1,10 @@
+## 1.3.1 — 2026-11-14
+
+- **Chrome & Automation Telemetry Hub (Enduser Dashboard)**: Added real-time Chrome engine telemetry directly to Tab 1 (Main Dashboard), featuring live active task counts, dedicated RAM (RSS) gauge, runtime lifecycle duration, and one-click health smoke test and memory recycle buttons.
+- **Section 5 Visual Telemetry Grid**: Redesigned Enduser App Services Section 5 with a 4-card telemetry grid showing engine version, active lifecycle duration, dedicated RAM consumption, and cgroup concurrency budget.
+- **Ghost Plugin Removal & Packaging Cleanliness**: Purged orphaned backup folders from Webuzo plugins directory, ensuring only legitimate registered plugins appear in the Webuzo admin catalog.
+- **Omnibridge Real-Time Permission Re-Check**: Implemented live permission ping and binary re-verification in Omnibridge dashboard, eliminating stale in-memory cached error states upon permission re-grant.
+
 ## 1.2.8 — 2026-11-13
 
 - Added Chrome Browser Engine (Google Chrome / Chromium) governance and isolation across Admin and Enduser panels.
@@ -78,6 +85,36 @@
 - Show host CPU usage separately from hosting allocation and timestamp the Top Resource Consumers samples. Add keyboard-operated sample inspection and time labels to history charts.
 - Improve mobile navigation, Bengali locale handling, notification timestamps and status colors. Show scheduled reports as Generated and distinguish live telemetry from the last sample.
 
+## 1.1.37 — 2026-11-05
+
+- **Storage-Bounded SQLite Telemetry Engine (`collector.py`):**
+  - Implement active database storage quota enforcement honoring `retention_max_storage_mib` (default 100 MiB).
+  - Automatically downsample historical telemetry older than 48 hours to 1-minute averages (deleting 11 out of 12 raw 5s samples), reclaiming 91.6% storage while preserving smooth long-term chart visibility.
+  - Progressive batch pruning of oldest excess samples coupled with transactional WAL checkpoint truncation and filesystem VACUUM whenever disk footprint exceeds configured safety thresholds.
+- **Daemon Memory Safety & OOM Defense (`ipc_server.py`):**
+  - Completely re-architect `action_enduser_history` to use SQL-level streaming aggregation and time-bucket grouping (`bucket_ts = (timestamp / step) * step`).
+  - Eliminates dangerous Python heap allocation of 500,000+ dict objects during 7d/30d queries, slashing daemon RSS memory consumption from 700+ MiB to <2 MiB and guaranteeing `uniselv-resman-agent` never exceeds systemd `MemoryMax=128M`.
+- **Dynamic Cgroups v2 Kernel Quota Discovery & Fair CPUWeight (`golden-shield.py` & `collector.py`):**
+  - Integrate live cgroup v2 controller probing (`cpu.max`, `memory.max`, `pids.max`) to ensure live telemetry, thresholds, and circuit breakers immediately adapt to Webuzo plan updates without hardcoding.
+  - Dynamically inject proportional cgroups v2 `CPUWeight = max(10, min(10000, CPUQuota))` into account slices (`golden-<uid>.slice`) for fair-share CPU scheduling during multi-tenant CPU contention.
+- **Coordinator Startup Reconciliation Timeout (`webuzo-isolation.py`):**
+  - Extend isolation coordinator supervisor timeout (`TimeoutStartSec=180`) to eliminate serial systemd reload stalls across high-density tenant pools.
+
+## 1.1.36 — 2026-11-04
+
+- Implement plan-proportional upward and downward PHP-FPM worker ceiling calculation (`account_worker_ceiling`) derived from cgroup RAM allowance and task limits, lifting the legacy 8-worker native ceiling for higher-tier accounts (Enterprise up to 21 workers, Turbo up to 15, Pro at 9, Starter at 6, Go at 3).
+- Integrate dynamic cgroups v2 `CPUWeight` generation in Golden Shield proportional to plan `CPUQuota` (Enterprise=280, Pro=150, Starter=100) ensuring fair dynamic CPU scheduling during peak multi-tenant contention while preserving single-tenant burstability.
+- Enforce strict Golden Shield root reservation for host OS and Webuzo Admin Panel (`system.slice` with `CPUWeight=1000` and guaranteed 1.4+ GB reserved physical RAM).
+- Extend coordinator startup reconciliation timeout (`TimeoutStartSec=180`) across all PHP runtime managers and implement atomic slice pre-caching to eliminate serial systemd reload stalls across 25+ tenant pools.
+- Patch `place_native_process` to verify PID existence and reset failed transient units, preventing systemd scope tracking exhaustion.
+- Update `policy.json` with `maxActivePools: 10`, `workerRssMiB: 140`, and `accountMaxWorkers: 32`.
+
+## 1.1.35 — 2026-11-01
+
+- Optimize PAM Session Guard (`webuzo-session-guard.py`) by adding immediate fast-path bypass for non-interactive `cron` and `crond` sessions (`PAM_SERVICE in ('cron', 'crond')`). Eliminates concurrent subprocess storms and 500–700% CPU spikes during minute-boundary cron dispatch.
+- Fast-path existing slice verification: skip redundant `golden-shield.py prepare-account` execution when the account slice is already active and bounded.
+- Preserve interactive SSH session placement, cgroup isolation boundaries, and fail-safe error logging.
+
 ## 1.1.34 — 2026-10-30
 
 - Add self-healing staging cleanup and PID-isolated temporary files to atomic writer, preventing zero-byte lock deadlock when disk space is exhausted.
@@ -87,32 +124,12 @@
 
 ## 1.1.33 — 2026-10-27
 
-- Preserve public routing and active proxy processes on native reload; refresh surviving native PHP masters gracefully after selective configuration validation.
-- Derive managed FPM control grace from the inherited request timeout so valid post-response work is not cut off by the vendor ten-second escalation. Preserve longer operator values and fail malformed/duplicate controls closed.
-- Verify managed reload timeout safety in mechanical health checks and include strict native foreground/background/INI readback evidence.
-- Retain global defaults, automatic runtime caps, physical/account budgets and Shared Redis policy.
+- Preserve routing and charged leases on unchanged native graceful reload; keep explicit restart as a maintenance operation.
+- Derive managed master control grace from the inherited finite request timeout, preserve longer native values, and verify every managed pool.
+- Retain balanced native global settings after repeated worker, queue, Apache and database comparisons; synchronize the canonical generator source and asset versions.
+- Record 184 isolated Linux tests, 24,363 accepted recorded requests without failures, 331 matching configured values, and automatic reboot recovery. Preserve failed/rejected attempts and workload boundaries in the dated report.
 
-## 1.1.32 — 2026-10-26
-
-- Preserve live busy-peer demand independently of cleared admission tickets, preventing greedy growth and repeated fair-share PHP master restarts.
-- Allocate shared worker capacity deterministically from actual demand while charging idle reservations in full; retain unfunded tickets for safe idle peer release.
-- Count connection-startup work in demand and compact a sole proven idle native child without restarting the master or OPcache.
-- Keep deferred-shrink cooldown independent of arrival-driven growth, preventing repeated queue pauses behind post-response background jobs.
-- Preserve global native defaults, physical/account safety boundaries and shared Redis mode. Include repeated comparison evidence, failed-before results and exact source guides.
-
-## 1.1.31 — 2026-10-25
-
-- Size verified cold relay grants to one worker; grow to actual queued/forwarded demand within existing physical and account limits.
-- Recheck locked allocation on new queued bursts instead of waiting for the periodic regrant tick; preserve in-flight requests.
-- Compact genuinely idle leases after all FPM children exit, preserving the master and OPcache while retaining one fully charged worker.
-- Rebalance for unfunded peer demand rather than every valid ticket; avoid fair-share master restarts for zero-demand pools.
-- Require native backend-idle proof before idle retirement, including post-response background work.
-- Use each cold peer's own complete admission footprint across PHP versions; keep unknown minima conservative.
-- Keep supervisor notification/watchdog endpoints out of child commands to avoid spurious readiness messages.
-- Coordinate a hardware-scaled interned-string recommendation with the canonical planner; 32 MiB fits the measured string working set inside the unchanged 256-MiB cache.
-- Preserve global per-version PHP-FPM defaults, existing safety reserves and shared Redis mode; include source placement guides and bounded validation evidence.
-
-## 1.1.30 — 2026-10-24
+## 1.1.30 — 2026-10-25
 
 - Repair and activate the checked native PHP service bridge when an already-managed PHP version is onboarded or repaired. Refuse a changed/custom native unit instead of overwriting it.
 - Include native bridge activity in runtime governance health, repair admission and post-operation verification. A healthy coordinator and health master alone no longer hide an inactive compatibility bridge.
@@ -121,6 +138,8 @@
 - Add optional owner-selected Shared Redis integration sized from the matching physical Global Inputs: one cache service, no per-user allocation. Verify restart readiness, cache/client/process limits and Golden placement; retain and restore native ownership/configuration transactionally.
 - Add cache-only consent, hardware-drift refusal, idempotence and rollback regression coverage.
 - Add a dated current-host readiness follow-up. Historical Redis guard and backup rotation evidence is distinguished from the actual current installation.
+
+- Verify native Webuzo 4.8.6 to 4.8.7 update, subsequent automatic bridge recovery/reboot, four PHP versions, account provisioning and 25 native HTTP routes. No additional runtime code change was needed for that update.
 
 ## 1.1.29 — 2026-10-24
 

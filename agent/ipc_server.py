@@ -1320,6 +1320,7 @@ class IpcRequestHandler:
                 'php_workers': self.get_php_workers_by_version(uid),
                 'upgrade_recommendation': self.get_account_upgrade_recommendations(username),
                 'optimization_guidance': self.get_account_optimization_guidance(username),
+                'chrome': platform_manager.get_user_chrome_info(self.collector, self.db_path, username),
             } if include_diagnostics else {}),
         }
 

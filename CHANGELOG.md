@@ -1,3 +1,10 @@
+## 1.3.1 — 2026-11-14
+
+- **Chrome & Automation Telemetry Hub (Enduser Dashboard)**: Added real-time Chrome engine telemetry directly to Tab 1 (Main Dashboard), featuring live active task counts, dedicated RAM (RSS) gauge, runtime lifecycle duration, and one-click health smoke test and memory recycle buttons.
+- **Section 5 Visual Telemetry Grid**: Redesigned Enduser App Services Section 5 with a 4-card telemetry grid showing engine version, active lifecycle duration, dedicated RAM consumption, and cgroup concurrency budget.
+- **Ghost Plugin Removal & Packaging Cleanliness**: Purged orphaned backup folders from Webuzo plugins directory, ensuring only legitimate registered plugins appear in the Webuzo admin catalog.
+- **Omnibridge Real-Time Permission Re-Check**: Implemented live permission ping and binary re-verification in Omnibridge dashboard, eliminating stale in-memory cached error states upon permission re-grant.
+
 ## 1.2.8 — 2026-11-13
 
 - Added Chrome Browser Engine (Google Chrome / Chromium) governance and isolation across Admin and Enduser panels.

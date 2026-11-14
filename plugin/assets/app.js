@@ -5965,9 +5965,47 @@ const UniselvResMan = {
                 )
             );
             euChromeBox.append(euChromeHead);
-            euChromeBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+            euChromeBox.append(mk('p', { style: 'margin:0 0 12px 0;font-size:0.82rem;color:#475569;' },
                 'Server-side Google Chrome headless rendering engine for PDF generation, website snapshots, and web scraping with Spatie Browsershot, Puppeteer, and native PHP.'
             ));
+
+            const runningProcs = euChrome.running_processes || [];
+            let totalChromeRss = 0;
+            let maxChromeAge = 0;
+            runningProcs.forEach(p => {
+                totalChromeRss += Number(p.rss_mib || 0);
+                if (Number(p.age_sec || 0) > maxChromeAge) maxChromeAge = Number(p.age_sec || 0);
+            });
+            const chromeAgeStr = maxChromeAge > 0 ? `${Math.floor(maxChromeAge / 60)}m ${maxChromeAge % 60}s` : 'Idle On-Demand';
+
+            // 4-Card Visual Telemetry Grid
+            const chromeGrid = mk('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:14px;' });
+            const c1 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            c1.append(
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Engine Version'),
+                mk('div', { style: 'font-size:0.95rem;font-weight:700;color:#1e293b;margin:4px 0;' }, euChrome.version || 'Google Chrome 157'),
+                mk('div', { style: 'font-size:0.75rem;color:#0284c7;font-family:monospace;overflow:hidden;text-overflow:ellipsis;' }, euChrome.executable_path || '/opt/google/chrome/chrome')
+            );
+            const c2 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            c2.append(
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Runtime & Lifecycle'),
+                mk('div', { style: `font-size:0.95rem;font-weight:700;color:${runningProcs.length ? '#16a34a' : '#64748b'};margin:4px 0;` }, runningProcs.length ? `Active: ${chromeAgeStr}` : 'Idle On-Demand'),
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;' }, runningProcs.length ? `${runningProcs.length} active process(es)` : '0 background instances')
+            );
+            const c3 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            c3.append(
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Dedicated RAM (RSS)'),
+                mk('div', { style: 'font-size:0.95rem;font-weight:700;color:#0284c7;margin:4px 0;' }, `${totalChromeRss.toFixed(1)} MiB`),
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;' }, 'Isolated sandbox consumption')
+            );
+            const c4 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            c4.append(
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Policy & Safety'),
+                mk('div', { style: 'font-size:0.95rem;font-weight:700;color:#1e293b;margin:4px 0;' }, `Max ${euChrome.max_concurrent || 2} Concurrent`),
+                mk('div', { style: 'font-size:0.75rem;color:#64748b;' }, `Max ${euChrome.max_timeout_sec || 300}s · Cgroup isolated`)
+            );
+            chromeGrid.append(c1, c2, c3, c4);
+            euChromeBox.append(chromeGrid);
 
             const euToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
             euToolbar.append(this._mkCodeCopyBox(`CHROME_PATH=${euChrome.executable_path || '/usr/bin/google-chrome'}`, 'Copy Path'));
@@ -5976,7 +6014,9 @@ const UniselvResMan = {
             bEuTest.disabled = !euChromeOk;
             const bEuKill = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, '🧹 Stop All My Chrome Processes');
             bEuKill.onclick = () => this.killEnduserChromeProcesses();
-            euToolbar.append(bEuTest, bEuKill, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, `Budget: Max ${euChrome.max_concurrent || 2} concurrent · Max ${euChrome.max_timeout_sec || 300}s`));
+            const bEuRefresh = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '🔄 Refresh Telemetry');
+            bEuRefresh.onclick = () => this.loadEnduserServices();
+            euToolbar.append(bEuTest, bEuKill, bEuRefresh);
             euChromeBox.append(euToolbar);
 
             const euChromeTestOut = mk('div', { id: 'eu-chrome-test-output', style: 'margin-bottom:10px;' });
@@ -6149,31 +6189,35 @@ const UniselvResMan = {
     },
 
     runEnduserChromeTest: function(btn) {
-        const outBox = document.getElementById('eu-chrome-test-output');
+        const outBoxes = [
+            document.getElementById('eu-chrome-test-output'),
+            document.getElementById('eu-chrome-test-output-dash')
+        ].filter(Boolean);
         const origText = btn ? btn.textContent : '';
         if (btn) {
             btn.disabled = true;
             btn.textContent = '⏳ Testing Engine...';
         }
-        if (outBox) {
+        outBoxes.forEach(outBox => {
             outBox.innerHTML = '<div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Executing headless smoke test under your account identity...</div>';
-        }
+        });
         this.callApi('enduser_chrome_test', {}, (err, res) => {
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = origText || '🧪 Run Chrome Smoke Test';
             }
             const d = res?.data || res;
-            if (!outBox) return;
-            outBox.replaceChildren();
             const mk = this._mkEl.bind(this);
             const ok = Boolean(d?.success);
-            const card = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;font-size:0.82rem;` });
-            card.append(
-                mk('div', { style: 'font-weight:700;margin-bottom:4px;' }, `Chrome Engine Smoke Test — ${ok ? 'PASSED' : 'FAILED'} (${d?.duration_sec || 0}s)`),
-                mk('pre', { style: 'background:#0f172a;color:#f8fafc;padding:8px;border-radius:6px;font-size:0.75rem;max-height:120px;overflow:auto;margin:0;' }, d?.output_snippet || d?.error || 'No output')
-            );
-            outBox.append(card);
+            outBoxes.forEach(outBox => {
+                outBox.replaceChildren();
+                const card = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;font-size:0.82rem;` });
+                card.append(
+                    mk('div', { style: 'font-weight:700;margin-bottom:4px;' }, `Chrome Engine Smoke Test — ${ok ? 'PASSED' : 'FAILED'} (${d?.duration_sec || 0}s)`),
+                    mk('pre', { style: 'background:#0f172a;color:#f8fafc;padding:8px;border-radius:6px;font-size:0.75rem;max-height:120px;overflow:auto;margin:0;' }, d?.output_snippet || d?.error || 'No output')
+                );
+                outBox.append(card);
+            });
             if (ok) UniselvNotify.success('Chrome headless execution confirmed for your account!');
             else UniselvNotify.error(`Chrome test failed: ${d?.error || 'Permission error'}`);
         }, { timeoutMs: 35000 });
