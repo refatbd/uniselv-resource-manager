@@ -2,6 +2,7 @@
 
 - **Chrome & Automation Telemetry Hub (Enduser Dashboard)**: Added real-time Chrome engine telemetry directly to Tab 1 (Main Dashboard), featuring live active task counts, dedicated RAM (RSS) gauge, runtime lifecycle duration, and one-click health smoke test and memory recycle buttons.
 - **Section 5 Visual Telemetry Grid**: Redesigned Enduser App Services Section 5 with a 4-card telemetry grid showing engine version, active lifecycle duration, dedicated RAM consumption, and cgroup concurrency budget.
+- **Isolated Smoke Test Profile & Concurrency Limiter Exemption**: Disengaged `--user-data-dir` lock contention during live smoke tests by executing within temporary sandboxed profile paths (`--headless=new`). Exempted shell wrappers (`bash`, `sh`, `systemd-run`) and transient test runs from being miscounted as Chrome root browser instances.
 - **Ghost Plugin Removal & Packaging Cleanliness**: Purged orphaned backup folders from Webuzo plugins directory, ensuring only legitimate registered plugins appear in the Webuzo admin catalog.
 - **Omnibridge Real-Time Permission Re-Check**: Implemented live permission ping and binary re-verification in Omnibridge dashboard, eliminating stale in-memory cached error states upon permission re-grant.
 
