@@ -6022,7 +6022,6 @@ const UniselvResMan = {
             const euChromeTestOut = mk('div', { id: 'eu-chrome-test-output', style: 'margin-bottom:10px;' });
             euChromeBox.append(euChromeTestOut);
 
-            const runningProcs = euChrome.running_processes || [];
             if (runningProcs.length) {
                 euChromeBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;' }, `Active Headless Instances (${runningProcs.length})`));
                 const procWrap = mk('div', { class: 'uniselv-table-wrap', style: 'margin-bottom:10px;' });
