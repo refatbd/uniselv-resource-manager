@@ -2808,7 +2808,9 @@ def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str,
                         except Exception:
                             pass
 
-                is_chrome = comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(hb in cmd_l for hb in ('--headless', 'google-chrome', 'chromium'))
+                is_shell_wrapper = comm_l in ('bash', 'sh', 'zsh', 'dash', 'su', 'sudo', 'systemd-run')
+                is_transient_test = 'uniselv-smoke-test' in cmd_l or '--dump-dom' in cmd_l
+                is_chrome = not is_shell_wrapper and not is_transient_test and (comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell', 'google-chrome', 'google-chrome-stable') or any(hb in cmd_l for hb in ('--headless', 'google-chrome', 'chromium')))
                 is_chrome_child = is_chrome and ('--type=' in cmd_l or 'crashpad' in comm_l or 'crashpad' in cmd_l)
 
                 procs.append({
@@ -2826,6 +2828,7 @@ def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str,
                     'ppid': ppid,
                     'is_chrome': is_chrome,
                     'is_chrome_child': is_chrome_child,
+                    'is_transient_test': is_transient_test,
                 })
             except Exception:
                 continue
@@ -2859,7 +2862,11 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
 
     # 1. Unauthorized Chrome Engine enforcement
     for p in procs:
-        is_chrome_proc = p.get('is_chrome') or (str(p.get('comm', '')).lower() in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in str(p.get('cmdline', '')).lower() for h in ('--headless', 'google-chrome', 'chromium')))
+        comm_l = str(p.get('comm', '')).lower()
+        cmdline_l = str(p.get('cmdline', '')).lower()
+        if comm_l in ('bash', 'sh', 'zsh', 'dash', 'su', 'sudo', 'systemd-run') or p.get('is_transient_test') or 'uniselv-smoke-test' in cmdline_l or '--dump-dom' in cmdline_l:
+            continue
+        is_chrome_proc = p.get('is_chrome') or (comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell', 'google-chrome', 'google-chrome-stable') or any(h in cmdline_l for h in ('--headless', 'google-chrome', 'chromium')))
         if is_chrome_proc and p['pid'] not in terminated:
             uname = p['username']
             u_perms = get_user_platform_permissions(db_path, uname)
@@ -2879,7 +2886,11 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
     by_user_chrome_all: Dict[str, List[Dict[str, Any]]] = {}
 
     for p in procs:
-        is_chrome_proc = p.get('is_chrome') or (str(p.get('comm', '')).lower() in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell') or any(h in str(p.get('cmdline', '')).lower() for h in ('--headless', 'google-chrome', 'chromium')))
+        comm_l = str(p.get('comm', '')).lower()
+        cmdline_l = str(p.get('cmdline', '')).lower()
+        if comm_l in ('bash', 'sh', 'zsh', 'dash', 'su', 'sudo', 'systemd-run') or p.get('is_transient_test') or 'uniselv-smoke-test' in cmdline_l or '--dump-dom' in cmdline_l:
+            continue
+        is_chrome_proc = p.get('is_chrome') or (comm_l in ('chrome', 'chromium', 'chromium-browser', 'headless_shell', 'chrome-headless-shell', 'google-chrome', 'google-chrome-stable') or any(h in cmdline_l for h in ('--headless', 'google-chrome', 'chromium')))
         if is_chrome_proc and p['pid'] not in terminated:
             uname = p['username']
             u_perms = get_user_platform_permissions(db_path, uname)
@@ -3673,7 +3684,12 @@ def run_user_chrome_test(username: str, db_path: str, is_admin: bool = False) ->
     t0 = time.time()
     try:
         test_html = 'data:text/html,<html><head><title>UNISELV-Smoke-Test</title></head><body><h1>Chrome-Ready</h1></body></html>'
-        inner_cmd = f"{bin_path} --headless --disable-gpu --no-sandbox --disable-dev-shm-usage --dump-dom '{test_html}'"
+        inner_cmd = (
+            f"CHRTMP=$(mktemp -d /tmp/chr-smoke.XXXXXX) && "
+            f"{bin_path} --headless=new --disable-gpu --no-sandbox --disable-dev-shm-usage "
+            f"--user-data-dir=$CHRTMP --dump-dom '{test_html}'; "
+            f"RET=$?; rm -rf $CHRTMP; exit $RET"
+        )
 
         if os.name != 'nt' and shutil.which('systemd-run'):
             unit = f'uniselv-chr-test-{int(time.time() * 1000) % 100000}'
@@ -3685,7 +3701,7 @@ def run_user_chrome_test(username: str, db_path: str, is_admin: bool = False) ->
         else:
             cmd = ['su', '-', username, '-s', '/bin/bash', '-c', inner_cmd]
 
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=25)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         duration = round(time.time() - t0, 3)
         out = (proc.stdout or '').strip()
         err = (proc.stderr or '').strip()
