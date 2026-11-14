@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import pathlib
@@ -44,6 +45,9 @@ OPENSWOOLE_DEFAULTS = {
     'openswoole_unixsock_buffer_size': '8388608',
     'openswoole_disabled_versions': '',
 }
+
+
+_last_exported_policy_hash: Optional[str] = None
 
 
 def atomic_write_text(path: pathlib.Path, content: str, mode: int = 0o644) -> None:
@@ -821,7 +825,14 @@ def export_policy_manifest(collector: Any, db_path: str) -> Dict[int, Dict[str, 
         )
         by_uid[uid] = pol
     try:
+        global _last_exported_policy_hash
         STORE_DIR.mkdir(parents=True, exist_ok=True)
+        # Avoid redundant disk writes and fsync if policy state has not changed
+        policy_digest = hashlib.sha256(json.dumps(by_uid, sort_keys=True, default=str).encode('utf-8')).hexdigest()
+        cache_key = (str(POLICY_EXPORT_FILE), policy_digest)
+        if POLICY_EXPORT_FILE.exists() and _last_exported_policy_hash == cache_key:
+            return by_uid
+        _last_exported_policy_hash = cache_key
         payload = {'generated_at': int(time.time()), 'accounts_by_uid': {str(k): v for k, v in by_uid.items()}}
         atomic_write_json(POLICY_EXPORT_FILE, payload, mode=0o644)
     except Exception:
@@ -959,15 +970,21 @@ def scan_openswoole_processes(users: Dict[str, Dict[str, Any]]) -> List[Dict[str
             uid = st.st_uid
             if uid not in uid_to_name:
                 continue
+            stat_txt = (pdir / 'stat').read_text(encoding='utf-8', errors='replace')
+            rp = stat_txt.rfind(')')
+            lp = stat_txt.find('(')
+            comm = stat_txt[lp + 1:rp] if lp != -1 and rp != -1 else ''
+            comm_l = comm.lower()
+            if 'php-fpm' in comm_l or 'httpd' in comm_l or 'apache' in comm_l or 'nginx' in comm_l or 'passenger' in comm_l:
+                continue
+            if 'php' not in comm_l and 'swoole' not in comm_l and 'octane' not in comm_l:
+                continue
+
             exe = ''
             try:
                 exe = os.readlink(pdir / 'exe')
             except Exception:
                 pass
-            stat_txt = (pdir / 'stat').read_text(encoding='utf-8', errors='replace')
-            rp = stat_txt.rfind(')')
-            lp = stat_txt.find('(')
-            comm = stat_txt[lp + 1:rp] if lp != -1 and rp != -1 else ''
             parts = stat_txt[rp + 2:].split() if rp != -1 else []
             ppid = int(parts[1]) if len(parts) > 1 else 0
             threads = int(parts[17]) if len(parts) > 17 else 1
@@ -975,8 +992,6 @@ def scan_openswoole_processes(users: Dict[str, Dict[str, Any]]) -> List[Dict[str
             rss_pages = int(parts[21]) if len(parts) > 21 else 0
 
             raw_cmd = (pdir / 'cmdline').read_bytes().replace(b'\x00', b' ').decode('utf-8', errors='replace').strip()
-            if 'php-fpm' in exe or 'php-fpm' in comm.lower() or 'httpd' in exe:
-                continue
 
             is_direct = _is_openswoole_process(raw_cmd, comm, exe, pid, listening_inodes)
             is_php_cli = 'php' in comm.lower() or '/php' in exe

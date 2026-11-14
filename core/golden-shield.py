@@ -309,11 +309,15 @@ def serve():
  signal.signal(signal.SIGTERM,stop);signal.signal(signal.SIGINT,stop)
  previous=json.loads((RUN/'pressure.json').read_text()) if (RUN/'pressure.json').exists() else {}
  state={'pausedSockets':set(previous.get('pausedSockets',[])),'recoverySince':None}
+ last_constrain=0.0
  while alive:
-  for task in [constrain_customers,lambda:pressure_tick(p,state,time.monotonic())]:
-   try:task()
+  now=time.monotonic()
+  if now-last_constrain>=60.0:
+   try:constrain_customers();last_constrain=now
    except Exception as e:print('GUARD ERROR (protection incomplete): '+str(e),flush=True)
-  time.sleep(2)
+  try:pressure_tick(p,state,now)
+  except Exception as e:print('GUARD ERROR (pressure tick): '+str(e),flush=True)
+  time.sleep(3)
 
 # Shared Redis integration is optional, aggregate-bounded, and never creates per-user settings.
 REDIS_CONFIG=pathlib.Path('/usr/local/apps/redis/redis.conf')

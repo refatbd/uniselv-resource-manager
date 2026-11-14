@@ -168,6 +168,10 @@ class MetricsCollector:
         self.circuit_breaker_throttled_users: Dict[int, int] = {}
         self.circuit_breaker_tripped_at: float = 0.0
         self.circuit_breaker_min_hold_down_sec: float = 30.0
+        self._users_cache: Dict[str, Dict[str, Any]] = {}
+        self._users_cache_time: float = 0.0
+        self._user_limits_cache: Dict[Tuple[int, str], Dict[str, Any]] = {}
+        self._user_limits_cache_time: float = 0.0
         self.reload_settings()
         self._load_circuit_breaker_durable_state()
 
@@ -253,8 +257,12 @@ class MetricsCollector:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def get_webuzo_users(self) -> Dict[str, Dict[str, Any]]:
-        """Discover Webuzo users, UIDs, and assigned resource plans."""
+    def get_webuzo_users(self, force: bool = False) -> Dict[str, Dict[str, Any]]:
+        """Discover Webuzo users, UIDs, and assigned resource plans (cached with 30s TTL)."""
+        now = time.time()
+        if not force and self._users_cache and (now - self._users_cache_time < 30.0):
+            return dict(self._users_cache)
+
         users = {}
         users_dir = '/var/webuzo/users'
         if not os.path.exists(users_dir):
@@ -284,7 +292,9 @@ class MetricsCollector:
                         }
                 except Exception:
                     pass
-        return users
+        self._users_cache = users
+        self._users_cache_time = now
+        return dict(users)
 
     def get_plan_limits(self, plan_name: str) -> Dict[str, Any]:
         """Read native Webuzo resource limit plan definition."""
@@ -335,8 +345,13 @@ class MetricsCollector:
                 pass
         return limits
 
-    def get_user_limits(self, uid: int, plan_name: str) -> Dict[str, Any]:
-        """Fetch plan limits, dynamically falling back to live cgroups v2 / slice limits."""
+    def get_user_limits(self, uid: int, plan_name: str, force: bool = False) -> Dict[str, Any]:
+        """Fetch plan limits, dynamically falling back to live cgroups v2 / slice limits (cached with 30s TTL)."""
+        now = time.time()
+        ck = (uid, plan_name)
+        if not force and ck in self._user_limits_cache and (now - self._user_limits_cache_time < 30.0):
+            return dict(self._user_limits_cache[ck])
+
         limits = self.get_plan_limits(plan_name)
         candidates = [f'/sys/fs/cgroup/golden.slice/golden-{uid}.slice', f'/sys/fs/cgroup/{uid}.slice']
         for p in candidates:
@@ -363,7 +378,9 @@ class MetricsCollector:
                 break
             except Exception:
                 pass
-        return limits
+        self._user_limits_cache[ck] = limits
+        self._user_limits_cache_time = now
+        return dict(limits)
 
     def read_user_cgroup(self, uid: int) -> Tuple[str, Dict[str, Any]]:
         """Sum disjoint native/managed UID roots; never choose by resident memory.
@@ -414,17 +431,23 @@ class MetricsCollector:
         except Exception:
             return 0, 0
 
-    def get_process_list_for_user(self, uid: int, slice_path: str) -> List[Dict[str, Any]]:
+    def get_process_list_for_user(self, uid: int, slice_path: str, pids: Optional[List[int]] = None) -> List[Dict[str, Any]]:
         """Get list of active processes belonging to user with sanitized cmdline."""
         procs = []
         # Enumerate by actual UID: service children and migration drift must not
         # disappear merely because the account root has only proxy processes.
-        pids = []
-        for entry in os.listdir('/proc'):
-            if entry.isdigit():
-                try:
-                    if os.stat('/proc/' + entry).st_uid == uid: pids.append(int(entry))
-                except (FileNotFoundError, ProcessLookupError, PermissionError): pass
+        if pids is None:
+            pids = []
+            try:
+                for entry in os.scandir('/proc'):
+                    if entry.name.isdigit():
+                        try:
+                            if entry.stat().st_uid == uid:
+                                pids.append(int(entry.name))
+                        except (FileNotFoundError, ProcessLookupError, PermissionError):
+                            pass
+            except Exception:
+                pass
 
         uptime = 0.0
         try:
@@ -1196,12 +1219,34 @@ class MetricsCollector:
         users = self.get_webuzo_users()
         observed_keys = set()
 
+        target_uids = {udata.get('uid', 0) for udata in users.values() if udata.get('uid', 0) >= 1000}
+        if not target_uids:
+            return
+
+        pids_by_uid: Dict[int, List[int]] = {}
+        try:
+            for entry in os.scandir('/proc'):
+                if entry.name.isdigit():
+                    try:
+                        st = entry.stat()
+                        if st.st_uid in target_uids:
+                            pids_by_uid.setdefault(st.st_uid, []).append(int(entry.name))
+                    except (FileNotFoundError, ProcessLookupError, PermissionError):
+                        continue
+        except Exception:
+            pass
+
         for uname, udata in users.items():
             uid = udata.get('uid', 0)
             if uid < 1000:
                 continue
+
+            user_pids = pids_by_uid.get(uid)
+            if not user_pids:
+                continue
+
             slice_path, _ = self.read_user_cgroup(uid)
-            procs = self.get_process_list_for_user(uid, slice_path)
+            procs = self.get_process_list_for_user(uid, slice_path, pids=user_pids)
             plan_name = udata.get('plan_name', 'default')
             plan_limits = self.get_plan_limits(plan_name)
             account_cpu_quota = float(plan_limits.get('cpuquota', 100))

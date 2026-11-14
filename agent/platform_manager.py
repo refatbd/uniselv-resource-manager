@@ -2763,9 +2763,11 @@ def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str,
                 if uid not in uid_map:
                     continue
                 comm = pathlib.Path(entry.path, 'comm').read_text(encoding='utf-8', errors='replace').strip()
+                comm_l = comm.lower()
+                if comm_l in ('php-fpm', 'httpd', 'apache', 'apache2', 'nginx'):
+                    continue
                 cmd = pathlib.Path(entry.path, 'cmdline').read_bytes().replace(b'\x00', b' ').decode('utf-8', errors='replace').strip()
                 cmd_l = cmd.lower()
-                comm_l = comm.lower()
 
                 kind = ''
                 if comm_l in HEAVY_BINARY_NAMES or any(hb in cmd_l for hb in ('--headless', 'wkhtmltopdf', 'soffice.bin')):

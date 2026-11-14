@@ -1,3 +1,13 @@
+## 1.3.2 — 2026-11-14
+
+- **High-Performance Daemon & CPU Overhead Reduction**:
+  - **Single-Pass `/proc` Scan in Watchdog ($56\times$ Speedup)**: Replaced $O(U \times N)$ repeated `/proc` directory walks with a unified single-pass `os.scandir` with UID grouping, skipping idle accounts and reducing watchdog execution time from 131.36 ms down to 2.35 ms.
+  - **In-Memory TTL Caching (30s)**: Added TTL caching to `get_webuzo_users()` and `get_user_limits()`, eliminating over 100 redundant filesystem disk reads and dozens of `pwd.getpwnam` syscalls every 5 seconds.
+  - **Throttled Policy Enforcement Cadence**: Decoupled ultra-lightweight real-time metric sampling (`collect_step()`, 5s) from heavy `/proc` process scans, runaway watchdog, and policy enforcements (`enforce_runtime_policies()` and `enforce_platform_tick()`), throttling the latter to a 15-second cadence.
+  - **Eliminated Redundant Atomic fsync Writes**: Introduced SHA-256 state hashing for `export_policy_manifest()`, skipping disk writes and filesystem barriers entirely when policy configurations remain unchanged.
+  - **Early Process Pruning in OpenSwoole & Platform Scanners**: Filtered out standard `php-fpm`, `httpd`, and `nginx` workers by `comm` prior to executing expensive `os.readlink('/proc/[pid]/exe')` and `cmdline` reads.
+  - **Golden Shield Subprocess Spawning Throttled**: Reduced `constrain_customers()` execution frequency in `golden-shield.py serve()` from every 2 seconds to every 60 seconds, drastically reducing `systemctl show` forks and systemd CPU load.
+
 ## 1.3.1 — 2026-11-14
 
 - **Chrome & Automation Telemetry Hub (Enduser Dashboard)**: Added real-time Chrome engine telemetry directly to Tab 1 (Main Dashboard), featuring live active task counts, dedicated RAM (RSS) gauge, runtime lifecycle duration, and one-click health smoke test and memory recycle buttons.
