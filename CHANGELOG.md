@@ -1,3 +1,23 @@
+## 1.4.1 — 2026-11-16
+
+- **Precision Operations Console & Modern Micro-Animations**:
+  - **Full Light & Dark Theme Governance Engine**:
+    - High-density semantic design tokens strictly scoped to `.uniselv-container[data-theme="light|dark"]`.
+    - Zero style leakage into host Webuzo chrome, side navigation, or adjacent third-party plugins.
+    - Zero Flash of Unstyled Content (FOUC) anti-flicker architecture with instant inline `data-theme` bootstrap and `localStorage` (`uniselv_theme`) persistence.
+    - User-controlled Light (default for first-time visitors) and Dark switcher with sun/moon SVG icons and 360° hover micro-rotation.
+  - **Modern Animated Telemetry & Hardware Headroom**:
+    - High-precision gauge dial arcs with spring damping easing (`cubic-bezier(0.34, 1.56, 0.64, 1)`).
+    - Dedicated **Host Hardware & Golden Shield Headroom Banner** on Admin Server Overview showing physical processor core count, total RAM, load averages, and reserve headroom.
+    - Animated live telemetry radar pulse indicator (`uniselvPulse`) with sub-second heartbeat.
+    - Micro-interaction card hover lifts (`translateY(-3px)`) and subtle elevation shadows with hardware acceleration (`will-change: transform, box-shadow`).
+    - Full accessibility compliance with `prefers-reduced-motion` defense automatically disabling animations for sensitive users.
+  - **Comprehensive Contrast Hardening Across All 20 Screens**:
+    - Immunized typography against Webuzo host Bootstrap overrides (`color: var(--uniselv-text-main)`).
+    - High-contrast SVG telemetry chart grid lines, ticks, and axis labels in dark mode.
+    - Deep dark slate surfaces for 8-Services Modern Stack Suite, Laravel services, snapshot viewers, and command code snippets (`.uniselv-cmd-text`).
+    - Verified responsive reflow across 1440px desktop, 1024px tablet, and 390px mobile viewports.
+
 ## 1.4.0 — 2026-11-16
 
 - **Modern 8-Services Diagnostic Suite & Enduser Dashboard**:

@@ -2582,6 +2582,226 @@
     color: var(--uniselv-primary) !important;
 }
 
+/* Dark Mode Typography & Host Bootstrap Defense */
+.uniselv-container h1,
+.uniselv-container h2,
+.uniselv-container h3,
+.uniselv-container h4,
+.uniselv-container h5,
+.uniselv-container h6,
+.uniselv-container .h1,
+.uniselv-container .h2,
+.uniselv-container .h3,
+.uniselv-container .h4,
+.uniselv-container .h5,
+.uniselv-container .h6 {
+    color: var(--uniselv-text-main);
+}
+.uniselv-container[data-theme="dark"] h1,
+.uniselv-container[data-theme="dark"] h2,
+.uniselv-container[data-theme="dark"] h3,
+.uniselv-container[data-theme="dark"] h4,
+.uniselv-container[data-theme="dark"] h5,
+.uniselv-container[data-theme="dark"] h6,
+.uniselv-container[data-theme="dark"] .h1,
+.uniselv-container[data-theme="dark"] .h2,
+.uniselv-container[data-theme="dark"] .h3,
+.uniselv-container[data-theme="dark"] .h4,
+.uniselv-container[data-theme="dark"] .h5,
+.uniselv-container[data-theme="dark"] .h6,
+.uniselv-container[data-theme="dark"] .uniselv-card-title,
+.uniselv-container[data-theme="dark"] .uniselv-section-title,
+.uniselv-container[data-theme="dark"] .uniselv-chart-title,
+.uniselv-container[data-theme="dark"] .uniselv-chart-card h6,
+.uniselv-container[data-theme="dark"] .uniselv-chart-card h5,
+.uniselv-container[data-theme="dark"] .uniselv-chart-card .uniselv-chart-header,
+.uniselv-container[data-theme="dark"] .uniselv-chart-subtitle {
+    color: var(--uniselv-text-main) !important;
+}
+
+/* Dark Mode SVG Charts & Telemetry Visuals */
+.uniselv-container[data-theme="dark"] svg text {
+    fill: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-chart-grid,
+.uniselv-container[data-theme="dark"] svg line[stroke="#e2e8f0"],
+.uniselv-container[data-theme="dark"] svg line[stroke="#cbd5e1"] {
+    stroke: var(--uniselv-border) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-chart-card {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border) !important;
+}
+
+/* Dark Mode Subtabs, Filter Buttons & Pills */
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-subtab,
+.uniselv-container[data-theme="dark"] .uniselv-timeframe-btn {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border-strong) !important;
+    color: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-subtab:hover,
+.uniselv-container[data-theme="dark"] .uniselv-timeframe-btn:hover {
+    background: var(--uniselv-bg-subtle) !important;
+    color: var(--uniselv-text-main) !important;
+    border-color: var(--uniselv-primary) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-subtab.active,
+.uniselv-container[data-theme="dark"] .uniselv-timeframe-btn.active {
+    background: var(--uniselv-primary-soft) !important;
+    border-color: var(--uniselv-primary) !important;
+    color: var(--uniselv-primary) !important;
+}
+
+/* Dark Mode Code, Pre & Callouts */
+.uniselv-container[data-theme="dark"] code,
+.uniselv-container[data-theme="dark"] pre,
+.uniselv-container[data-theme="dark"] .uniselv-code {
+    background: var(--uniselv-bg-inset) !important;
+    border-color: var(--uniselv-border) !important;
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-help-card,
+.uniselv-container[data-theme="dark"] .uniselv-callout {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border) !important;
+    color: var(--uniselv-text-main) !important;
+}
+
+/* Dark Mode Command Text, Service Titles & Chart Inspectors */
+.uniselv-container[data-theme="dark"] .uniselv-cmd-text,
+.uniselv-container[data-theme="dark"] .uniselv-chart-inspector output,
+.uniselv-container[data-theme="dark"] .uniselv-service-title,
+.uniselv-container[data-theme="dark"] .uniselv-field-table td,
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-btn {
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-cmd-text {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* Dark Mode 8-Services Modern Stack Suite & Service Cards */
+.uniselv-container[data-theme="dark"] .uniselv-suite-container {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border) !important;
+    box-shadow: var(--uniselv-shadow-card) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-suite-top {
+    border-bottom-color: var(--uniselv-border) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-suite-title {
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-suite-subtitle {
+    color: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-service-card {
+    background: var(--uniselv-bg-subtle) !important;
+    border-color: var(--uniselv-border) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-service-card:hover {
+    border-color: var(--uniselv-border-strong) !important;
+    box-shadow: var(--uniselv-shadow-hover) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-service-desc {
+    color: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-service-category {
+    color: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-service-actions {
+    border-top-color: var(--uniselv-border) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-metric-tag {
+    background: var(--uniselv-bg-inset) !important;
+    color: var(--uniselv-text-muted) !important;
+    border: 1px solid var(--uniselv-border) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-metric-tag strong {
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] .status-pill-active {
+    background: rgba(16, 185, 129, 0.15) !important;
+    color: #63C69A !important;
+    border-color: rgba(16, 185, 129, 0.35) !important;
+}
+.uniselv-container[data-theme="dark"] .status-pill-ready {
+    background: rgba(59, 130, 246, 0.15) !important;
+    color: #93c5fd !important;
+    border-color: rgba(59, 130, 246, 0.35) !important;
+}
+.uniselv-container[data-theme="dark"] .status-pill-idle {
+    background: rgba(148, 163, 184, 0.15) !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(148, 163, 184, 0.35) !important;
+}
+.uniselv-container[data-theme="dark"] .status-pill-warning {
+    background: rgba(245, 158, 11, 0.15) !important;
+    color: #fcd34d !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-service-test-result {
+    background: var(--uniselv-bg-inset) !important;
+    border-color: var(--uniselv-border) !important;
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-step-item {
+    color: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-table-wrap {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border) !important;
+}
+.uniselv-container[data-theme="dark"] details {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border) !important;
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] div[style*="background:#f8fafc"],
+.uniselv-container[data-theme="dark"] div[style*="background: #f8fafc"],
+.uniselv-container[data-theme="dark"] div[style*="background:#ffffff"],
+.uniselv-container[data-theme="dark"] div[style*="background: #ffffff"] {
+    background: var(--uniselv-bg-card) !important;
+    border-color: var(--uniselv-border) !important;
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] p[style*="color:#475569"],
+.uniselv-container[data-theme="dark"] p[style*="color: #475569"],
+.uniselv-container[data-theme="dark"] p[style*="color:#64748b"],
+.uniselv-container[data-theme="dark"] p[style*="color: #64748b"] {
+    color: var(--uniselv-text-muted) !important;
+}
+
+/* Dark Mode Documentation Category Pills & Cards */
+.uniselv-container[data-theme="dark"] .uniselv-cat-btn {
+    background: var(--uniselv-bg-card) !important;
+    border: 1px solid var(--uniselv-border) !important;
+    color: var(--uniselv-text-muted) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-cat-btn:hover {
+    background: var(--uniselv-bg-subtle) !important;
+    border-color: var(--uniselv-primary) !important;
+    color: var(--uniselv-text-main) !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-cat-btn.active {
+    background: var(--uniselv-primary) !important;
+    border-color: var(--uniselv-primary) !important;
+    color: #ffffff !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-help-card-desc {
+    color: var(--uniselv-text-muted) !important;
+}
+
+.uniselv-hero-header-card {
+    background: linear-gradient(to right, #f8fafc, #ffffff);
+}
+.uniselv-container[data-theme="dark"] .uniselv-hero-header-card {
+    background: var(--uniselv-bg-card) !important;
+}
+
 /* Modern Micro-Interactions & Hardware Acceleration */
 .uniselv-card,
 .uniselv-gauge-card {

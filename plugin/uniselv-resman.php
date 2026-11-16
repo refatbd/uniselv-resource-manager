@@ -1103,14 +1103,14 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     // TAB: USER HISTORICAL ANALYTICS & SNAPSHOTS
     echo '<div id="tab-analytics" class="uniselv-tab-content">
-        <div class="uniselv-card mb-4" style="background: linear-gradient(to right, #f8fafc, #ffffff); border-left: 4px solid var(--uniselv-primary);">
+        <div class="uniselv-card mb-4 uniselv-hero-header-card" style="border-left: 4px solid var(--uniselv-primary);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
                 <div>
-                    <h5 style="margin: 0 0 4px 0; font-weight: 700; color: #1e293b;">User Telemetry & Point-in-Time Snapshots</h5>
-                    <p style="margin: 0; font-size: 0.88rem; color: #64748b;">Inspect individual hosting accounts using native Webuzo and Linux measurements: account totals, 8 telemetry charts, hourly rollups, live processes, and forensic snapshots.</p>
+                    <h5 style="margin: 0 0 4px 0; font-weight: 700;">User Telemetry & Point-in-Time Snapshots</h5>
+                    <p style="margin: 0; font-size: 0.88rem;">Inspect individual hosting accounts using native Webuzo and Linux measurements: account totals, 8 telemetry charts, hourly rollups, live processes, and forensic snapshots.</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <label style="font-weight: 600; font-size: 0.88rem; color: #475569;">Select Account:</label>
+                    <label style="font-weight: 600; font-size: 0.88rem;">Select Account:</label>
                     <select id="admin-user-selector" class="uniselv-form-select" style="min-width: 260px; font-weight: 600; padding: 8px 12px; border-radius: 6px;" onchange="UniselvResMan.onAdminUserSelected(this.value)">';
     if (!empty($accounts['accounts'])) {
         foreach ($accounts['accounts'] as $acc) {
