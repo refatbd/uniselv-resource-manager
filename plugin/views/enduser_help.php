@@ -58,7 +58,7 @@ sort($uniselvEuPhp);
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Redis is an ultra-fast in-memory key-value data store. Offloading application caching, sessions, and queue backends to Redis improves response times by up to 3x compared to MySQL or filesystem storage. UNISELV enforces dedicated ACL credentials and key-prefix isolation per account, preventing cross-tenant access and ensuring complete data isolation.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Required <code>.env</code> Configuration Fields:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Required <code>.env</code> Configuration Fields:</h5>
                 <table class="uniselv-field-table">
                     <thead>
                         <tr><th>Field Name</th><th>Value / Placement</th><th>Description</th></tr>
@@ -74,7 +74,7 @@ sort($uniselvEuPhp);
                     </tbody>
                 </table>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Production Copy-Ready <code>.env</code> Snippet:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Production Copy-Ready <code>.env</code> Snippet:</h5>
                 <pre class="uniselv-code-block"><code>REDIS_CLIENT=phpredis
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
@@ -87,7 +87,7 @@ CACHE_STORE=redis
 SESSION_DRIVER=redis
 QUEUE_CONNECTION=redis</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Laravel Implementation Example:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">3. Laravel Implementation Example:</h5>
                 <pre class="uniselv-code-block"><code>use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 
@@ -98,7 +98,7 @@ Cache::put('latest_products', $products, 3600);
 Redis::set('daily_visitors', 1250);
 $visitors = Redis::get('daily_visitors');</code></pre>
 
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click the <strong>⚡ Test</strong> button on the <em>Redis</em> card in your UNISELV dashboard to instantly verify connection latency, prefix write permissions, cross-tenant denial guards, and administrative command protection.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click the <strong>⚡ Test</strong> button on the <em>Redis</em> card in your UNISELV dashboard to instantly verify connection latency, prefix write permissions, cross-tenant denial guards, and administrative command protection.</p>
             </div>
         </div>
 
@@ -109,11 +109,11 @@ $visitors = Redis::get('daily_visitors');</code></pre>
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Supervisor keeps background workers, queue consumers, and WebSocket servers running continuously 24/7. It automatically restarts them upon unexpected exits, fatal crashes, or server reboots. UNISELV enables non-root user-scoped drop-in configuration files located directly inside your home directory.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Drop-In Configuration File Location:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Drop-In Configuration File Location:</h5>
                 <p style="font-size:0.83rem;margin:0 0 6px 0;">Create your configuration file in the following path inside your home directory:<br>
                 <code>/home/&lt;username&gt;/.uniselv-supervisor/conf.d/worker.conf</code></p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Configuration Directives &amp; Parameters:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Configuration Directives &amp; Parameters:</h5>
                 <table class="uniselv-field-table">
                     <thead>
                         <tr><th>Directive (Key)</th><th>Recommended Value</th><th>Description</th></tr>
@@ -128,7 +128,7 @@ $visitors = Redis::get('daily_visitors');</code></pre>
                     </tbody>
                 </table>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Production Copy-Ready <code>worker.conf</code> Snippet:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">3. Production Copy-Ready <code>worker.conf</code> Snippet:</h5>
                 <pre class="uniselv-code-block"><code>[program:my-app-worker]
 process_name=%(program_name)s_%(process_num)02d
 command=/usr/local/apps/php84/bin/php /home/username/public_html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
@@ -141,7 +141,7 @@ redirect_stderr=true
 stdout_logfile=/home/username/.uniselv-logs/worker.log
 stdout_logfile_maxbytes=10MB
 stdout_logfile_backups=2</code></pre>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Once saved, the UNISELV agent automatically registers the drop-in. Click <strong>⚡ Test</strong> on the <em>Supervisor</em> card to inspect daemon status and active drop-in configuration files.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Once saved, the UNISELV agent automatically registers the drop-in. Click <strong>⚡ Test</strong> on the <em>Supervisor</em> card to inspect daemon status and active drop-in configuration files.</p>
             </div>
         </div>
 
@@ -152,10 +152,10 @@ stdout_logfile_backups=2</code></pre>
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Long-running tasks such as sending emails, dispatching push notifications, PDF rendering, and processing webhooks should never block HTTP web requests. Queue workers offload these jobs to the background, allowing web requests to complete in sub-50ms latency while background tasks are handled asynchronously.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Required <code>.env</code> Configuration:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Required <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>QUEUE_CONNECTION=redis</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Creating and Dispatching a Job:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Creating and Dispatching a Job:</h5>
                 <pre class="uniselv-code-block"><code>// Generate job in project: php artisan make:job SendWelcomeEmail
 
 namespace App\Jobs;
@@ -178,9 +178,9 @@ class SendWelcomeEmail implements ShouldQueue
 // Dispatching from controller or event:
 SendWelcomeEmail::dispatch($user);</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Worker Execution Command with Memory Safeguards:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">3. Worker Execution Command with Memory Safeguards:</h5>
                 <pre class="uniselv-code-block"><code>/usr/local/apps/php84/bin/php /home/user/public_html/artisan queue:work --sleep=3 --tries=3 --timeout=90 --max-time=3600 --memory=256</code></pre>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Queue Workers</em> card to verify your plan queue quota, PHP CLI availability, and active worker count.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Queue Workers</em> card to verify your plan queue quota, PHP CLI availability, and active worker count.</p>
             </div>
         </div>
 
@@ -193,14 +193,14 @@ SendWelcomeEmail::dispatch($user);</code></pre>
 
                 <p style="font-size:0.82rem;color:#b45309;background:#fffbeb;padding:6px 10px;border-radius:6px;border:1px solid #fde68a;"><strong>Prerequisites:</strong> Horizon requires active Redis ACL credentials and at least 512 MiB of account memory allocated on your hosting plan.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Installation &amp; <code>.env</code> Configuration:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Installation &amp; <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>composer require laravel/horizon
 php artisan horizon:install
 
 # Set dedicated Horizon prefix in .env:
 HORIZON_PREFIX=yourusername:horizon:</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Dashboard Access Authorization (HorizonServiceProvider.php):</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Dashboard Access Authorization (HorizonServiceProvider.php):</h5>
                 <pre class="uniselv-code-block"><code>// In app/Providers/HorizonServiceProvider.php define authorized users:
 protected function gate(): void
 {
@@ -211,10 +211,10 @@ protected function gate(): void
     });
 }</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Continuous Horizon Execution via Supervisor:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">3. Continuous Horizon Execution via Supervisor:</h5>
                 <pre class="uniselv-code-block"><code># In ~/.uniselv-supervisor/conf.d/horizon.conf:
 command=/usr/local/apps/php84/bin/php /home/username/public_html/artisan horizon</code></pre>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Horizon Dashboard</em> card to check memory quota compliance, Redis dependencies, and assigned metrics port allocation.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Horizon Dashboard</em> card to check memory quota compliance, Redis dependencies, and assigned metrics port allocation.</p>
             </div>
         </div>
 
@@ -227,7 +227,7 @@ command=/usr/local/apps/php84/bin/php /home/username/public_html/artisan horizon
 
                 <p style="font-size:0.82rem;color:#1d4ed8;background:#eff6ff;padding:6px 10px;border-radius:6px;border:1px solid #bfdbfe;"><strong>Dedicated Port &amp; SSL Reverse Proxy:</strong> UNISELV assigns an exclusive private port (e.g., 22241) to your account. Browsers connect via standard <code>wss://yourdomain.com/app</code> through an Apache SSL reverse proxy configured with 1-click in the dashboard.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Required <code>.env</code> Configuration:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Required <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>BROADCAST_CONNECTION=reverb
 REVERB_APP_ID=my-reverb-app
 REVERB_APP_KEY=my-reverb-key-123
@@ -242,7 +242,7 @@ VITE_REVERB_HOST="yourdomain.com"
 VITE_REVERB_PORT=443
 VITE_REVERB_SCHEME=https</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Broadcasting a Real-Time Event in Laravel:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Broadcasting a Real-Time Event in Laravel:</h5>
                 <pre class="uniselv-code-block"><code>namespace App\Events;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -260,12 +260,12 @@ class OrderUpdated implements ShouldBroadcast
 // Firing the event:
 broadcast(new OrderUpdated($order));</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Client-Side Echo Listener (JavaScript):</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">3. Client-Side Echo Listener (JavaScript):</h5>
                 <pre class="uniselv-code-block"><code>window.Echo.channel('orders')
     .listen('OrderUpdated', (e) => {
         console.log('Order status updated:', e.order.status);
     });</code></pre>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Reverb / WebSocket</em> card to verify port readiness, SSL reverse proxy configuration, and connection availability.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Reverb / WebSocket</em> card to verify port readiness, SSL reverse proxy configuration, and connection availability.</p>
             </div>
         </div>
 
@@ -276,11 +276,11 @@ broadcast(new OrderUpdated($order));</code></pre>
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Instead of managing multiple disparate server crons, Laravel Scheduler uses a single 1-minute crontab entry to execute all scheduled commands defined directly in your application code (daily backups, database cleanup, hourly email summaries, etc.).</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. 1-Click Webuzo Cron Registration:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. 1-Click Webuzo Cron Registration:</h5>
                 <p style="font-size:0.83rem;margin:0 0 6px 0;">Click the <strong>"⏱️ Webuzo Cron"</strong> button on the Scheduler card to register the following cron command automatically without needing SSH:</p>
                 <pre class="uniselv-code-block"><code>* * * * * /usr/local/apps/php84/bin/php /home/username/public_html/artisan schedule:run > /dev/null 2>&1</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Defining Scheduled Tasks in Laravel (routes/console.php):</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Defining Scheduled Tasks in Laravel (routes/console.php):</h5>
                 <pre class="uniselv-code-block"><code>use Illuminate\Support\Facades\Schedule;
 
 // Daily database backup at 2:00 AM:
@@ -294,7 +294,7 @@ Schedule::command('cache:prune-stale-tags')->hourly();
 Schedule::call(function () {
     \App\Models\Order::where('status', 'unpaid')->where('created_at', '<', now()->subDays(3))->delete();
 })->daily();</code></pre>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Scheduler</em> card to verify crontab registration and PHP CLI execution readiness.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Scheduler</em> card to verify crontab registration and PHP CLI execution readiness.</p>
             </div>
         </div>
 
@@ -307,7 +307,7 @@ Schedule::call(function () {
 
                 <p style="font-size:0.82rem;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:6px;border:1px solid #fde68a;"><strong>Mandatory Sandbox Flags:</strong> Running Chrome within user containment slices requires <code>--no-sandbox</code>, <code>--disable-setuid-sandbox</code>, and <code>--disable-dev-shm-usage</code> flags to ensure safe execution.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. System Binary &amp; <code>.env</code> Fields:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. System Binary &amp; <code>.env</code> Fields:</h5>
                 <table class="uniselv-field-table">
                     <thead>
                         <tr><th>Field Name</th><th>Value</th><th>Description</th></tr>
@@ -318,7 +318,7 @@ Schedule::call(function () {
                     </tbody>
                 </table>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Generating PDFs with Spatie Browsershot (PHP):</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Generating PDFs with Spatie Browsershot (PHP):</h5>
                 <pre class="uniselv-code-block"><code>// composer require spatie/browsershot
 use Spatie\Browsershot\Browsershot;
 
@@ -334,7 +334,7 @@ $pdfData = Browsershot::html('&lt;h1&gt;Customer Invoice #1024&lt;/h1&gt;&lt;p&g
     ->pdf();
 
 return response($pdfData)->header('Content-Type', 'application/pdf');</code></pre>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Chrome Browser Engine</em> card to run a live headless DOM rendering smoke test inside your account's containment slice.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Chrome Browser Engine</em> card to run a live headless DOM rendering smoke test inside your account's containment slice.</p>
             </div>
         </div>
 
@@ -347,7 +347,7 @@ return response($pdfData)->header('Content-Type', 'application/pdf');</code></pr
 
                 <p style="font-size:0.82rem;color:#047857;background:#ecfdf5;padding:6px 10px;border-radius:6px;border:1px solid #a7f3d0;"><strong>Pre-Compiled Extensions:</strong> OpenSwoole is pre-compiled across PHP 7.4, 8.1, 8.2, and 8.4 on the UNISELV server. A dedicated port is reserved specifically for your account's Octane server.</p>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Installation &amp; <code>.env</code> Configuration:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Installation &amp; <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>composer require laravel/octane
 php artisan octane:install --server=swoole
 
@@ -357,12 +357,12 @@ OCTANE_PORT=22242
 OCTANE_WORKERS=2
 OCTANE_TASK_WORKERS=1</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Continuous Octane Daemon Execution via Supervisor:</h5>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">2. Continuous Octane Daemon Execution via Supervisor:</h5>
                 <pre class="uniselv-code-block"><code>/usr/local/apps/php84/bin/php /home/username/public_html/artisan octane:start --server=swoole --host=127.0.0.1 --port=22242 --workers=2</code></pre>
 
-                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Architecture Best Practice (Stateless Coding):</h5>
-                <p style="font-size:0.83rem;color:#475569;margin:0;">Because the application remains in memory across requests, do not store request-specific state in static properties or singletons. Handle each request statelessly to maintain high reliability.</p>
-                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>OpenSwoole Runtime</em> card to verify the PHP module, Coroutine engine availability, and dedicated Octane port readiness.</p>
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">3. Architecture Best Practice (Stateless Coding):</h5>
+                <p style="font-size:0.83rem;color: var(--uniselv-text-muted);margin:0;">Because the application remains in memory across requests, do not store request-specific state in static properties or singletons. Handle each request statelessly to maintain high reliability.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>OpenSwoole Runtime</em> card to verify the PHP module, Coroutine engine availability, and dedicated Octane port readiness.</p>
             </div>
         </div>
 
@@ -524,7 +524,7 @@ OCTANE_TASK_WORKERS=1</code></pre>
             <div class="uniselv-help-card-desc">
                 <p>UNISELV operates on a strict <strong>Zero-Touch Application Philosophy</strong>. The server never modifies your application source code, <code>.env</code> file, or project repository. Instead, UNISELV provisions secure server-level isolation (Cgroups v2, Redis ACLs, dedicated ports, Supervisor drop-ins, and Webuzo Cron) and lets you configure your Laravel application cleanly using standard environment variables.</p>
 
-                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">1. Redis ACL &amp; Key-Prefix Isolation</h5>
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color: var(--uniselv-text-main);">1. Redis ACL &amp; Key-Prefix Isolation</h5>
                 <p style="font-size:0.83rem;margin:0 0 6px 0;">To protect shared server resources, each tenant account is assigned an isolated Redis ACL user restricted strictly to keys matching <code>&lt;account&gt;:*</code>. In your Laravel project's <code>.env</code>, configure:</p>
                 <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
@@ -534,7 +534,7 @@ REDIS_PREFIX=yourusername:
 HORIZON_PREFIX=yourusername:horizon:
 CACHE_PREFIX=yourusername:cache:</code></pre>
 
-                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">2. Laravel Reverb WebSocket &amp; VHost Reverse Proxy</h5>
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color: var(--uniselv-text-main);">2. Laravel Reverb WebSocket &amp; VHost Reverse Proxy</h5>
                 <p style="font-size:0.83rem;margin:0 0 6px 0;">Each account has a dedicated private port (e.g. <code>22241</code>) assigned to Reverb. In your <code>.env</code>:</p>
                 <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>REVERB_APP_ID=your-app-id
 REVERB_APP_KEY=your-app-key
@@ -547,9 +547,9 @@ REVERB_SCHEME=http
 VITE_REVERB_HOST="yourdomain.com"
 VITE_REVERB_PORT=443
 VITE_REVERB_SCHEME=https</code></pre>
-                <p style="font-size:0.82rem;color:#475569;margin:0 0 10px 0;">Click <strong>"🌐 Enable Proxy in Webuzo Apache VHost"</strong> in <em>App Services &amp; Tools</em>. This creates a non-invasive include file (<code>/usr/local/apps/apache2/etc/conf.d/uniselv-reverb-{domain}.conf</code>) that forwards <code>/app</code> and <code>/apps</code> to your private Reverb port over SSL automatically.</p>
+                <p style="font-size:0.82rem;color: var(--uniselv-text-muted);margin:0 0 10px 0;">Click <strong>"🌐 Enable Proxy in Webuzo Apache VHost"</strong> in <em>App Services &amp; Tools</em>. This creates a non-invasive include file (<code>/usr/local/apps/apache2/etc/conf.d/uniselv-reverb-{domain}.conf</code>) that forwards <code>/app</code> and <code>/apps</code> to your private Reverb port over SSL automatically.</p>
 
-                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">3. Non-Root Supervisor Drop-In Workers</h5>
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color: var(--uniselv-text-main);">3. Non-Root Supervisor Drop-In Workers</h5>
                 <p style="font-size:0.83rem;margin:0 0 6px 0;">You do not need root access to manage workers. Drop a standard Supervisor config file into your scoped configuration folder: <code>/home/&lt;user&gt;/.uniselv-supervisor/conf.d/worker.conf</code>:</p>
                 <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>[program:laravel-worker]
 process_name=%(program_name)s_%(process_num)02d
@@ -563,9 +563,9 @@ redirect_stderr=true
 stdout_logfile=/home/user/.uniselv-logs/queue.log
 stdout_logfile_maxbytes=10MB
 stdout_logfile_backups=2</code></pre>
-                <p style="font-size:0.82rem;color:#475569;margin:0 0 10px 0;">The UNISELV agent auto-detects this file, launches your workers under your account's isolated Cgroup slice, and provides <strong>Restart</strong>, <strong>Test</strong>, and <strong>Logs</strong> tools in your panel.</p>
+                <p style="font-size:0.82rem;color: var(--uniselv-text-muted);margin:0 0 10px 0;">The UNISELV agent auto-detects this file, launches your workers under your account's isolated Cgroup slice, and provides <strong>Restart</strong>, <strong>Test</strong>, and <strong>Logs</strong> tools in your panel.</p>
 
-                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color:#1e293b;">4. Laravel Scheduler (Automated Webuzo Cron)</h5>
+                <h5 style="margin:12px 0 6px 0;font-size:0.9rem;color: var(--uniselv-text-main);">4. Laravel Scheduler (Automated Webuzo Cron)</h5>
                 <p style="font-size:0.83rem;margin:0 0 6px 0;">Under <em>App Services &amp; Tools</em>, click <strong>"⏱️ Webuzo Cron"</strong> in the Laravel Scheduler row. UNISELV safely registers the 1-minute runner in your user crontab without terminal commands:</p>
                 <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>* * * * * /usr/local/apps/php84/bin/php /home/user/public_html/artisan schedule:run > /dev/null 2>&1</code></pre>
             </div>
@@ -576,7 +576,7 @@ stdout_logfile_backups=2</code></pre>
             <span class="uniselv-help-badge badge-cat-about">About</span>
             <h4 class="uniselv-help-card-title">About Your Hosting Environment</h4>
             <div class="uniselv-help-card-desc">
-                <table style="width:100%; border-collapse:collapse; font-size:0.86rem; color:#334155; margin-bottom:10px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.86rem; color: var(--uniselv-text-main); margin-bottom:10px;">
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600; width:190px;">Resource Manager Version:</td><td><strong>v<?php echo $uniselvEuVersion; ?></strong> (OpenSwoole &amp; Managed Laravel Platform)</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600;">Kernel Isolation:</td><td>Linux <strong>Cgroups v2</strong> per-account resource slice</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600;">Available PHP Runtimes:</td><td><?php echo htmlspecialchars($uniselvEuPhp ? implode(', ', $uniselvEuPhp) : 'Standard Webuzo PHP', ENT_QUOTES, 'UTF-8'); ?></td></tr>
@@ -594,15 +594,15 @@ stdout_logfile_backups=2</code></pre>
                 <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
                     <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.1rem; flex-shrink: 0;">RR</div>
                     <div>
-                        <h5 style="margin: 0 0 2px 0; font-weight: 700; color: #1e293b;">Refat Rahman</h5>
-                        <p style="margin: 0; font-size: 0.82rem; color: #64748b;">Systems Architect • <a href="https://refat.ovh" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">refat.ovh</a></p>
+                        <h5 style="margin: 0 0 2px 0; font-weight: 700; color: var(--uniselv-text-main);">Refat Rahman</h5>
+                        <p style="margin: 0; font-size: 0.82rem; color: var(--uniselv-text-muted);">Systems Architect • <a href="https://refat.ovh" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">refat.ovh</a></p>
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <a href="https://github.com/refatbd" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; font-size: 0.8rem; font-weight: 600; text-decoration: none;">GitHub</a>
-                    <a href="https://t.me/refatbd" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; color: #0284c7; font-size: 0.8rem; font-weight: 600; text-decoration: none;">Telegram</a>
-                    <a href="https://www.facebook.com/rjrefat/" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; color: #1877f2; font-size: 0.8rem; font-weight: 600; text-decoration: none;">Facebook</a>
-                    <a href="https://www.instagram.com/refat_official" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; color: #e1306c; font-size: 0.8rem; font-weight: 600; text-decoration: none;">Instagram</a>
+                    <a href="https://github.com/refatbd" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: var(--uniselv-text-main); font-size: 0.8rem; font-weight: 600; text-decoration: none;">GitHub</a>
+                    <a href="https://t.me/refatbd" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: #0284c7; font-size: 0.8rem; font-weight: 600; text-decoration: none;">Telegram</a>
+                    <a href="https://www.facebook.com/rjrefat/" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: #1877f2; font-size: 0.8rem; font-weight: 600; text-decoration: none;">Facebook</a>
+                    <a href="https://www.instagram.com/refat_official" target="_blank" style="padding: 4px 10px; border-radius: 6px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: #e1306c; font-size: 0.8rem; font-weight: 600; text-decoration: none;">Instagram</a>
                 </div>
             </div>
         </div>

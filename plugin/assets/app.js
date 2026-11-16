@@ -125,7 +125,10 @@ const UniselvModal = {
         dialog.setAttribute('role', 'dialog');
         dialog.setAttribute('aria-modal', 'true');
         dialog.setAttribute('aria-label', title);
-        document.body.appendChild(backdrop);
+        const currentTheme = document.querySelector('.uniselv-container')?.getAttribute('data-theme') || localStorage.getItem('uniselv_theme') || 'light';
+        backdrop.setAttribute('data-theme', currentTheme);
+        const targetParent = document.querySelector('.uniselv-container') || document.body;
+        targetParent.appendChild(backdrop);
         setTimeout(() => backdrop.classList.add('show'), 20);
 
         const close = () => {
@@ -417,6 +420,8 @@ const UniselvResMan = {
             container.setAttribute('data-theme', theme);
         }
         document.documentElement.setAttribute('data-uniselv-theme', theme);
+        document.body.setAttribute('data-uniselv-theme', theme);
+        document.querySelectorAll('.uniselv-modal-overlay, .uniselv-modal, [id*="modal"]').forEach(m => m.setAttribute('data-theme', theme));
         const toggleBtn = document.getElementById('uniselv-theme-toggle');
         if (toggleBtn) {
             toggleBtn.setAttribute('data-current-theme', theme);
@@ -1141,7 +1146,7 @@ const UniselvResMan = {
         const btn = document.getElementById('btn-save-features');
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span class="uniselv-live-dot" style="background:#fff; margin-right:6px;"></span> Saving...';
+            btn.innerHTML = '<span class="uniselv-live-dot" style="background: var(--uniselv-bg-card); margin-right:6px;"></span> Saving...';
         }
 
         this.callApi('save_feature_settings', payload, (err, res) => {
@@ -1507,9 +1512,9 @@ const UniselvResMan = {
         this.hourlyUsageRecords = [];
         document.getElementById('uniselv-usage-rollup-pagination')?.replaceChildren();
 
-        if (totalTbody) totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">Loading account totals...</td></tr>';
-        if (gridEl) gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:#64748b; padding:40px; background:#fff; border:1px solid var(--uniselv-border); border-radius:8px;">Loading resource charts...</div>';
-        if (rollupTbody) rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">Loading hourly usage records...</td></tr>';
+        if (totalTbody) totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Loading account totals...</td></tr>';
+        if (gridEl) gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color: var(--uniselv-text-muted); padding:40px; background: var(--uniselv-bg-card); border:1px solid var(--uniselv-border); border-radius:8px;">Loading resource charts...</div>';
+        if (rollupTbody) rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">Loading hourly usage records...</td></tr>';
 
         this.latestRead('enduser-usage', 'history', { range: timeframe, username: this.currentUser }, (err, res) => {
             if (err || !res || res.error) {
@@ -1522,7 +1527,7 @@ const UniselvResMan = {
             if (totalTbody) {
                 const totals = res.account_total || [];
                 if (totals.length === 0) {
-                    totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:16px;">No account totals recorded.</td></tr>';
+                    totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:16px;">No account totals recorded.</td></tr>';
                 } else {
                     let html = '';
                     totals.forEach(r => {
@@ -1537,9 +1542,9 @@ const UniselvResMan = {
                         }
                         html += `
                             <tr>
-                                <td style="font-weight:600; color:#1e293b;">${this.escapeHtml(r.desc)}</td>
+                                <td style="font-weight:600; color: var(--uniselv-text-main);">${this.escapeHtml(r.desc)}</td>
                                 <td style="font-weight:600;">${this.escapeHtml(usageStr)}</td>
-                                <td style="color:#64748b;">${this.escapeHtml(r.limit)}</td>
+                                <td style="color: var(--uniselv-text-muted);">${this.escapeHtml(r.limit)}</td>
                                 <td>${faultHtml}</td>
                             </tr>
                         `;
@@ -1553,7 +1558,7 @@ const UniselvResMan = {
                 gridEl.innerHTML = '';
                 const pts = res.points || [];
                 if (pts.length < 2) {
-                    gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:#64748b; padding:40px; background:#fff; border:1px solid var(--uniselv-border); border-radius:8px;">Not enough telemetry points collected for this timeframe yet. Telemetry daemon is actively sampling.</div>';
+                    gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color: var(--uniselv-text-muted); padding:40px; background: var(--uniselv-bg-card); border:1px solid var(--uniselv-border); border-radius:8px;">Not enough telemetry points collected for this timeframe yet. Telemetry daemon is actively sampling.</div>';
                 } else {
                     // Chart 1: CPU (SPEED)
                     const cpuData = pts.map(p => ({ x: p.t, y: p.speed, limit: p.limit_speed }));
@@ -1617,7 +1622,7 @@ const UniselvResMan = {
 
         const hourly = this.hourlyUsageRecords || [];
         if (hourly.length === 0) {
-            rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">No historical telemetry records logged yet for this period.</td></tr>';
+            rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">No historical telemetry records logged yet for this period.</td></tr>';
             const pag = document.getElementById('uniselv-usage-rollup-pagination');
             if (pag) pag.innerHTML = '';
             return;
@@ -1645,12 +1650,12 @@ const UniselvResMan = {
                 <tr>
                     <td>${this.escapeHtml(h.from_time)}</td>
                     <td>${this.escapeHtml(h.to_time)}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.speed.a}</td><td>${h.speed.l}</td><td>${sf}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.pmem.a}</td><td>${h.pmem.l}</td><td>${mf}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${ioAvg}</td><td>${h.io.l}</td><td>${h.io.f}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.ep.a}</td><td>${h.ep.l}</td><td>${h.ep.f}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.nproc.a}</td><td>${h.nproc.l}</td><td>${nf}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.iops.a}</td><td>${h.iops.l}</td><td>${h.iops.f}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.speed.a}</td><td>${h.speed.l}</td><td>${sf}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.pmem.a}</td><td>${h.pmem.l}</td><td>${mf}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${ioAvg}</td><td>${h.io.l}</td><td>${h.io.f}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.ep.a}</td><td>${h.ep.l}</td><td>${h.ep.f}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.nproc.a}</td><td>${h.nproc.l}</td><td>${nf}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.iops.a}</td><td>${h.iops.l}</td><td>${h.iops.f}</td>
                 </tr>
             `;
         });
@@ -1682,7 +1687,7 @@ const UniselvResMan = {
     loadLiveProcesses: function() {
         const tbody = document.getElementById('uniselv-live-processes-tbody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b; padding:20px;">Refreshing live process table...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Refreshing live process table...</td></tr>';
 
         this.callApi('processes', { username: this.currentUser }, (err, res) => {
             if (err || res.error || !res.processes) {
@@ -1692,14 +1697,14 @@ const UniselvResMan = {
 
             const procs = res.processes;
             if (procs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b; padding:24px;">No active background processes currently running for this account.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">No active background processes currently running for this account.</td></tr>';
                 return;
             }
 
             let html = '';
             procs.forEach(p => {
                 const cpuVal = (typeof p.cpu_percent === 'number') ? p.cpu_percent : 0;
-                const cpuColor = (cpuVal > 50) ? '#dc2626' : ((cpuVal > 15) ? '#d97706' : '#1e293b');
+                const cpuColor = (cpuVal > 50) ? '#dc2626' : ((cpuVal > 15) ? '#d97706' : 'var(--uniselv-text-main)');
                 const memVal = p.mem_formatted || p.mem_mb || 0;
                 const cmdEsc = this.escapeHtml(p.cmdline || p.comm || 'unknown');
                 const tooltipEsc = this.escapeHtml(p.tooltip || p.cmdline || cmdEsc);
@@ -1747,8 +1752,8 @@ const UniselvResMan = {
         const allNull = points.every(p => p.y === null || p.y === undefined);
         if (allNull) {
             const empty = document.createElement('div');
-            empty.innerHTML = `<div style="padding: 34px 16px; text-align: center; color: #64748b; font-size: 0.82rem; line-height: 1.5;">
-                <div style="font-weight: 600; color: #475569; margin-bottom: 4px;">Metric Unavailable</div>
+            empty.innerHTML = `<div style="padding: 34px 16px; text-align: center; color: var(--uniselv-text-muted); font-size: 0.82rem; line-height: 1.5;">
+                <div style="font-weight: 600; color: var(--uniselv-text-muted); margin-bottom: 4px;">Metric Unavailable</div>
                 Linux cgroups v2 does not track mod_hostinglimits Entry Processes independently.<br>Account concurrency is governed via <strong>Processes (NPROC)</strong>.
             </div>`;
             card.appendChild(empty);
@@ -1858,7 +1863,7 @@ const UniselvResMan = {
     loadHistory: function(range) {
         const chartContainer = document.getElementById('uniselv-history-charts');
         if (!chartContainer) return;
-        chartContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: #64748b;">Loading historical telemetry data...</div>';
+        chartContainer.innerHTML = '<div style="padding: 30px; text-align: center; color: var(--uniselv-text-muted);">Loading historical telemetry data...</div>';
 
         this.latestRead('enduser-history', 'history', { range, view: 'charts', username: this.currentUser }, (err, res) => {
             if (err || !res || res.error) {
@@ -1868,7 +1873,7 @@ const UniselvResMan = {
             }
 
             if (!res.points || res.points.length === 0) {
-                chartContainer.innerHTML = '<div class="uniselv-card" style="text-align: center; color: #64748b; padding: 40px;">No historical telemetry recorded yet for this time window. Data collection is running.</div>';
+                chartContainer.innerHTML = '<div class="uniselv-card" style="text-align: center; color: var(--uniselv-text-muted); padding: 40px;">No historical telemetry recorded yet for this time window. Data collection is running.</div>';
                 return;
             }
 
@@ -1955,9 +1960,9 @@ const UniselvResMan = {
         this.adminHourlyUsageRecords = [];
         document.getElementById('admin-usage-rollup-pagination')?.replaceChildren();
 
-        if (totalTbody) totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">Loading account totals for ' + this.escapeHtml(targetUser) + '...</td></tr>';
-        if (gridEl) gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color:#64748b; padding:40px; background:#fff; border:1px solid var(--uniselv-border); border-radius:8px;">Loading 8 resource telemetry charts...</div>';
-        if (rollupTbody) rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">Loading hourly usage records...</td></tr>';
+        if (totalTbody) totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Loading account totals for ' + this.escapeHtml(targetUser) + '...</td></tr>';
+        if (gridEl) gridEl.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; color: var(--uniselv-text-muted); padding:40px; background: var(--uniselv-bg-card); border:1px solid var(--uniselv-border); border-radius:8px;">Loading 8 resource telemetry charts...</div>';
+        if (rollupTbody) rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">Loading hourly usage records...</td></tr>';
 
         this.latestRead('admin-usage', 'history', { range: timeframe, username: targetUser }, (err, res) => {
             if (err || !res || res.error) {
@@ -1970,7 +1975,7 @@ const UniselvResMan = {
             if (totalTbody) {
                 const totals = res.account_total || [];
                 if (totals.length === 0) {
-                    totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:16px;">No account totals recorded.</td></tr>';
+                    totalTbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:16px;">No account totals recorded.</td></tr>';
                 } else {
                     let html = '';
                     totals.forEach(r => {
@@ -1985,9 +1990,9 @@ const UniselvResMan = {
                         }
                         html += `
                             <tr>
-                                <td style="font-weight:600; color:#1e293b;">${this.escapeHtml(r.desc)}</td>
+                                <td style="font-weight:600; color: var(--uniselv-text-main);">${this.escapeHtml(r.desc)}</td>
                                 <td style="font-weight:600;">${this.escapeHtml(usageStr)}</td>
-                                <td style="color:#64748b;">${this.escapeHtml(r.limit)}</td>
+                                <td style="color: var(--uniselv-text-muted);">${this.escapeHtml(r.limit)}</td>
                                 <td>${faultHtml}</td>
                             </tr>
                         `;
@@ -2001,7 +2006,7 @@ const UniselvResMan = {
                 gridEl.innerHTML = '';
                 const pts = res.points || [];
                 if (pts.length < 2) {
-                    gridEl.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; color:#64748b; padding:40px; background:#fff; border:1px solid var(--uniselv-border); border-radius:8px;">Not enough telemetry points collected for <strong>${this.escapeHtml(targetUser)}</strong> in this timeframe yet. Telemetry daemon is actively sampling.</div>`;
+                    gridEl.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; color: var(--uniselv-text-muted); padding:40px; background: var(--uniselv-bg-card); border:1px solid var(--uniselv-border); border-radius:8px;">Not enough telemetry points collected for <strong>${this.escapeHtml(targetUser)}</strong> in this timeframe yet. Telemetry daemon is actively sampling.</div>`;
                 } else {
                     // Chart 1: CPU (SPEED)
                     const cpuData = pts.map(p => ({ x: p.t, y: p.speed, limit: p.limit_speed }));
@@ -2061,7 +2066,7 @@ const UniselvResMan = {
 
         const hourly = this.adminHourlyUsageRecords || [];
         if (hourly.length === 0) {
-            rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">No historical telemetry records logged yet for this period.</td></tr>';
+            rollupTbody.innerHTML = '<tr><td colspan="20" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">No historical telemetry records logged yet for this period.</td></tr>';
             const pag = document.getElementById('admin-usage-rollup-pagination');
             if (pag) pag.innerHTML = '';
             return;
@@ -2089,12 +2094,12 @@ const UniselvResMan = {
                 <tr>
                     <td>${this.escapeHtml(h.from_time)}</td>
                     <td>${this.escapeHtml(h.to_time)}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.speed.a}</td><td>${h.speed.l}</td><td>${sf}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.pmem.a}</td><td>${h.pmem.l}</td><td>${mf}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${ioAvg}</td><td>${h.io.l}</td><td>${h.io.f}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.ep.a}</td><td>${h.ep.l}</td><td>${h.ep.f}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.nproc.a}</td><td>${h.nproc.l}</td><td>${nf}</td>
-                    <td style="border-left:1px solid #e2e8f0;">${h.iops.a}</td><td>${h.iops.l}</td><td>${h.iops.f}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.speed.a}</td><td>${h.speed.l}</td><td>${sf}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.pmem.a}</td><td>${h.pmem.l}</td><td>${mf}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${ioAvg}</td><td>${h.io.l}</td><td>${h.io.f}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.ep.a}</td><td>${h.ep.l}</td><td>${h.ep.f}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.nproc.a}</td><td>${h.nproc.l}</td><td>${nf}</td>
+                    <td style="border-left: 1px solid var(--uniselv-border);">${h.iops.a}</td><td>${h.iops.l}</td><td>${h.iops.f}</td>
                 </tr>
             `;
         });
@@ -2123,7 +2128,7 @@ const UniselvResMan = {
         const targetUser = this.selectedAdminUser || document.getElementById('admin-user-selector')?.value || '';
         if (!targetUser) return;
 
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b; padding:20px;">Refreshing live process table for ' + this.escapeHtml(targetUser) + '...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Refreshing live process table for ' + this.escapeHtml(targetUser) + '...</td></tr>';
 
         this.latestRead('admin-processes', 'processes', { username: targetUser }, (err, res) => {
             if (err || res.error || !res.processes) {
@@ -2133,14 +2138,14 @@ const UniselvResMan = {
 
             const procs = res.processes;
             if (procs.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:24px;">No active background processes currently running for <strong>${this.escapeHtml(targetUser)}</strong>.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">No active background processes currently running for <strong>${this.escapeHtml(targetUser)}</strong>.</td></tr>`;
                 return;
             }
 
             let html = '';
             procs.forEach(p => {
                 const cpuVal = (typeof p.cpu_percent === 'number') ? p.cpu_percent : 0;
-                const cpuColor = (cpuVal > 50) ? '#dc2626' : ((cpuVal > 15) ? '#d97706' : '#1e293b');
+                const cpuColor = (cpuVal > 50) ? '#dc2626' : ((cpuVal > 15) ? '#d97706' : 'var(--uniselv-text-main)');
                 const memVal = p.mem_formatted || p.mem_mb || 0;
                 const cmdEsc = this.escapeHtml(p.cmdline || p.comm || 'unknown');
                 const tooltipEsc = this.escapeHtml(p.tooltip || p.cmdline || cmdEsc);
@@ -2173,8 +2178,8 @@ const UniselvResMan = {
         header.style.justifyContent = 'space-between';
         header.style.alignItems = 'center';
         header.style.marginBottom = '12px';
-        header.innerHTML = `<h5 style="font-weight: 700; margin: 0; font-size: 0.95rem; text-transform: uppercase; color: #1e293b;">${title}</h5>
-                            <span style="font-size: 0.8rem; color: #64748b; font-weight: 500;">${points.length} points</span>`;
+        header.innerHTML = `<h5 style="font-weight: 700; margin: 0; font-size: 0.95rem; text-transform: uppercase; color: var(--uniselv-text-main);">${title}</h5>
+                            <span style="font-size: 0.8rem; color: var(--uniselv-text-muted); font-weight: 500;">${points.length} points</span>`;
         card.appendChild(header);
 
         if (points.length < 2) {
@@ -2401,7 +2406,7 @@ const UniselvResMan = {
         if (snapshotId) params.snapshot_id = snapshotId;
 
         const contentEl = document.getElementById(`${role}-snap-content`);
-        if (contentEl) contentEl.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Loading snapshot records...</div>';
+        if (contentEl) contentEl.innerHTML = '<div style="text-align:center; padding:30px; color: var(--uniselv-text-muted);">Loading snapshot records...</div>';
 
         this.latestRead(role + '-snapshots', 'snapshots_index', params, (err, res) => {
             const state = (role === 'admin') ? this.adminSnapshotsState : this.enduserSnapshotsState;
@@ -2519,7 +2524,7 @@ const UniselvResMan = {
 
     fetchSnapshotDetail: function(username, snapId, role) {
         const contentEl = document.getElementById(`${role}-snap-content`);
-        if (contentEl) contentEl.innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Loading snapshot details...</div>';
+        if (contentEl) contentEl.innerHTML = '<div style="text-align:center; padding:30px; color: var(--uniselv-text-muted);">Loading snapshot details...</div>';
 
         this.latestRead(role + '-snapshots', 'snapshot_detail', { username: username, snapshot_id: snapId }, (err, res) => {
             const state = (role === 'admin') ? this.adminSnapshotsState : this.enduserSnapshotsState;
@@ -2586,7 +2591,7 @@ const UniselvResMan = {
                 <div class="uniselv-table-wrap">
                     <table class="uniselv-table" style="margin-bottom:0;">
                         <thead>
-                            <tr style="background:#f8fafc; font-size:0.8rem; text-transform:uppercase; color:#475569;">
+                            <tr style="background: var(--uniselv-bg-subtle); font-size:0.8rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                                 <th style="width:90px;">PID</th>
                                 <th>CMD</th>
                                 <th style="width:110px; text-align:right;">CPU</th>
@@ -2598,7 +2603,7 @@ const UniselvResMan = {
 
             procs.forEach(p => {
                 const cpuVal = (typeof p.cpu_percent === 'number') ? p.cpu_percent : 0;
-                const cpuColor = (cpuVal > 50) ? '#dc2626' : ((cpuVal > 15) ? '#d97706' : '#1e293b');
+                const cpuColor = (cpuVal > 50) ? '#dc2626' : ((cpuVal > 15) ? '#d97706' : 'var(--uniselv-text-main)');
                 const memVal = p.mem_formatted || p.mem_mb || 0;
                 const cmdEsc = this.escapeHtml(p.cmdline || p.comm || 'unknown');
                 const tooltipEsc = this.escapeHtml(p.tooltip || p.cmdline || cmdEsc);
@@ -2638,7 +2643,7 @@ const UniselvResMan = {
                 <div class="uniselv-table-wrap">
                     <table class="uniselv-table" style="margin-bottom:0;">
                         <thead>
-                            <tr style="background:#f8fafc; font-size:0.8rem; text-transform:uppercase; color:#475569;">
+                            <tr style="background: var(--uniselv-bg-subtle); font-size:0.8rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                                 <th style="width:70px;">ID</th>
                                 <th>User</th>
                                 <th>Database</th>
@@ -2660,7 +2665,7 @@ const UniselvResMan = {
                         <td>${this.escapeHtml(q.command || '')}</td>
                         <td>${q.time_seconds || 0}s</td>
                         <td>${this.escapeHtml(q.state || '')}</td>
-                        <td><code style="font-size:0.8rem; background:#f1f5f9; padding:2px 6px; border-radius:4px; max-width:400px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(q.query || '')}</code></td>
+                        <td><code style="font-size:0.8rem; background: var(--uniselv-bg-subtle); padding:2px 6px; border-radius:4px; max-width:400px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(q.query || '')}</code></td>
                     </tr>
                 `;
             });
@@ -2733,7 +2738,7 @@ const UniselvResMan = {
     loadEnduserNotifications: function() {
         const tbody = document.getElementById('uniselv-notifs-tbody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:20px;">Refreshing incident events...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Refreshing incident events...</td></tr>';
 
         this.callApi('notifications', {}, (err, res) => {
             if (err || res.error) {
@@ -2816,7 +2821,7 @@ const UniselvResMan = {
                 actionsHtml = `<button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.markNotification(${e.id}, 'unread')">Mark Unread</button> ` +
                               `<button class="uniselv-btn btn-outline btn-sm" style="color:#ef4444;" onclick="UniselvResMan.markNotification(${e.id}, 'dismissed')">Dismiss</button>`;
             } else {
-                actionsHtml = '<span style="color:#94a3b8; font-size:0.8rem;">Dismissed</span>';
+                actionsHtml = '<span style="color: var(--uniselv-text-subtle); font-size:0.8rem;">Dismissed</span>';
             }
 
             const dt = eventTime.format(e.timestamp * 1000);
@@ -3107,7 +3112,7 @@ const UniselvResMan = {
         containers.forEach(cid => {
             const container = document.getElementById(cid);
             if (!container) return;
-            container.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b;">Loading configuration backups...</div>';
+            container.innerHTML = '<div style="text-align:center; padding:15px; color: var(--uniselv-text-muted);">Loading configuration backups...</div>';
             this.callApi('golden_list_backups', {}, (err, res) => {
                 if (err || res.error) {
                     container.innerHTML = `<div style="color:#b91c1c; padding:12px;">Failed to load backups: ${err || res.error}</div>`;
@@ -3115,7 +3120,7 @@ const UniselvResMan = {
                 }
                 const backups = res.backups || [];
                 if (backups.length === 0) {
-                    container.innerHTML = '<div style="text-align:center; padding:15px; color:#64748b; font-size:0.86rem;">No configuration backup checkpoints found. Backups are automatically created before any policy reconfiguration.</div>';
+                    container.innerHTML = '<div style="text-align:center; padding:15px; color: var(--uniselv-text-muted); font-size:0.86rem;">No configuration backup checkpoints found. Backups are automatically created before any policy reconfiguration.</div>';
                     return;
                 }
                 let html = '';
@@ -3125,9 +3130,9 @@ const UniselvResMan = {
                     html += `
                         <div class="uniselv-backup-item ${UniselvResMan.selectedBackupId === b.id ? 'selected' : ''}" id="backup-item-${b.id}" onclick="UniselvResMan.selectBackup('${b.id}')">
                             <div>
-                                <div style="font-weight:700; color:#1e293b; font-size:0.88rem;">${b.id} <span class="uniselv-badge badge-outline" style="margin-left:6px; font-size:0.75rem;">MODE: ${b.mode || 'AUTO'}</span></div>
-                                <div style="font-size:0.78rem; color:#64748b; margin-top:2px;">Created: ${dateStr}</div>
-                                <div style="font-size:0.8rem; color:#475569; margin-top:4px;">
+                                <div style="font-weight:700; color: var(--uniselv-text-main); font-size:0.88rem;">${b.id} <span class="uniselv-badge badge-outline" style="margin-left:6px; font-size:0.75rem;">MODE: ${b.mode || 'AUTO'}</span></div>
+                                <div style="font-size:0.78rem; color: var(--uniselv-text-muted); margin-top:2px;">Created: ${dateStr}</div>
+                                <div style="font-size:0.8rem; color: var(--uniselv-text-muted); margin-top:4px;">
                                     CPU: <strong>${p.customerCpuPercent || 'n/a'}%</strong> | RAM Cap: <strong>${p.hostingMemoryMaxMiB || 'n/a'} MiB</strong> | Headroom: <strong>${p.headroomMiB || 'n/a'} MiB</strong>
                                 </div>
                             </div>
@@ -3398,7 +3403,7 @@ const UniselvResMan = {
         const tbody = document.getElementById('uniselv-top-consumers-tbody');
         if (!tbody) return;
         if (!consumers || !consumers.length) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">No account telemetry recorded yet.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color: var(--uniselv-text-muted);padding:16px;">No account telemetry recorded yet.</td></tr>';
             return;
         }
         tbody.innerHTML = '';
@@ -3410,7 +3415,7 @@ const UniselvResMan = {
             const sampleTime = acc.last_sample_epoch ? new Date(acc.last_sample_epoch * 1000).toLocaleTimeString() : 'Unavailable';
             
             tr.innerHTML = `
-                <td><strong>${this.escapeHtml(acc.username)}</strong><br><small style="color:#64748b;">${this.escapeHtml(acc.domain || '')}</small></td>
+                <td><strong>${this.escapeHtml(acc.username)}</strong><br><small style="color: var(--uniselv-text-muted);">${this.escapeHtml(acc.domain || '')}</small></td>
                 <td><span class="uniselv-badge badge-normal">${this.escapeHtml(String(acc.plan_name || 'default').toUpperCase())}</span></td>
                 <td>${Number(acc.cpu_percent || 0).toFixed(1)}%</td>
                 <td><span class="uniselv-badge ${badge}">${pct.toFixed(1)}% (${statusTxt})</span></td>
@@ -3440,7 +3445,7 @@ const UniselvResMan = {
             <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.7);padding:6px 12px;border-radius:6px;margin-top:6px;font-size:0.83rem;">
                 <div>
                     <strong>${this.escapeHtml(b.username)}</strong>: Plan boosted from <code>${this.escapeHtml(b.original_plan || 'base')}</code> &rarr; <span class="uniselv-badge badge-warning" style="font-weight:700;">${this.escapeHtml(String(b.target_plan).toUpperCase())}</span>
-                    <span style="color:#64748b;margin-left:8px;">(${this.escapeHtml(b.reason || 'Manual boost')})</span>
+                    <span style="color: var(--uniselv-text-muted);margin-left:8px;">(${this.escapeHtml(b.reason || 'Manual boost')})</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;">
                     <span style="color:#b45309;font-weight:700;">⏳ ${b.remaining_minutes} min remaining</span>
@@ -3546,7 +3551,7 @@ const UniselvResMan = {
     loadScheduledReports: function() {
         const body = document.getElementById('reports-table-body');
         if (!body) return;
-        body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 25px;">Loading scheduled reports...</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--uniselv-text-muted); padding: 25px;">Loading scheduled reports...</td></tr>';
 
         this.callApi('scheduled_reports', {}, (err, res) => {
             if (err || res.error) {
@@ -3556,7 +3561,7 @@ const UniselvResMan = {
 
             const reports = res.reports || [];
             if (reports.length === 0) {
-                body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 30px;">No scheduled reports stored yet. Click "Generate Report Now" to trigger immediate evaluation.</td></tr>';
+                body.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--uniselv-text-muted); padding: 30px;">No scheduled reports stored yet. Click "Generate Report Now" to trigger immediate evaluation.</td></tr>';
                 return;
             }
 
@@ -3661,7 +3666,7 @@ const UniselvResMan = {
     loadPackageMappings: function() {
         const body = document.getElementById('package-mappings-body');
         if (!body) return;
-        body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">Loading mappings...</td></tr>';
+        body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--uniselv-text-muted); padding: 15px;">Loading mappings...</td></tr>';
 
         this.callApi('package_mappings', {}, (err, res) => {
             if (err || res.error) {
@@ -3671,7 +3676,7 @@ const UniselvResMan = {
 
             const maps = res.mappings || [];
             if (maps.length === 0) {
-                body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">No package mappings configured yet.</td></tr>';
+                body.innerHTML = '<tr><td colspan="3" style="text-align: center; color: var(--uniselv-text-muted); padding: 15px;">No package mappings configured yet.</td></tr>';
                 return;
             }
 
@@ -3780,7 +3785,7 @@ const UniselvResMan = {
     loadAuditLogs: function() {
         const body = document.getElementById('audit-log-body');
         if (!body) return;
-        body.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 25px;">Loading administrative audit logs...</td></tr>';
+        body.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--uniselv-text-muted); padding: 25px;">Loading administrative audit logs...</td></tr>';
 
         const search = (document.getElementById('audit-search-input') || {}).value || '';
         const actionType = (document.getElementById('audit-action-filter') || {}).value || '';
@@ -3834,7 +3839,7 @@ const UniselvResMan = {
             const dt = l.date_formatted || new Date(l.timestamp * 1000).toUTCString();
             const detailsStr = JSON.stringify(l.details || {});
             tr.innerHTML = `
-                <td><small style="color: #64748b;">${dt}</small></td>
+                <td><small style="color: var(--uniselv-text-muted);">${dt}</small></td>
                 <td><strong>${this.escapeHtml(l.actor)}</strong></td>
                 <td><span class="uniselv-badge badge-normal">${this.escapeHtml(l.action)}</span></td>
                 <td><code>${this.escapeHtml(l.target_account || 'all')}</code></td>
@@ -3891,8 +3896,8 @@ const UniselvResMan = {
         const aBody = document.getElementById('account-permissions-body');
         if (!rBody || !aBody) return;
 
-        rBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:10px;">Loading role baselines...</td></tr>';
-        aBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:10px;">Loading account overrides...</td></tr>';
+        rBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">Loading role baselines...</td></tr>';
+        aBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">Loading account overrides...</td></tr>';
 
         this.callApi('get_permissions', {}, (err, res) => {
             if (err || res.error) {
@@ -3903,7 +3908,7 @@ const UniselvResMan = {
 
             const roles = res.role_permissions || [];
             if (roles.length === 0) {
-                rBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:10px;">No role baselines found.</td></tr>';
+                rBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">No role baselines found.</td></tr>';
             } else {
                 let html = '';
                 roles.forEach(r => {
@@ -3926,7 +3931,7 @@ const UniselvResMan = {
 
             const accs = res.account_permissions || [];
             if (accs.length === 0) {
-                aBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#64748b; padding:10px;">No custom overrides active (using role baselines).</td></tr>';
+                aBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">No custom overrides active (using role baselines).</td></tr>';
             } else {
                 let html = '';
                 accs.forEach(a => {
@@ -3936,7 +3941,7 @@ const UniselvResMan = {
                         <td><strong>${a.username}</strong></td>
                         <td><code>${a.permission}</code></td>
                         <td>${badge}</td>
-                        <td style="font-size:0.75rem; color:#64748b;">${a.updated_by || 'admin'}</td>
+                        <td style="font-size:0.75rem; color: var(--uniselv-text-muted);">${a.updated_by || 'admin'}</td>
                     </tr>`;
                 });
                 aBody.innerHTML = html;
@@ -4022,7 +4027,7 @@ const UniselvResMan = {
             };
             const makeField = (id, label, type, value, opts = {}) => {
                 const wrap = mk('div');
-                wrap.append(mk('label', { for: id, style: 'display:block;font-size:0.78rem;font-weight:600;color:#475569;margin-bottom:4px;' }, label));
+                wrap.append(mk('label', { for: id, style: 'display:block;font-size:0.78rem;font-weight:600;color: var(--uniselv-text-muted);margin-bottom:4px;' }, label));
                 if (type === 'select') {
                     const sel = mk('select', { id, class: 'uniselv-form-input', style: 'width:100%;' });
                     (opts.options || []).forEach(([val, txt]) => {
@@ -4070,7 +4075,7 @@ const UniselvResMan = {
                 if (!rows.length) {
                     const td = tbody.insertRow().insertCell();
                     td.colSpan = cols.length;
-                    td.style.color = '#64748b';
+                    td.style.color = 'var(--uniselv-text-muted)';
                     td.textContent = 'No entries found.';
                 } else {
                     rows.forEach(cells => {
@@ -4092,11 +4097,11 @@ const UniselvResMan = {
             const phpEntries = Object.entries(data.php_versions || {});
             const testBox = mk('div', { id: 'osw-console-box', style: 'background:var(--uniselv-bg-subtle,#f8fafc);border:1px solid var(--uniselv-border,#e2e8f0);border-radius:10px;padding:14px;margin-bottom:16px;' });
             testBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '2. Verification, Readiness Diagnostics & Launch Command Console'));
-            testBox.append(mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0 0 12px 0;' }, 'Verify PHP/INI startup & compiler toolchain readiness, run an isolated ephemeral OpenSwoole loopback test inside an account slice, or generate plan-aligned Octane launch commands.'));
+            testBox.append(mk('p', { style: 'font-size:0.83rem;color: var(--uniselv-text-muted);margin:0 0 12px 0;' }, 'Verify PHP/INI startup & compiler toolchain readiness, run an isolated ephemeral OpenSwoole loopback test inside an account slice, or generate plan-aligned Octane launch commands.'));
 
             const ctrlRow = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px;' });
             const accWrap = mk('div', { style: 'min-width:210px;flex:1;' });
-            accWrap.append(mk('label', { for: 'osw-test-account', style: 'display:block;font-size:0.78rem;font-weight:600;color:#475569;margin-bottom:4px;' }, 'Target Account (for Self-Test & Command)'));
+            accWrap.append(mk('label', { for: 'osw-test-account', style: 'display:block;font-size:0.78rem;font-weight:600;color: var(--uniselv-text-muted);margin-bottom:4px;' }, 'Target Account (for Self-Test & Command)'));
             const accSel = mk('select', { id: 'osw-test-account', class: 'uniselv-form-input', style: 'width:100%;' });
             const preferredAcc = this._oswSelectedAccount
                 || (accountsList.find(a => a.allowed) || accountsList[0] || {}).username
@@ -4113,7 +4118,7 @@ const UniselvResMan = {
             accWrap.append(accSel);
 
             const phpWrap = mk('div', { style: 'min-width:170px;' });
-            phpWrap.append(mk('label', { for: 'osw-test-php', style: 'display:block;font-size:0.78rem;font-weight:600;color:#475569;margin-bottom:4px;' }, 'PHP Branch'));
+            phpWrap.append(mk('label', { for: 'osw-test-php', style: 'display:block;font-size:0.78rem;font-weight:600;color: var(--uniselv-text-muted);margin-bottom:4px;' }, 'PHP Branch'));
             const phpSel = mk('select', { id: 'osw-test-php', class: 'uniselv-form-input', style: 'width:100%;' });
             const loadedPhp = phpEntries.filter(([, m]) => m.loaded).map(([v]) => v);
             const preferredPhp = (this._oswSelectedPhp && (data.php_versions || {})[this._oswSelectedPhp])
@@ -4139,7 +4144,7 @@ const UniselvResMan = {
 
             const cmdCard = mk('div', { style: 'background:#0f172a;color:#e2e8f0;border-radius:8px;padding:12px;margin-bottom:12px;' });
             const cmdHeader = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;' });
-            cmdHeader.append(mk('span', { style: 'font-size:0.76rem;font-weight:700;color:#94a3b8;text-transform:uppercase;' }, 'Account-Aligned Launch Command & Server->set() Snippet'));
+            cmdHeader.append(mk('span', { style: 'font-size:0.76rem;font-weight:700;color: var(--uniselv-text-subtle);text-transform:uppercase;' }, 'Account-Aligned Launch Command & Server->set() Snippet'));
             const copyCmdBtn = mk('button', { class: 'uniselv-btn btn-sm', type: 'button', style: 'background:#1e293b;color:#f8fafc;border:1px solid #475569;padding:4px 10px;border-radius:6px;cursor:pointer;' }, 'Copy Command');
             cmdHeader.append(copyCmdBtn);
             const cmdPre = mk('pre', { id: 'osw-cmd-preview', style: 'margin:0;white-space:pre-wrap;word-break:break-word;font-family:monospace;font-size:0.8rem;line-height:1.45;color:#f8fafc;' });
@@ -4470,14 +4475,14 @@ const UniselvResMan = {
         const checkedN = Number(d.checked_at);
         const checkedLabel = Number.isFinite(checkedN) && checkedN > 1000000000 ? new Date(checkedN * 1000).toLocaleString() : (d.checked_at || '');
         head.append(
-            mk('strong', { style: 'color:#0f172a;font-size:0.9rem;' }, `PHP & Build Readiness Check${checkedLabel ? ` (${checkedLabel})` : ''}`),
+            mk('strong', { style: 'color: var(--uniselv-text-main);font-size:0.9rem;' }, `PHP & Build Readiness Check${checkedLabel ? ` (${checkedLabel})` : ''}`),
             mk('span', { class: `uniselv-badge ${d.all_passed ? 'badge-normal' : 'badge-warning'}` }, d.all_passed ? 'ALL CHECKS PASSED' : 'ATTENTION NEEDED')
         );
         box.append(head);
 
         const tools = d.toolchain || {};
         const toolLine = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:0.78rem;' });
-        toolLine.append(mk('span', { style: 'font-weight:600;color:#475569;align-self:center;' }, 'Toolchain & Policy:'));
+        toolLine.append(mk('span', { style: 'font-weight:600;color: var(--uniselv-text-muted);align-self:center;' }, 'Toolchain & Policy:'));
         Object.entries(tools).forEach(([name, ok]) => {
             toolLine.append(mk('span', { class: `uniselv-badge ${ok ? 'badge-normal' : 'badge-critical'}` }, `${name}: ${ok ? 'OK' : 'Missing'}`));
         });
@@ -4586,14 +4591,14 @@ const UniselvResMan = {
         const box = mk('div', { style: `border:1px solid ${d.all_passed ? '#86efac' : '#fca5a5'};background:${d.all_passed ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:12px;` });
         const head = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
         head.append(
-            mk('strong', { style: 'color:#0f172a;font-size:0.9rem;' }, `Live E2E Self-Test: ${d.username} (UID ${d.uid}, ${d.plan_name}, ${d.php_version}) · ${d.elapsed_ms || 0} ms`),
+            mk('strong', { style: 'color: var(--uniselv-text-main);font-size:0.9rem;' }, `Live E2E Self-Test: ${d.username} (UID ${d.uid}, ${d.plan_name}, ${d.php_version}) · ${d.elapsed_ms || 0} ms`),
             mk('span', { class: `uniselv-badge ${d.all_passed ? 'badge-normal' : 'badge-critical'}` }, d.all_passed ? 'PASSED' : 'FAILED')
         );
         box.append(head);
 
         const list = mk('div', { style: 'display:flex;flex-direction:column;gap:6px;' });
         (d.steps || []).forEach(st => {
-            const row = mk('div', { style: 'display:flex;gap:8px;align-items:flex-start;font-size:0.83rem;background:#ffffff;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;' });
+            const row = mk('div', { style: 'display:flex;gap:8px;align-items:flex-start;font-size:0.83rem;background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:6px;padding:8px 10px;' });
             row.append(
                 mk('span', { class: `uniselv-badge ${st.passed ? 'badge-normal' : 'badge-critical'}`, style: 'flex-shrink:0;' }, st.passed ? 'PASS' : 'FAIL'),
                 mk('div', {}, `${st.label}: ${st.detail || ''}`)
@@ -4646,12 +4651,12 @@ const UniselvResMan = {
             summary.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px;';
             const card = (lbl, val) => {
                 const box = document.createElement('div');
-                box.style.cssText = 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;';
+                box.style.cssText = 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:8px;padding:10px 12px;';
                 const l = document.createElement('div');
-                l.style.cssText = 'font-size:0.75rem;color:#64748b;text-transform:uppercase;font-weight:600;';
+                l.style.cssText = 'font-size:0.75rem;color: var(--uniselv-text-muted);text-transform:uppercase;font-weight:600;';
                 l.textContent = lbl;
                 const v = document.createElement('div');
-                v.style.cssText = 'font-size:1rem;font-weight:700;color:#1e293b;margin-top:2px;';
+                v.style.cssText = 'font-size:1rem;font-weight:700;color: var(--uniselv-text-main);margin-top:2px;';
                 v.textContent = val;
                 box.append(l, v);
                 return box;
@@ -4669,7 +4674,7 @@ const UniselvResMan = {
                 const cmdRow = this._mkCodeCopyBox(g.recommended_octane_command, 'Copy Octane Command');
                 if (g.assigned_octane_port) {
                     const pBadge = document.createElement('div');
-                    pBadge.style.cssText = 'font-size:0.78rem;color:#475569;margin-bottom:6px;';
+                    pBadge.style.cssText = 'font-size:0.78rem;color: var(--uniselv-text-muted);margin-bottom:6px;';
                     pBadge.textContent = `Assigned Dedicated Octane Port: ${g.assigned_octane_port}`;
                     host.append(pBadge);
                 }
@@ -4678,7 +4683,7 @@ const UniselvResMan = {
 
             const procs = d.live_processes || [];
             const note = document.createElement('div');
-            note.style.cssText = 'font-size:0.84rem;color:#475569;';
+            note.style.cssText = 'font-size:0.84rem;color: var(--uniselv-text-muted);';
             note.textContent = procs.length
                 ? `Currently running ${procs.length} OpenSwoole processes inside ${pol.expected_slice}.`
                 : 'No active OpenSwoole server processes running for this account.';
@@ -4737,7 +4742,7 @@ const UniselvResMan = {
             };
             const mkInput = (id, label, type, val, opts = {}) => {
                 const w = mk('div');
-                w.append(mk('label', { for: id, style: 'display:block;font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:4px;' }, label));
+                w.append(mk('label', { for: id, style: 'display:block;font-size:0.76rem;font-weight:600;color: var(--uniselv-text-muted);margin-bottom:4px;' }, label));
                 if (type === 'select') {
                     const s = mk('select', { id, class: 'uniselv-form-input', style: 'width:100%;' });
                     (opts.options || []).forEach(([v, t]) => {
@@ -4773,7 +4778,7 @@ const UniselvResMan = {
             host.replaceChildren();
 
             // 1. OS Preflight & Build Toolchain
-            const preBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const preBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             const preHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;' });
             preHead.append(
                 mk('h6', { style: 'font-weight:700;margin:0;' }, `1. OS Build Preflight, Native Headers & Composer (${(pre.distro?.pretty_name || pre.distro?.id || 'Linux')})`),
@@ -4797,13 +4802,13 @@ const UniselvResMan = {
             b2.onclick = () => this.installPlatformDeps('composer');
             const b3 = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Install Full Toolchain + Composer');
             b3.onclick = () => this.installPlatformDeps('all');
-            depActions.append(b1, b2, b3, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, pre.composer_path ? `Composer: ${pre.composer_path}` : 'Composer not installed globally'));
+            depActions.append(b1, b2, b3, mk('span', { style: 'font-size:0.78rem;color: var(--uniselv-text-muted);' }, pre.composer_path ? `Composer: ${pre.composer_path}` : 'Composer not installed globally'));
             preBox.append(depActions);
             host.append(preBox);
 
             // 1B. Chrome Browser Engine Governance & Access Control
             const chrome = d.chrome || {};
-            const chromeBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const chromeBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             const chromeHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;' });
             const chromeInstalled = Boolean(chrome.installed);
             const chromeGlobalEn = Boolean(chrome.globally_enabled);
@@ -4822,11 +4827,11 @@ const UniselvResMan = {
                 chromeStatusBadges
             );
             chromeBox.append(chromeHead);
-            chromeBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+            chromeBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color: var(--uniselv-text-muted);' },
                 'Enterprise Headless Chrome governance: one-click install/uninstall Google Chrome & libraries, global master switch, OS-level group isolation (uniselv-chrome 0750 mode), granular per-user permissions, and automated slice containment.'
             ));
 
-            const chromeStats = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:0.8rem;color:#334155;' });
+            const chromeStats = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:0.8rem;color: var(--uniselv-text-main);' });
             chromeStats.append(
                 mk('span', { class: 'uniselv-badge badge-outline' }, `Executable: ${chrome.executable_path || '/usr/bin/google-chrome'}`),
                 mk('span', { class: 'uniselv-badge badge-outline' }, `Permitted Accounts: ${chromeAllowedCount} / ${chromeTotalUsers}`),
@@ -4834,7 +4839,7 @@ const UniselvResMan = {
             );
             chromeBox.append(chromeStats);
 
-            const chromeToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:12px;' });
+            const chromeToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:10px 12px;margin-bottom:12px;' });
             const chromeToggleLabel = mkCheck('plt-chrome-global-toggle', 'Enable Chrome Engine Globally Across Server', chromeGlobalEn);
             const chromeToggleInput = chromeToggleLabel.querySelector('input');
             if (chromeToggleInput) {
@@ -4862,8 +4867,8 @@ const UniselvResMan = {
             const chromeTestOut = mk('div', { id: 'plt-chrome-test-output', style: 'margin-bottom:12px;' });
             chromeBox.append(chromeTestOut);
 
-            const matrixDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;', open: true });
-            const matrixSum = mk('summary', { style: 'cursor:pointer;font-size:0.83rem;font-weight:700;color:#1e293b;' }, `Tenant Chrome Permission Matrix (${chromeAllowedCount} of ${chromeTotalUsers} Allowed)`);
+            const matrixDet = mk('details', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:10px 12px;', open: true });
+            const matrixSum = mk('summary', { style: 'cursor:pointer;font-size:0.83rem;font-weight:700;color: var(--uniselv-text-main);' }, `Tenant Chrome Permission Matrix (${chromeAllowedCount} of ${chromeTotalUsers} Allowed)`);
             const matrixBody = mk('div', { style: 'margin-top:10px;' });
 
             const matrixBulk = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;' });
@@ -4871,7 +4876,7 @@ const UniselvResMan = {
             bAllowAllChrome.onclick = () => this.bulkUserChromePermissions(true);
             const bRevokeAllChrome = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button' }, 'Revoke Chrome from All Accounts');
             bRevokeAllChrome.onclick = () => this.bulkUserChromePermissions(false);
-            matrixBulk.append(bAllowAllChrome, bRevokeAllChrome, mk('span', { style: 'font-size:0.78rem;color:#64748b;' }, 'Synchronizes immediately with Linux group "uniselv-chrome".'));
+            matrixBulk.append(bAllowAllChrome, bRevokeAllChrome, mk('span', { style: 'font-size:0.78rem;color: var(--uniselv-text-muted);' }, 'Synchronizes immediately with Linux group "uniselv-chrome".'));
             matrixBody.append(matrixBulk);
 
             const matrixFilterRow = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;' });
@@ -4945,7 +4950,7 @@ const UniselvResMan = {
             // 2. Laravel Stack & Supervisor — Install, Activate/Deactivate & User Permissions
             const sup = d.supervisor || pre.supervisor || {};
             const stack = d.stack_readiness || {};
-            const lrvBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const lrvBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             const lrvHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;' });
             const lrvEnabled = settings.platform_laravel_services_enabled !== '0';
             const supGlobalEn = settings.platform_supervisor_enabled !== '0';
@@ -4955,12 +4960,12 @@ const UniselvResMan = {
                 mk('span', { class: `uniselv-badge ${lrvEnabled ? 'badge-normal' : 'badge-warning'}` }, lrvEnabled ? 'SERVER CAPABILITIES ACTIVE' : 'GLOBALLY PAUSED BY ADMIN')
             );
             lrvBox.append(lrvHead);
-            lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+            lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color: var(--uniselv-text-muted);' },
                 'Admin installs missing server packages, activates or deactivates capabilities globally, and grants per-user permissions. Users configure Queue, Horizon, Reverb, and Scheduler strictly from their own project settings — zero .env editing here.'
             ));
 
             // 2A. Server Capabilities Matrix (Supervisor, Queue, Horizon, Reverb, Scheduler)
-            const capWrap = mk('div', { class: 'uniselv-table-wrap', style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
+            const capWrap = mk('div', { class: 'uniselv-table-wrap', style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;margin-bottom:10px;' });
             const capTbl = mk('table', { class: 'uniselv-table' });
             const capHr = capTbl.createTHead().insertRow();
             ['Server Capability', 'Server Installation & Prerequisites', 'Status', 'Admin Controls'].forEach(c => capHr.append(mk('th', {}, c)));
@@ -4977,7 +4982,7 @@ const UniselvResMan = {
                 const labels = { supervisor: 'Supervisor Daemon', queue: 'Laravel Queue Workers', horizon: 'Laravel Horizon', reverb: 'Laravel Reverb / WebSocket', scheduler: 'Laravel Scheduler' };
                 const instBadge = mk('span', { class: `uniselv-badge ${row.installed ? 'badge-normal' : 'badge-warning'}`, style: 'margin-right:6px;' }, row.installed ? 'Installed / Ready' : 'Missing Package');
                 const instCell = mk('div', { style: 'display:flex;align-items:center;gap:6px;flex-wrap:wrap;' });
-                instCell.append(instBadge, mk('span', { style: 'font-size:0.78rem;color:#475569;' }, row.summary));
+                instCell.append(instBadge, mk('span', { style: 'font-size:0.78rem;color: var(--uniselv-text-muted);' }, row.summary));
                 const stBadge = mk('span', { class: `uniselv-badge ${row.active ? 'badge-normal' : 'badge-critical'}` }, row.active ? 'ACTIVE' : 'DEACTIVATED');
                 const actTd = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;' });
                 if (row.key === 'supervisor') {
@@ -5016,7 +5021,7 @@ const UniselvResMan = {
             lrvBox.append(supOut);
             if (this._pltSupResult) this._renderPlatformStepBox(supOut, this._pltSupResult, 'Supervisor Verification');
 
-            const lrvPolicyRow = mk('div', { style: 'display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
+            const lrvPolicyRow = mk('div', { style: 'display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:10px 12px;background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;margin-bottom:10px;' });
             lrvPolicyRow.append(
                 mkCheck('plt-lrv-global-en', 'Enable User Laravel Access', lrvEnabled),
                 mkCheck('plt-lrv-allow-queue', 'Queue', allowedList.includes('queue')),
@@ -5034,9 +5039,9 @@ const UniselvResMan = {
             const allUserPerms = d.user_permissions || {};
             const permAcct = curUser || accounts[0] || '';
             if (accounts.length) {
-                const pCard = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
+                const pCard = mk('div', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
                 const pTop = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;' });
-                pTop.append(mk('span', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;' }, 'Per-User Feature Permissions:'));
+                pTop.append(mk('span', { style: 'font-size:0.82rem;font-weight:700;color: var(--uniselv-text-main);' }, 'Per-User Feature Permissions:'));
                 const pAcctSel = mk('select', { id: 'plt-perm-acct', class: 'uniselv-form-input', style: 'min-width:170px;' });
                 accounts.forEach(u => {
                     const o = mk('option', { value: u }, u);
@@ -5071,7 +5076,7 @@ const UniselvResMan = {
             }
 
             const fleetBar = mk('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;' });
-            fleetBar.append(mk('span', { style: 'font-size:0.82rem;font-weight:600;color:#475569;' }, 'Fleet Account Filter:'));
+            fleetBar.append(mk('span', { style: 'font-size:0.82rem;font-weight:600;color: var(--uniselv-text-muted);' }, 'Fleet Account Filter:'));
             const acctSel = mk('select', { id: 'plt-acct-select', class: 'uniselv-form-input', style: 'min-width:200px;' });
             const allOpt = mk('option', { value: '' }, 'All Accounts (Fleet Overview)');
             if (!curUser) allOpt.selected = true;
@@ -5087,12 +5092,12 @@ const UniselvResMan = {
             };
             const selfTestBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', id: 'plt-lrv-selftest-btn' }, curUser ? `Run Self-Test (${curUser})` : 'Run Live Laravel Self-Test');
             selfTestBtn.onclick = () => this.runPlatformLaravelSelfTest(accounts[0] || '');
-            fleetBar.append(acctSel, selfTestBtn, mk('span', { style: 'font-size:0.79rem;color:#64748b;' }, 'Auto-discovered project Supervisor workers & active tenant services (no manual setup or .env editing).'));
+            fleetBar.append(acctSel, selfTestBtn, mk('span', { style: 'font-size:0.79rem;color: var(--uniselv-text-muted);' }, 'Auto-discovered project Supervisor workers & active tenant services (no manual setup or .env editing).'));
             lrvBox.append(fleetBar);
 
             if (lrv.budget) {
                 const b = lrv.budget;
-                lrvBox.append(mk('div', { style: 'font-size:0.82rem;color:#475569;margin-bottom:10px;' },
+                lrvBox.append(mk('div', { style: 'font-size:0.82rem;color: var(--uniselv-text-muted);margin-bottom:10px;' },
                     `Account Budget (${b.username}): Plan=${b.plan_name} · Slice=${b.expected_slice} · Max Queue Workers=${b.max_queue_workers} · Max Worker RAM=${b.max_worker_memory_mb} MiB · Horizon/Reverb=${b.horizon_allowed ? 'Allowed' : 'Disabled (<512 MiB or policy)'}`
                 ));
             }
@@ -5140,23 +5145,23 @@ const UniselvResMan = {
                 wrap.append(tbl);
                 lrvBox.append(wrap);
             } else {
-                lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.84rem;color:#64748b;' }, curUser ? `No managed Laravel services deployed by ${curUser}.` : 'No managed Laravel services deployed across accounts yet. Customers configure their own projects from Enduser -> App Services & Tools.'));
+                lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.84rem;color: var(--uniselv-text-muted);' }, curUser ? `No managed Laravel services deployed by ${curUser}.` : 'No managed Laravel services deployed across accounts yet. Customers configure their own projects from Enduser -> App Services & Tools.'));
             }
 
             // Optional collapsible Admin Support Override
-            const supDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;' });
-            supDet.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color:#475569;' }, 'Support Override: Provision Laravel Service on Behalf of Selected Account (Optional)'));
+            const supDet = mk('details', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:8px 12px;' });
+            supDet.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color: var(--uniselv-text-muted);' }, 'Support Override: Provision Laravel Service on Behalf of Selected Account (Optional)'));
             const supBody = mk('div', { style: 'margin-top:10px;' });
             const disc = lrv.discovered_apps || [];
             const phpBranches = lrv.php_branches || ['php84'];
             const defaultPhp = disc[0]?.recommended_php || phpBranches[phpBranches.length - 1] || 'php84';
             if (!curUser) {
-                supBody.append(mk('p', { style: 'margin:0;font-size:0.82rem;color:#64748b;' }, 'Select a specific account from Fleet Account Filter above to inspect its Laravel projects or provision a support unit.'));
+                supBody.append(mk('p', { style: 'margin:0;font-size:0.82rem;color: var(--uniselv-text-muted);' }, 'Select a specific account from Fleet Account Filter above to inspect its Laravel projects or provision a support unit.'));
             } else {
                 const warnBox = mk('div', { id: 'plt-lrv-env-warn', style: 'display:none;background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:8px 10px;font-size:0.8rem;margin-bottom:10px;' });
                 if (disc.length) {
                     const dWrap = mk('div', { style: 'display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center;' });
-                    dWrap.append(mk('span', { style: 'font-size:0.8rem;font-weight:600;color:#334155;' }, 'Discovered Laravel Projects:'));
+                    dWrap.append(mk('span', { style: 'font-size:0.8rem;font-weight:600;color: var(--uniselv-text-main);' }, 'Discovered Laravel Projects:'));
                     disc.forEach(app => {
                         const tag = this._formatLaravelAppLabel(app, app.relative_path === '.' ? '~/ (root)' : app.app_path);
                         const btn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'font-size:0.76rem;' }, tag);
@@ -5191,7 +5196,7 @@ const UniselvResMan = {
             host.append(lrvBox);
 
             // 3. Redis ACL Isolation Policy & Dedicated Port Registry
-            const isoBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const isoBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             const isoHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;' });
             const redisGlobalEn = settings.platform_redis_acl_enabled !== '0';
             isoHead.append(
@@ -5199,7 +5204,7 @@ const UniselvResMan = {
                 mk('span', { class: `uniselv-badge ${redis.default_protected ? 'badge-normal' : 'badge-warning'}` }, redis.default_protected ? 'DEFAULT USER PROTECTED' : 'PASSWORDLESS ACCESS ENABLED')
             );
             isoBox.append(isoHead);
-            const rBar = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:10px;' });
+            const rBar = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;margin-bottom:10px;' });
             const rSaveEn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Save Redis Policy');
             rSaveEn.onclick = () => this.savePlatformSettings();
             const rLock = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Disable Passwordless Access');
@@ -5240,11 +5245,11 @@ const UniselvResMan = {
                 rWrap.append(rt);
                 isoBox.append(rWrap);
             } else {
-                isoBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.83rem;color:#64748b;' }, 'No tenant Redis ACL credentials provisioned yet. Endusers create and manage their own prefix-locked Redis credentials inside App Services & Tools.'));
+                isoBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.83rem;color: var(--uniselv-text-muted);' }, 'No tenant Redis ACL credentials provisioned yet. Endusers create and manage their own prefix-locked Redis credentials inside App Services & Tools.'));
             }
 
-            const rSup = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;margin-bottom:10px;' });
-            rSup.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color:#475569;' }, 'Support Override: Manually Provision / Test Redis ACL for a Username'));
+            const rSup = mk('details', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:8px 12px;margin-bottom:10px;' });
+            rSup.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color: var(--uniselv-text-muted);' }, 'Support Override: Manually Provision / Test Redis ACL for a Username'));
             const rSupBar = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;' });
             const rUser = mk('input', { id: 'plt-redis-user', class: 'uniselv-form-input', style: 'max-width:180px;', value: curUser, placeholder: 'username' });
             const rProv = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, 'Provision/Rotate ACL');
@@ -5272,7 +5277,7 @@ const UniselvResMan = {
             host.append(isoBox);
 
             // 4. Node/Python Containment, Heavy Binary Guard & Platform Settings
-            const guardBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const guardBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             guardBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 10px 0;' }, `4. Node.js, Python, Log Watchdog & Heavy Binary Containment Guard (${runtimes.length} active detected)`));
             const sGrid = mk('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;align-items:end;margin-bottom:12px;' });
             sGrid.append(
@@ -5322,7 +5327,7 @@ const UniselvResMan = {
             host.append(guardBox);
 
             // 5. App Log Watchdog & Inode Monitor + 6. Server-to-Server Migration
-            const logBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const logBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             logBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '5. App Log Bloat & Inode Watchdog'));
             if ((logsData.inodes || []).length) {
                 const inoWrap = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;' });
@@ -5357,15 +5362,15 @@ const UniselvResMan = {
                 lWrap.append(lt);
                 logBox.append(lWrap);
             } else {
-                logBox.append(mk('p', { style: 'margin:0;font-size:0.84rem;color:#64748b;' }, 'No large app log files found in tenant homes.'));
+                logBox.append(mk('p', { style: 'margin:0;font-size:0.84rem;color: var(--uniselv-text-muted);' }, 'No large app log files found in tenant homes.'));
             }
             host.append(logBox);
 
             // 6. Server-to-Server Policy Migration Export / Import
-            const migBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;' });
+            const migBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;' });
             migBox.append(
                 mk('h6', { style: 'font-weight:700;margin:0 0 6px 0;' }, '6. Server-to-Server Policy Migration (Secrets Excluded)'),
-                mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0 0 8px 0;' }, 'Export plans, OpenSwoole & platform policies, package mappings, RBAC permissions, and managed Laravel service templates to JSON or preview/apply an imported bundle on a new server.')
+                mk('p', { style: 'font-size:0.83rem;color: var(--uniselv-text-muted);margin:0 0 8px 0;' }, 'Export plans, OpenSwoole & platform policies, package mappings, RBAC permissions, and managed Laravel service templates to JSON or preview/apply an imported bundle on a new server.')
             );
             const migTa = mk('textarea', { id: 'plt-import-json', class: 'uniselv-form-input', rows: '5', style: 'width:100%;font-family:monospace;font-size:0.78rem;margin-bottom:8px;', placeholder: 'Paste exported uniselv-policy-bundle JSON here...' }, this._pltImportText || '');
             migTa.oninput = () => { this._pltImportText = migTa.value; };
@@ -5766,7 +5771,7 @@ const UniselvResMan = {
             this.renderModernStackSuite(dashMount, this._platformServicesData);
             return;
         }
-        dashMount.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;color:#64748b;font-size:0.85rem;"><span class="uniselv-card-pulse" style="display:inline-block;margin-right:8px;">●</span> Loading 8-Service Application Runtime & Stack Suite...</div>';
+        dashMount.innerHTML = '<div style="background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:12px;padding:16px;text-align:center;color: var(--uniselv-text-muted);font-size:0.85rem;"><span class="uniselv-card-pulse" style="display:inline-block;margin-right:8px;">●</span> Loading 8-Service Application Runtime & Stack Suite...</div>';
         this.callApi('platform_services', {}, (err, res) => {
             const d = res?.data || res;
             if (err || !d?.success) {
@@ -5995,7 +6000,7 @@ const UniselvResMan = {
             const configBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.77rem;' }, '⚙️ Config & Fields');
             configBtn.onclick = () => this.showServiceConfigModal(srv.key, impl[srv.key] || {}, impl);
 
-            const guideBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.77rem;border-color:transparent;color:#475569;' }, '📖 Guide');
+            const guideBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.77rem;border-color:transparent;color: var(--uniselv-text-muted);' }, '📖 Guide');
             guideBtn.onclick = () => this.openHelpTopic(`guide-${srv.key}`);
 
             cActs.append(testBtn, configBtn, guideBtn);
@@ -6054,7 +6059,7 @@ const UniselvResMan = {
                 wrap.append(
                     this._mkEl('div', { style: `font-weight:700;color:${allPassed ? '#16a34a' : '#b45309'};display:flex;justify-content:space-between;` },
                         allPassed ? '✓ All Diagnostic Probes Passed' : '⚠️ Warning in Diagnostic Checks',
-                        this._mkEl('span', { style: 'font-weight:normal;color:#64748b;font-size:0.75rem;' }, lat)
+                        this._mkEl('span', { style: 'font-weight:normal;color: var(--uniselv-text-muted);font-size:0.75rem;' }, lat)
                     )
                 );
                 if (steps.length) {
@@ -6062,7 +6067,7 @@ const UniselvResMan = {
                     steps.forEach(s => {
                         const li = this._mkEl('li', { class: 'uniselv-step-item' });
                         const ico = this._mkEl('span', { class: s.passed ? 'uniselv-step-icon-ok' : 'uniselv-step-icon-fail' }, s.passed ? '✓' : '✕');
-                        const txt = this._mkEl('span', {}, `${s.label}: `, this._mkEl('span', { style: 'color:#64748b;' }, s.detail || (s.passed ? 'OK' : 'Failed')));
+                        const txt = this._mkEl('span', {}, `${s.label}: `, this._mkEl('span', { style: 'color: var(--uniselv-text-muted);' }, s.detail || (s.passed ? 'OK' : 'Failed')));
                         li.append(ico, txt);
                         ul.append(li);
                     });
@@ -6127,7 +6132,7 @@ const UniselvResMan = {
                             const li = this._mkEl('li', { class: 'uniselv-step-item' });
                             li.append(
                                 this._mkEl('span', { class: s.passed ? 'uniselv-step-icon-ok' : 'uniselv-step-icon-fail' }, s.passed ? '✓' : '✕'),
-                                this._mkEl('span', {}, `${s.label}: `, this._mkEl('span', { style: 'color:#64748b;' }, s.detail || (s.passed ? 'OK' : 'Failed')))
+                                this._mkEl('span', {}, `${s.label}: `, this._mkEl('span', { style: 'color: var(--uniselv-text-muted);' }, s.detail || (s.passed ? 'OK' : 'Failed')))
                             );
                             ul.append(li);
                         });
@@ -6146,7 +6151,8 @@ const UniselvResMan = {
         if (existing) existing.remove();
 
         const mk = this._mkEl.bind(this);
-        const modal = mk('div', { class: 'uniselv-modal-overlay', id: modalId });
+        const currentTheme = document.querySelector('.uniselv-container')?.getAttribute('data-theme') || localStorage.getItem('uniselv_theme') || 'light';
+        const modal = mk('div', { class: 'uniselv-modal-overlay', id: modalId, 'data-theme': currentTheme });
         const dialog = mk('div', { class: 'uniselv-modal-dialog' });
 
         const header = mk('div', { class: 'uniselv-modal-header' });
@@ -6157,14 +6163,14 @@ const UniselvResMan = {
         );
         const closeBtn = mk('button', {
             type: 'button',
-            style: 'background:none;border:none;font-size:1.4rem;line-height:1;cursor:pointer;color:#64748b;'
+            style: 'background:none;border:none;font-size:1.4rem;line-height:1;cursor:pointer;color: var(--uniselv-text-muted);'
         }, '×');
         closeBtn.onclick = () => modal.remove();
         header.append(closeBtn);
         dialog.append(header);
 
         const body = mk('div', { class: 'uniselv-modal-body' });
-        body.append(mk('p', { style: 'font-size:0.84rem;color:#475569;margin:0 0 14px 0;' },
+        body.append(mk('p', { style: 'font-size:0.84rem;color: var(--uniselv-text-muted);margin:0 0 14px 0;' },
             'These environment variables and input fields are specifically generated and pre-filled for your account. Copy and paste them directly into your project without modification.'
         ));
 
@@ -6180,7 +6186,7 @@ const UniselvResMan = {
                 tr.append(
                     mk('td', { style: 'font-family:monospace;font-weight:600;color:#0369a1;' }, f.key),
                     mk('td', { style: 'font-family:monospace;font-weight:700;' }, f.value),
-                    mk('td', { style: 'font-size:0.78rem;color:#64748b;' }, f.help)
+                    mk('td', { style: 'font-size:0.78rem;color: var(--uniselv-text-muted);' }, f.help)
                 );
             });
             body.append(tbl);
@@ -6218,7 +6224,8 @@ const UniselvResMan = {
         dialog.append(footer);
 
         modal.append(dialog);
-        document.body.appendChild(modal);
+        const targetParent = document.querySelector('.uniselv-container') || document.body;
+        targetParent.appendChild(modal);
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     },
 
@@ -6286,9 +6293,9 @@ const UniselvResMan = {
             if (dashMount) this.renderModernStackSuite(dashMount, d);
 
             // 1. Granted Feature Permissions & Scoped Supervisor Access (Zero manual forms / zero .env edits)
-            const lrvBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const lrvBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             lrvBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 6px 0;' }, '1. Granted Feature Permissions & Project Integration'));
-            lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color:#475569;' },
+            lrvBox.append(mk('p', { style: 'margin:0 0 10px 0;font-size:0.82rem;color: var(--uniselv-text-muted);' },
                 'Your server administrator manages server packages and grants permissions below. Configure Queue Workers, Horizon, Reverb WebSocket, Scheduler, and Supervisor directly inside your own Laravel project admin panel or settings — UNISELV never edits your .env or requires terminal access.'
             ));
             const lrvBudget = lrv.budget || {};
@@ -6303,7 +6310,7 @@ const UniselvResMan = {
                 lrvBox.append(mk('div', { style: 'background:#fffbeb;border:1px solid #fcd34d;color:#92400e;border-radius:8px;padding:10px 12px;font-size:0.84rem;margin-bottom:10px;' }, 'Laravel platform capabilities are currently deactivated globally by your server administrator.'));
             }
 
-            const permWrap = mk('div', { class: 'uniselv-table-wrap', style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:12px;' });
+            const permWrap = mk('div', { class: 'uniselv-table-wrap', style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;margin-bottom:12px;' });
             const permTbl = mk('table', { class: 'uniselv-table' });
             const permHr = permTbl.createTHead().insertRow();
             ['Feature / Runtime', 'Permission Status', 'How Your Project Uses It'].forEach(c => permHr.append(mk('th', {}, c)));
@@ -6347,7 +6354,7 @@ const UniselvResMan = {
                 ]
             ].forEach(([feat, statusTxt, ok, guide]) => {
                 const tr = permTb.insertRow();
-                let guideCellContent = mk('span', { style: 'font-size:0.8rem;color:#475569;' }, guide);
+                let guideCellContent = mk('span', { style: 'font-size:0.8rem;color: var(--uniselv-text-muted);' }, guide);
                 if (feat === 'Laravel Scheduler' && ok) {
                     const wrapGuide = mk('div', { style: 'display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;' });
                     wrapGuide.append(guideCellContent);
@@ -6370,7 +6377,7 @@ const UniselvResMan = {
 
             if (lrv.budget) {
                 const b = lrv.budget;
-                lrvBox.append(mk('div', { style: 'font-size:0.82rem;color:#475569;margin-bottom:10px;' },
+                lrvBox.append(mk('div', { style: 'font-size:0.82rem;color: var(--uniselv-text-muted);margin-bottom:10px;' },
                     `Account Plan (${b.plan_name}): Up to ${b.max_queue_workers} Workers · ${b.max_worker_memory_mb} MiB/Worker · Isolated Slice: ${b.expected_slice}`
                 ));
             }
@@ -6381,7 +6388,7 @@ const UniselvResMan = {
 
             const svcs = lrv.services || [];
             if (svcs.length) {
-                lrvBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;margin:8px 0 6px 0;' }, 'Detected Active Workers (From Your Project Config)'));
+                lrvBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color: var(--uniselv-text-main);margin:8px 0 6px 0;' }, 'Detected Active Workers (From Your Project Config)'));
                 const sw = mk('div', { class: 'uniselv-table-wrap' });
                 const st = mk('table', { class: 'uniselv-table' });
                 const sh = st.createTHead().insertRow();
@@ -6415,21 +6422,21 @@ const UniselvResMan = {
                 sw.append(st);
                 lrvBox.append(sw);
             } else {
-                lrvBox.append(mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:0.82rem;color:#64748b;' },
+                lrvBox.append(mk('div', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:10px 12px;font-size:0.82rem;color: var(--uniselv-text-muted);' },
                     'No active background workers detected yet. Enable Queue/Horizon/Reverb/Supervisor directly inside your Laravel project settings or admin panel.'
                 ));
             }
             host.append(lrvBox);
 
             // 2. Assigned Ports, Sockets & Proxy Snippet
-            const pBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const pBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             pBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '2. Dedicated Ports, Private Sockets & Proxy Snippet'));
             const portsMap = alloc.ports || {};
             pBox.append(mk('div', { style: 'font-size:0.84rem;margin-bottom:8px;' },
                 `Octane: ${portsMap.octane_port || '-'} · Reverb WS: ${portsMap.reverb_port || '-'} · Horizon: ${portsMap.horizon_metrics_port || '-'} · Node: ${portsMap.node_port || '-'} · Python: ${portsMap.python_port || '-'} · Socket Dir: ${alloc.socket_dir || '-'}`
             ));
             if (alloc.reverb_proxy_snippet) {
-                pBox.append(mk('div', { style: 'font-size:0.78rem;color:#64748b;margin-bottom:6px;' }, 'Reverb WebSocket /domain vhost proxy template (apply in Webuzo custom vhost config or request support):'));
+                pBox.append(mk('div', { style: 'font-size:0.78rem;color: var(--uniselv-text-muted);margin-bottom:6px;' }, 'Reverb WebSocket /domain vhost proxy template (apply in Webuzo custom vhost config or request support):'));
                 const proxyRow = mk('div', { style: 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;' });
                 proxyRow.append(this._mkCodeCopyBox(alloc.reverb_proxy_snippet, 'Copy Proxy Config'));
                 const proxyBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.78rem;' }, '🌐 Enable Proxy in Webuzo Apache VHost');
@@ -6440,7 +6447,7 @@ const UniselvResMan = {
             host.append(pBox);
 
             // 3. Optional Redis ACL Credentials (Read-Only Values for Project Settings)
-            const rBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });
+            const rBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             const rHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
             rHead.append(mk('h6', { style: 'font-weight:700;margin:0;' }, '3. Isolated Redis ACL Credentials (Optional Project Settings)'));
             const redisGlobalOn = cfg.platform_redis_acl_enabled !== '0';
@@ -6462,7 +6469,7 @@ const UniselvResMan = {
             } else if (euR) {
                 rBox.append(mk('p', {}, 'Redis credentials are shown only when generated. Store them in your application settings.'));
             } else {
-                rBox.append(mk('p', { style: 'font-size:0.83rem;color:#64748b;margin:0;' }, 'Click "Create My Redis ACL" to generate dedicated prefix-locked Redis credentials for your Laravel queues & cache.'));
+                rBox.append(mk('p', { style: 'font-size:0.83rem;color: var(--uniselv-text-muted);margin:0;' }, 'Click "Create My Redis ACL" to generate dedicated prefix-locked Redis credentials for your Laravel queues & cache.'));
             }
             if (this._euRedisResult) {
                 const ro = mk('div');
@@ -6472,11 +6479,11 @@ const UniselvResMan = {
             host.append(rBox);
 
             // 4. App Logs Cleanup
-            const lgBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;' });
+            const lgBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;' });
             lgBox.append(mk('h6', { style: 'font-weight:700;margin:0 0 8px 0;' }, '4. Application Log Watchdog & Safe Trim'));
             const logSelfTrimOn = cfg.platform_log_watchdog_enabled !== '0';
             if (!logSelfTrimOn) {
-                lgBox.append(mk('div', { style: 'font-size:0.81rem;color:#64748b;margin-bottom:8px;' }, 'Self-service log trimming is currently managed by your server administrator.'));
+                lgBox.append(mk('div', { style: 'font-size:0.81rem;color: var(--uniselv-text-muted);margin-bottom:8px;' }, 'Self-service log trimming is currently managed by your server administrator.'));
             }
             const lgRows = logsData.findings || [];
             if (lgRows.length) {
@@ -6499,13 +6506,13 @@ const UniselvResMan = {
                 tw.append(lt);
                 lgBox.append(tw);
             } else {
-                lgBox.append(mk('p', { style: 'margin:0;font-size:0.83rem;color:#64748b;' }, 'No log files detected yet inside storage/logs or .uniselv-logs.'));
+                lgBox.append(mk('p', { style: 'margin:0;font-size:0.83rem;color: var(--uniselv-text-muted);' }, 'No log files detected yet inside storage/logs or .uniselv-logs.'));
             }
             host.append(lgBox);
 
             // 5. Chrome Browser Engine & Headless Tools (Enduser)
             const euChrome = d.chrome || {};
-            const euChromeBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-top:16px;' });
+            const euChromeBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-top:16px;' });
             const euChromeHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
             const euChromeOk = Boolean(euChrome.effective_allowed);
             euChromeHead.append(
@@ -6515,7 +6522,7 @@ const UniselvResMan = {
                 )
             );
             euChromeBox.append(euChromeHead);
-            euChromeBox.append(mk('p', { style: 'margin:0 0 12px 0;font-size:0.82rem;color:#475569;' },
+            euChromeBox.append(mk('p', { style: 'margin:0 0 12px 0;font-size:0.82rem;color: var(--uniselv-text-muted);' },
                 'Server-side Google Chrome headless rendering engine for PDF generation, website snapshots, and web scraping with Spatie Browsershot, Puppeteer, and native PHP.'
             ));
 
@@ -6530,34 +6537,34 @@ const UniselvResMan = {
 
             // 4-Card Visual Telemetry Grid
             const chromeGrid = mk('div', { style: 'display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;margin-bottom:14px;' });
-            const c1 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            const c1 = mk('div', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:12px;' });
             c1.append(
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Engine Version'),
-                mk('div', { style: 'font-size:0.95rem;font-weight:700;color:#1e293b;margin:4px 0;' }, euChrome.version || 'Google Chrome 157'),
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);font-weight:600;text-transform:uppercase;' }, 'Engine Version'),
+                mk('div', { style: 'font-size:0.95rem;font-weight:700;color: var(--uniselv-text-main);margin:4px 0;' }, euChrome.version || 'Google Chrome 157'),
                 mk('div', { style: 'font-size:0.75rem;color:#0284c7;font-family:monospace;overflow:hidden;text-overflow:ellipsis;' }, euChrome.executable_path || '/opt/google/chrome/chrome')
             );
-            const c2 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            const c2 = mk('div', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:12px;' });
             c2.append(
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Runtime & Lifecycle'),
-                mk('div', { style: `font-size:0.95rem;font-weight:700;color:${runningProcs.length ? '#16a34a' : '#64748b'};margin:4px 0;` }, runningProcs.length ? `Active: ${chromeAgeStr}` : 'Idle On-Demand'),
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;' }, runningProcs.length ? `${runningProcs.length} active process(es)` : '0 background instances')
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);font-weight:600;text-transform:uppercase;' }, 'Runtime & Lifecycle'),
+                mk('div', { style: `font-size:0.95rem;font-weight:700;color:${runningProcs.length ? '#16a34a' : 'var(--uniselv-text-muted)'};margin:4px 0;` }, runningProcs.length ? `Active: ${chromeAgeStr}` : 'Idle On-Demand'),
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);' }, runningProcs.length ? `${runningProcs.length} active process(es)` : '0 background instances')
             );
-            const c3 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            const c3 = mk('div', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:12px;' });
             c3.append(
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Dedicated RAM (RSS)'),
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);font-weight:600;text-transform:uppercase;' }, 'Dedicated RAM (RSS)'),
                 mk('div', { style: 'font-size:0.95rem;font-weight:700;color:#0284c7;margin:4px 0;' }, `${totalChromeRss.toFixed(1)} MiB`),
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;' }, 'Isolated sandbox consumption')
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);' }, 'Isolated sandbox consumption')
             );
-            const c4 = mk('div', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:12px;' });
+            const c4 = mk('div', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:12px;' });
             c4.append(
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;font-weight:600;text-transform:uppercase;' }, 'Policy & Safety'),
-                mk('div', { style: 'font-size:0.95rem;font-weight:700;color:#1e293b;margin:4px 0;' }, `Max ${euChrome.max_concurrent || 2} Concurrent`),
-                mk('div', { style: 'font-size:0.75rem;color:#64748b;' }, `Max ${euChrome.max_timeout_sec || 300}s · Cgroup isolated`)
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);font-weight:600;text-transform:uppercase;' }, 'Policy & Safety'),
+                mk('div', { style: 'font-size:0.95rem;font-weight:700;color: var(--uniselv-text-main);margin:4px 0;' }, `Max ${euChrome.max_concurrent || 2} Concurrent`),
+                mk('div', { style: 'font-size:0.75rem;color: var(--uniselv-text-muted);' }, `Max ${euChrome.max_timeout_sec || 300}s · Cgroup isolated`)
             );
             chromeGrid.append(c1, c2, c3, c4);
             euChromeBox.append(chromeGrid);
 
-            const euToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
+            const euToolbar = mk('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;' });
             euToolbar.append(this._mkCodeCopyBox(`CHROME_PATH=${euChrome.executable_path || '/usr/bin/google-chrome'}`, 'Copy Path'));
             const bEuTest = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '🧪 Run Chrome Smoke Test');
             bEuTest.onclick = () => this.runEnduserChromeTest(bEuTest);
@@ -6573,7 +6580,7 @@ const UniselvResMan = {
             euChromeBox.append(euChromeTestOut);
 
             if (runningProcs.length) {
-                euChromeBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px;' }, `Active Headless Instances (${runningProcs.length})`));
+                euChromeBox.append(mk('div', { style: 'font-size:0.82rem;font-weight:700;color: var(--uniselv-text-main);margin-bottom:6px;' }, `Active Headless Instances (${runningProcs.length})`));
                 const procWrap = mk('div', { class: 'uniselv-table-wrap', style: 'margin-bottom:10px;' });
                 const pt = mk('table', { class: 'uniselv-table' });
                 const ph = pt.createTHead().insertRow();
@@ -6592,14 +6599,14 @@ const UniselvResMan = {
                 procWrap.append(pt);
                 euChromeBox.append(procWrap);
             } else {
-                euChromeBox.append(mk('div', { style: 'font-size:0.78rem;color:#64748b;margin-bottom:10px;padding:6px 10px;background:#ffffff;border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;gap:6px;' },
+                euChromeBox.append(mk('div', { style: 'font-size:0.78rem;color: var(--uniselv-text-muted);margin-bottom:10px;padding:6px 10px;background: var(--uniselv-bg-card);border:1px dashed #cbd5e1;border-radius:6px;display:flex;align-items:center;gap:6px;' },
                     mk('span', { style: 'color:#16a34a;font-weight:700;' }, '●'),
                     'Active Headless Instances: 0 (No background Chrome processes consuming server memory)'
                 ));
             }
 
-            const snipDet = mk('details', { style: 'background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;' });
-            snipDet.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color:#475569;' }, 'Integration Code Snippets (Browsershot, Puppeteer, Native PHP)'));
+            const snipDet = mk('details', { style: 'background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;padding:8px 12px;' });
+            snipDet.append(mk('summary', { style: 'cursor:pointer;font-size:0.82rem;font-weight:600;color: var(--uniselv-text-muted);' }, 'Integration Code Snippets (Browsershot, Puppeteer, Native PHP)'));
             const snipBody = mk('div', { style: 'margin-top:10px;' });
             const chromeExec = euChrome.executable_path || '/usr/bin/google-chrome';
             const browsershotCode = `use Spatie\\Browsershot\\Browsershot;\n\nBrowsershot::url('https://example.com')\n    ->setChromePath('${chromeExec}')\n    ->addChromiumArguments([\n        'no-sandbox',\n        'disable-setuid-sandbox',\n        'disable-dev-shm-usage',\n        'disable-gpu'\n    ])\n    ->save('invoice.pdf');`;
@@ -6682,7 +6689,7 @@ const UniselvResMan = {
             btn.textContent = '⏳ Testing Engine...';
         }
         if (outBox) {
-            outBox.innerHTML = '<div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Running headless smoke test as root...</div>';
+            outBox.innerHTML = '<div style="padding:10px 12px;background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:8px;font-size:0.8rem;color: var(--uniselv-text-muted);display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Running headless smoke test as root...</div>';
         }
         this.callApi('run_admin_chrome_test', { username: 'root' }, (err, res) => {
             if (btn) {
@@ -6748,7 +6755,7 @@ const UniselvResMan = {
             btn.textContent = '⏳ Testing Engine...';
         }
         outBoxes.forEach(outBox => {
-            outBox.innerHTML = '<div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:0.8rem;color:#475569;display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Executing headless smoke test under your account identity...</div>';
+            outBox.innerHTML = '<div style="padding:10px 12px;background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:8px;font-size:0.8rem;color: var(--uniselv-text-muted);display:flex;align-items:center;gap:8px;"><span style=\"display:inline-block;width:12px;height:12px;border:2px solid #cbd5e1;border-top-color:#0284c7;border-radius:50%;animation:uniselv-spin 0.8s linear infinite;\"></span> Executing headless smoke test under your account identity...</div>';
         });
         this.callApi('enduser_chrome_test', {}, (err, res) => {
             if (btn) {
@@ -6874,12 +6881,12 @@ const UniselvResMan = {
                     ? `<div style="text-align:left;">
                         <p style="margin:0 0 8px 0;">The Laravel scheduler is currently <strong>active</strong> in your Webuzo system crontab:</p>
                         <pre style="background:#0f172a;color:#86efac;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">${this.escapeHtml(cronLine)}</pre>
-                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Click below to safely remove it from crontab.</p>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color: var(--uniselv-text-muted);">Click below to safely remove it from crontab.</p>
                        </div>`
                     : `<div style="text-align:left;">
                         <p style="margin:0 0 8px 0;">Install the 1-minute Laravel scheduler job directly into your Webuzo account crontab:</p>
                         <pre style="background:#0f172a;color:#f8fafc;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">${this.escapeHtml(cronLine)}</pre>
-                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Runs safely as tenant user without terminal access.</p>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color: var(--uniselv-text-muted);">Runs safely as tenant user without terminal access.</p>
                        </div>`,
                 icon: isInstalled ? 'warning' : 'info',
                 confirmText: isInstalled ? 'Remove Cron Job' : 'Install into Webuzo Cron',
@@ -6923,12 +6930,12 @@ const UniselvResMan = {
                     ? `<div style="text-align:left;">
                         <p style="margin:0 0 8px 0;">A dedicated Apache reverse proxy include is currently <strong>active</strong> for domain <code>${this.escapeHtml(domain)}</code>:</p>
                         <pre style="background:#0f172a;color:#86efac;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">/var/webuzo-data/apache2/custom/domains/${this.escapeHtml(domain)}.conf\n\nWebSocket /app/ → 127.0.0.1:${port}</pre>
-                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">Click below to safely remove this proxy configuration and reload Apache.</p>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color: var(--uniselv-text-muted);">Click below to safely remove this proxy configuration and reload Apache.</p>
                        </div>`
                     : `<div style="text-align:left;">
                         <p style="margin:0 0 8px 0;">Automatically configure Apache reverse proxy for <code>${this.escapeHtml(domain)}</code>:</p>
                         <pre style="background:#0f172a;color:#f8fafc;padding:10px;border-radius:6px;font-size:0.76rem;overflow-x:auto;">Include /var/webuzo-data/apache2/custom/domains/${this.escapeHtml(domain)}.conf\nWebSocket /app/ → 127.0.0.1:${port}</pre>
-                        <p style="margin:8px 0 0 0;font-size:0.82rem;color:#64748b;">This uses modular Apache include files without modifying your vhost files directly, performs an <code>apachectl configtest</code>, and reloads gracefully.</p>
+                        <p style="margin:8px 0 0 0;font-size:0.82rem;color: var(--uniselv-text-muted);">This uses modular Apache include files without modifying your vhost files directly, performs an <code>apachectl configtest</code>, and reloads gracefully.</p>
                        </div>`,
                 icon: isInstalled ? 'warning' : 'info',
                 confirmText: isInstalled ? 'Remove Proxy Config' : 'Enable Reverse Proxy',

@@ -296,29 +296,29 @@ function uniselv_resman_cli($args) {
 }
 
 function uniselv_render_developer_footer() {
-    return '<div class="uniselv-developer-footer" style="margin-top: 36px; padding: 18px 24px; background: #ffffff; border: 1px solid var(--uniselv-border, #e2e8f0); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+    return '<div class="uniselv-developer-footer" style="margin-top: 36px; padding: 18px 24px; background: var(--uniselv-bg-card); border: 1px solid var(--uniselv-border, #e2e8f0); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
         <div style="display: flex; align-items: center; gap: 12px;">
             <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 700; font-size: 0.95rem; box-shadow: 0 2px 6px rgba(37,99,235,0.25); letter-spacing: 0.5px;">RR</div>
             <div>
-                <div style="font-weight: 700; font-size: 0.95rem; color: #1e293b;">
+                <div style="font-weight: 700; font-size: 0.95rem; color: var(--uniselv-text-main);">
                     Developed by <a href="https://refat.ovh" target="_blank" style="color: var(--uniselv-primary, #2563eb); text-decoration: none; font-weight: 700;">Refat Rahman</a>
                 </div>
-                <div style="font-size: 0.8rem; color: #64748b; margin-top: 2px;">
-                    Systems Architect & Full-Stack Engineer • <a href="https://refat.ovh" target="_blank" style="color: #64748b; text-decoration: underline;">refat.ovh</a>
+                <div style="font-size: 0.8rem; color: var(--uniselv-text-muted); margin-top: 2px;">
+                    Systems Architect & Full-Stack Engineer • <a href="https://refat.ovh" target="_blank" style="color: var(--uniselv-text-muted); text-decoration: underline;">refat.ovh</a>
                 </div>
             </div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <a href="https://github.com/refatbd" target="_blank" class="uniselv-social-btn" title="GitHub: refatbd" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; color: #1e293b; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
+            <a href="https://github.com/refatbd" target="_blank" class="uniselv-social-btn" title="GitHub: refatbd" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: var(--uniselv-text-main); font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
                 <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg> GitHub
             </a>
-            <a href="https://t.me/refatbd" target="_blank" class="uniselv-social-btn" title="Telegram: @refatbd" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; color: #0284c7; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
+            <a href="https://t.me/refatbd" target="_blank" class="uniselv-social-btn" title="Telegram: @refatbd" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: #0284c7; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
                 <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .37z"/></svg> Telegram
             </a>
-            <a href="https://www.facebook.com/rjrefat/" target="_blank" class="uniselv-social-btn" title="Facebook: rjrefat" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; color: #1877f2; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
+            <a href="https://www.facebook.com/rjrefat/" target="_blank" class="uniselv-social-btn" title="Facebook: rjrefat" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: #1877f2; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
                 <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> Facebook
             </a>
-            <a href="https://www.instagram.com/refat_official" target="_blank" class="uniselv-social-btn" title="Instagram: @refat_official" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0; color: #e1306c; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
+            <a href="https://www.instagram.com/refat_official" target="_blank" class="uniselv-social-btn" title="Instagram: @refat_official" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); color: #e1306c; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.2s ease;">
                 <svg width="15" height="15" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg> Instagram
             </a>
         </div>
@@ -599,7 +599,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <details class="uniselv-header-menu">
                 <summary>' . __u('help_language', $locale) . '</summary>
                 <div class="uniselv-header-menu-items">
-            <select aria-label="Language" id="uniselv-locale-selector" class="uniselv-select" style="padding: 4px 8px; font-size: 0.82rem; border-radius: 6px; background: #fff; border: 1px solid var(--uniselv-border);" onchange="UniselvResMan.setLocale(this.value)">
+            <select aria-label="Language" id="uniselv-locale-selector" class="uniselv-select" style="padding: 4px 8px; font-size: 0.82rem; border-radius: 6px; background: var(--uniselv-bg-card); border: 1px solid var(--uniselv-border);" onchange="UniselvResMan.setLocale(this.value)">
                 <option value="en"' . ($locale === 'en' ? ' selected' : '') . '>English (US)</option>
                 <option value="bn"' . ($locale === 'bn' ? ' selected' : '') . '>বাংলা (Bengali)</option>
             </select>
@@ -956,7 +956,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             $badge = ($acc['cpu_allowance_percent'] > 90) ? 'badge-critical' : (($acc['cpu_allowance_percent'] > 60) ? 'badge-warning' : 'badge-normal');
             $status_txt = ($acc['cpu_allowance_percent'] > 90) ? 'CRITICAL' : (($acc['cpu_allowance_percent'] > 60) ? 'ELEVATED' : 'NORMAL');
             echo '<tr>
-                <td><strong>' . htmlspecialchars($acc['username']) . '</strong><br><small style="color:#64748b;">' . htmlspecialchars($acc['domain']) . '</small></td>
+                <td><strong>' . htmlspecialchars($acc['username']) . '</strong><br><small style="color: var(--uniselv-text-muted);">' . htmlspecialchars($acc['domain']) . '</small></td>
                 <td><span class="uniselv-badge badge-normal">' . htmlspecialchars(strtoupper($acc['plan_name'])) . '</span></td>
                 <td>' . $acc['cpu_percent'] . '%</td>
                 <td><span class="uniselv-badge ' . $badge . '">' . $acc['cpu_allowance_percent'] . '% (' . $status_txt . ')</span></td>
@@ -1034,7 +1034,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         Grant Temporary Resource Boost
                     </h5>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Temporarily elevate an account limits for high-traffic events. The boost automatically expires and cleanly restores the original plan.</p>
+                <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Temporarily elevate an account limits for high-traffic events. The boost automatically expires and cleanly restores the original plan.</p>
                 
                 <div class="uniselv-form-group" style="margin-bottom: 12px;">
                     <label class="uniselv-form-label">Target Account</label>
@@ -1074,18 +1074,18 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         Bulk Plan Synchronization & Governance
                     </h5>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Reapply Webuzo plan limits across all hosting accounts and reconcile systemd slice drop-ins with zero kernel drift.</p>
+                <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Reapply Webuzo plan limits across all hosting accounts and reconcile systemd slice drop-ins with zero kernel drift.</p>
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
-                        <span style="color: #64748b;">Total Provisioned Accounts:</span>
+                        <span style="color: var(--uniselv-text-muted);">Total Provisioned Accounts:</span>
                         <strong>' . count(isset($accounts['accounts']) ? $accounts['accounts'] : []) . '</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem;">
-                        <span style="color: #64748b;">Synchronized Kernel Slices:</span>
+                        <span style="color: var(--uniselv-text-muted);">Synchronized Kernel Slices:</span>
                         <strong>' . htmlspecialchars($sync_summary) . '</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                        <span style="color: #64748b;">Active Overrides:</span>
+                        <span style="color: var(--uniselv-text-muted);">Active Overrides:</span>
                         <strong id="quick-overrides-count">0</strong>
                     </div>
                 </div>
@@ -1150,20 +1150,20 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <button class="uniselv-cpanel-btn" onclick="UniselvResMan.refreshAdminUserUsage()" title="Refresh Telemetry">
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh
                     </button>
-                    <span style="font-size: 0.88rem; color: #64748b; font-weight: 600;">Account: <span id="admin-usage-selected-user" style="color: var(--uniselv-primary);">--</span></span>
+                    <span style="font-size: 0.88rem; color: var(--uniselv-text-muted); font-weight: 600;">Account: <span id="admin-usage-selected-user" style="color: var(--uniselv-primary);">--</span></span>
                 </div>
-                <div style="font-size: 0.84rem; color: #64748b;">
+                <div style="font-size: 0.84rem; color: var(--uniselv-text-muted);">
                     Server Time: <strong>' . date('Y-m-d H:i') . '</strong>
                 </div>
             </div>
 
             <!-- 1. Account Total Card -->
             <div class="uniselv-card mb-4" id="admin-account-total-card">
-                <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: #1e293b;">Account Total</h5>
+                <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: var(--uniselv-text-main);">Account Total</h5>
                 <div class="uniselv-table-wrap">
                     <table class="uniselv-table" style="margin-bottom: 0;">
                         <thead>
-                            <tr style="background:#f8fafc; font-size:0.82rem; text-transform:uppercase; color:#475569;">
+                            <tr style="background: var(--uniselv-bg-subtle); font-size:0.82rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                                 <th>Description</th>
                                 <th>Usage</th>
                                 <th>Limit</th>
@@ -1171,7 +1171,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                             </tr>
                         </thead>
                         <tbody id="admin-account-total-tbody">
-                            <tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">Loading account totals...</td></tr>
+                            <tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Loading account totals...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1179,9 +1179,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
             <!-- 2. 8 Interactive Charts Grid -->
             <div style="margin-bottom: 24px;">
-                <h5 style="margin-bottom: 14px; font-weight: 700; font-size: 1.05rem; color: #1e293b;">Resource Charts</h5>
+                <h5 style="margin-bottom: 14px; font-weight: 700; font-size: 1.05rem; color: var(--uniselv-text-main);">Resource Charts</h5>
                 <div id="admin-usage-8charts-grid" class="uniselv-charts-8grid">
-                    <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 40px; background: #ffffff; border: 1px solid var(--uniselv-border); border-radius: 8px;">
+                    <div style="grid-column: 1 / -1; text-align: center; color: var(--uniselv-text-muted); padding: 40px; background: var(--uniselv-bg-card); border: 1px solid var(--uniselv-border); border-radius: 8px;">
                         Loading 8 interactive resource telemetry charts...
                     </div>
                 </div>
@@ -1189,31 +1189,31 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
             <!-- 3. Usage Historical Rollup Table -->
             <div class="uniselv-card mb-4" id="admin-usage-rollup-card">
-                <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: #1e293b;">Usage</h5>
+                <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: var(--uniselv-text-main);">Usage</h5>
                 <div class="uniselv-table-wrap">
                     <table class="uniselv-table uniselv-cpanel-usage-table" style="margin-bottom: 0;">
                         <thead>
-                            <tr style="background:#f8fafc; font-size:0.8rem; text-transform:uppercase; color:#475569;">
+                            <tr style="background: var(--uniselv-bg-subtle); font-size:0.8rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                                 <th rowspan="2" style="vertical-align:middle;">From</th>
                                 <th rowspan="2" style="vertical-align:middle;">To</th>
-                                <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">SPEED</th>
-                                <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">PMEM</th>
-                                <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">IO</th>
-                                <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">EP</th>
-                                <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">NPROC</th>
-                                <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">IOPS</th>
+                                <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">SPEED</th>
+                                <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">PMEM</th>
+                                <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">IO</th>
+                                <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">EP</th>
+                                <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">NPROC</th>
+                                <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">IOPS</th>
                             </tr>
-                            <tr style="background:#f1f5f9; font-size:0.75rem; color:#64748b; text-align:center;">
-                                <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                                <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                                <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                                <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                                <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                                <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
+                            <tr style="background: var(--uniselv-bg-subtle); font-size:0.75rem; color: var(--uniselv-text-muted); text-align:center;">
+                                <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                                <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                                <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                                <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                                <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                                <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
                             </tr>
                         </thead>
                         <tbody id="admin-usage-rollup-tbody">
-                            <tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">Loading hourly usage records...</td></tr>
+                            <tr><td colspan="20" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">Loading hourly usage records...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1223,13 +1223,13 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <!-- 4. Active Account Processes -->
             <div class="uniselv-card mb-4" id="admin-active-processes-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <h5 style="margin:0; font-weight:700; font-size:1.05rem; color:#1e293b;">Active Processes</h5>
+                    <h5 style="margin:0; font-weight:700; font-size:1.05rem; color: var(--uniselv-text-main);">Active Processes</h5>
                     <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadAdminUserProcesses()" title="Refresh Processes">Refresh Processes</button>
                 </div>
                 <div class="uniselv-table-wrap">
                     <table class="uniselv-table" style="margin-bottom:0;">
                         <thead>
-                            <tr style="background:#f8fafc; font-size:0.8rem; text-transform:uppercase; color:#475569;">
+                            <tr style="background: var(--uniselv-bg-subtle); font-size:0.8rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                                 <th style="width:100px;">PID</th>
                                 <th>CMD</th>
                                 <th style="width:110px; text-align:right;">CPU</th>
@@ -1238,7 +1238,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                             </tr>
                         </thead>
                         <tbody id="admin-live-processes-tbody">
-                            <tr><td colspan="5" style="text-align:center; color:#64748b; padding:24px;">Loading active processes...</td></tr>
+                            <tr><td colspan="5" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">Loading active processes...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1250,7 +1250,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div class="uniselv-card mb-4" id="admin-snapshots-section">
                 <div class="uniselv-cpanel-header" style="margin-bottom: 16px;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <h5 style="margin: 0; font-weight: 700; font-size: 1.15rem; color: #1e293b;">Snapshots</h5>
+                        <h5 style="margin: 0; font-weight: 700; font-size: 1.15rem; color: var(--uniselv-text-main);">Snapshots</h5>
                         <div class="uniselv-cpanel-arrows">
                             <button class="uniselv-cpanel-btn" id="admin-snap-prev-btn" onclick="UniselvResMan.adminPrevSnapshot()" title="Previous Snapshot">&laquo;</button>
                             <button class="uniselv-cpanel-btn" id="admin-snap-next-btn" onclick="UniselvResMan.adminNextSnapshot()" title="Next Snapshot">&raquo;</button>
@@ -1258,13 +1258,13 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </div>
                     <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #64748b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-text-muted);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                             <select id="admin-snap-date-select" class="uniselv-cpanel-select" onchange="UniselvResMan.onAdminSnapshotDateChange(this.value)">
                                 <option value="">Loading dates...</option>
                             </select>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 0.85rem; color: #64748b;">Choose snapshot:</span>
+                            <span style="font-size: 0.85rem; color: var(--uniselv-text-muted);">Choose snapshot:</span>
                             <select id="admin-snap-time-select" class="uniselv-cpanel-select" onchange="UniselvResMan.onAdminSnapshotTimeChange(this.value)">
                                 <option value="">Loading snapshots...</option>
                             </select>
@@ -1281,7 +1281,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </div>
 
                 <div id="admin-snap-content" style="padding-top: 14px;">
-                    <div style="text-align: center; color: #64748b; padding: 30px;">Loading snapshot records...</div>
+                    <div style="text-align: center; color: var(--uniselv-text-muted); padding: 30px;">Loading snapshot records...</div>
                 </div>
             </div>
         </div>
@@ -1291,7 +1291,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
     echo '<div id="tab-audit" class="uniselv-tab-content">
         <div class="uniselv-card mb-3">
             <h5 style="margin-bottom: 8px; font-weight: 700;">Configured versus Effective Cgroup Limits Audit</h5>
-            <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 14px;">Audits synchronization between Webuzo native configuration (/var/webuzo/cgroups), systemd slice files (/etc/systemd/system/*.slice), and kernel active cgroup v2 controllers (/sys/fs/cgroup).</p>
+            <p style="color: var(--uniselv-text-muted); font-size: 0.88rem; margin-bottom: 14px;">Audits synchronization between Webuzo native configuration (/var/webuzo/cgroups), systemd slice files (/etc/systemd/system/*.slice), and kernel active cgroup v2 controllers (/sys/fs/cgroup).</p>
             <div class="uniselv-table-wrap">
                 <table class="uniselv-table">
                     <thead>
@@ -1398,7 +1398,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <span class="uniselv-badge ' . $g_badge . '">' . htmlspecialchars(strtoupper($g_state)) . '</span>
                     <span class="uniselv-badge badge-outline">MODE: ' . htmlspecialchars($g_mode) . '</span>
                 </div>
-                <p style="margin: 0; color: #64748b; font-size: 0.88rem;">' . htmlspecialchars($g_msg) . '</p>
+                <p style="margin: 0; color: var(--uniselv-text-muted); font-size: 0.88rem;">' . htmlspecialchars($g_msg) . '</p>
             </div>
             <div style="display: flex; gap: 8px;">
                 ' . (($g_state === 'disabled' || $g_state === 'inactive') ? '
@@ -1428,7 +1428,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <div class="uniselv-card-sub">
                     Visible RAM: <strong>' . (!empty($hw['ram_total_mib']) ? round($hw['ram_total_mib'] / 1024, 2) . ' GiB' : 'N/A') . '</strong><br>
                     Swap Available: ' . (isset($hw['swap_total_mib']) ? $hw['swap_total_mib'] . ' MiB' : '0 MiB') . '<br>
-                    <small style="color:#94a3b8;">Hash: ' . substr(isset($hw['fingerprint']) ? $hw['fingerprint'] : '', 0, 12) . '...</small>
+                    <small style="color: var(--uniselv-text-subtle);">Hash: ' . substr(isset($hw['fingerprint']) ? $hw['fingerprint'] : '', 0, 12) . '...</small>
                 </div>
             </div>
             <div class="uniselv-card">
@@ -1502,7 +1502,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </h5>
                     <span class="uniselv-badge badge-outline">MODE: ' . htmlspecialchars($g_mode) . '</span>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Configure shared aggregate CPU headroom and physical memory safety thresholds. Manual values may reduce hosting capacity but cannot consume the hardware-scaled Auto reserve.</p>
+                <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Configure shared aggregate CPU headroom and physical memory safety thresholds. Manual values may reduce hosting capacity but cannot consume the hardware-scaled Auto reserve.</p>
                 <div class="uniselv-form-group" style="margin-bottom: 12px;">
                     <label class="uniselv-form-label">Governance Mode</label>
                     <select id="golden-mode-select" class="uniselv-form-input" style="width: 100%;" onchange="UniselvResMan.onGoldenModeChange(this.value)">
@@ -1514,12 +1514,12 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <div style="margin-bottom: 12px;">
                         <label class="uniselv-form-label">Hosting Pool CPU Quota (%)</label>
                         <input type="number" id="golden-cpu-pct" value="' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : '') . '" min="50" class="uniselv-form-input" style="width: 100%;">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">E.g. 340% for 4 vCPUs (leaving 60% shared system headroom).</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">E.g. 340% for 4 vCPUs (leaving 60% shared system headroom).</small>
                     </div>
                     <div>
                         <label class="uniselv-form-label">Hosting Memory Cap (MiB)</label>
                         <input type="number" id="golden-mem-mib" value="' . (isset($cfg['hostingMemoryMaxMiB']) ? $cfg['hostingMemoryMaxMiB'] : '') . '" min="512" class="uniselv-form-input" style="width: 100%;">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Enforces physical RAM safety boundary across all customer slices.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Enforces physical RAM safety boundary across all customer slices.</small>
                     </div>
                 </div>
                 <button class="uniselv-btn btn-primary" onclick="UniselvResMan.submitGoldenReconfigure()">
@@ -1538,9 +1538,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh List
                     </button>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Select a verified configuration checkpoint to restore with automatic rollback protection.</p>
+                <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Select a verified configuration checkpoint to restore with automatic rollback protection.</p>
                 <div id="uniselv-backups-container" style="max-height: 240px; overflow-y: auto; margin-bottom: 16px;">
-                    <div style="text-align: center; padding: 20px; color: #64748b;">Loading configuration backups...</div>
+                    <div style="text-align: center; padding: 20px; color: var(--uniselv-text-muted);">Loading configuration backups...</div>
                 </div>
                 <button class="uniselv-btn btn-primary" onclick="UniselvResMan.submitRestoreBackup()">
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Restore Selected Backup
@@ -1555,14 +1555,14 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <h5 style="font-weight: 700; margin: 0 0 4px 0;"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg> Hardware Capacity & Oversell Governance (A11, G06)</h5>
-                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Evaluates committed/sold tenant allowances against physical hardware boundaries, Golden Shield shared pool quotas, and observed 24h peak concurrency.</p>
+                    <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin: 0;">Evaluates committed/sold tenant allowances against physical hardware boundaries, Golden Shield shared pool quotas, and observed 24h peak concurrency.</p>
                 </div>
                 <button class="uniselv-btn btn-outline" onclick="UniselvResMan.loadCapacityPlanning()">
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Assessment
                 </button>
             </div>
 
-            <div id="capacity-loading" style="text-align: center; padding: 30px; color: #64748b;">Loading hardware capacity metrics...</div>
+            <div id="capacity-loading" style="text-align: center; padding: 30px; color: var(--uniselv-text-muted);">Loading hardware capacity metrics...</div>
             <div id="capacity-content" style="display: none;">
                 <!-- Key Metrics Grid -->
                 <div class="uniselv-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
@@ -1589,22 +1589,22 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </div>
 
                 <!-- Observed Decoupled Peaks Card (Finding 8 / A11) -->
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #2563eb;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                         Observed 24-Hour Concurrent Demand Peaks (Independent Historical Maxima)
                     </h6>
-                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">True independent telemetry maxima: CPU and Memory peaks are evaluated separately with independent timestamp tracking to reflect realistic cluster pressure.</p>
+                    <p style="font-size: 0.85rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">True independent telemetry maxima: CPU and Memory peaks are evaluated separately with independent timestamp tracking to reflect realistic cluster pressure.</p>
                     <div class="uniselv-grid" style="grid-template-columns: repeat(2, 1fr); gap: 20px;">
-                        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-                            <span style="font-size: 0.82rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Peak Concurrent CPU Usage</span>
+                        <div style="background: var(--uniselv-bg-card); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
+                            <span style="font-size: 0.82rem; font-weight: 600; color: var(--uniselv-text-muted); text-transform: uppercase;">Peak Concurrent CPU Usage</span>
                             <div id="cap-peak-cpu-val" style="font-size: 1.5rem; font-weight: 700; color: #2563eb; margin: 4px 0;">-- %</div>
-                            <div id="cap-peak-cpu-time" style="font-size: 0.8rem; color: #64748b;">Timestamp: Recorded UTC</div>
+                            <div id="cap-peak-cpu-time" style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Timestamp: Recorded UTC</div>
                         </div>
-                        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-                            <span style="font-size: 0.82rem; font-weight: 600; color: #64748b; text-transform: uppercase;">Peak Concurrent Memory Usage</span>
+                        <div style="background: var(--uniselv-bg-card); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
+                            <span style="font-size: 0.82rem; font-weight: 600; color: var(--uniselv-text-muted); text-transform: uppercase;">Peak Concurrent Memory Usage</span>
                             <div id="cap-peak-mem-val" style="font-size: 1.5rem; font-weight: 700; color: #059669; margin: 4px 0;">-- MiB</div>
-                            <div id="cap-peak-mem-time" style="font-size: 0.8rem; color: #64748b;">Timestamp: Recorded UTC</div>
+                            <div id="cap-peak-mem-time" style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Timestamp: Recorded UTC</div>
                         </div>
                     </div>
                 </div>
@@ -1618,7 +1618,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <h5 style="font-weight: 700; margin: 0 0 4px 0;"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> Automated Capacity & Security Reports (A16)</h5>
-                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Background daemon generates and stores periodic infrastructure reports on daily/weekly cadence.</p>
+                    <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin: 0;">Background daemon generates and stores periodic infrastructure reports on daily/weekly cadence.</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <select id="scheduled-report-type" class="uniselv-form-input" style="width: auto; padding: 6px 12px;">
@@ -1635,15 +1635,15 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </div>
 
             <!-- Schedule Automation Configuration Card (A16) -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
+            <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #2563eb;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         ' . __u('schedule_automation', $locale) . '
                     </h6>
                     <span id="report-schedule-status-badge" class="uniselv-badge badge-normal">Schedule: Daily Active</span>
                 </div>
-                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 16px;">Reports are generated on the selected schedule and stored here.</p>
+                <p style="font-size: 0.85rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Reports are generated on the selected schedule and stored here.</p>
                 <div class="uniselv-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: end;">
                     <div class="uniselv-form-group" style="margin-bottom: 0;">
                         <label class="uniselv-form-label">Recurrence Cadence</label>
@@ -1655,7 +1655,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     </div>
                     <div class="uniselv-form-group" style="margin-bottom: 0;">
                         <label class="uniselv-form-label">Next Scheduled Report</label>
-                        <div id="report-schedule-next-due" style="font-weight: 600; font-size: 0.88rem; color: #1e293b; padding: 7px 0;">Calculating...</div>
+                        <div id="report-schedule-next-due" style="font-weight: 600; font-size: 0.88rem; color: var(--uniselv-text-main); padding: 7px 0;">Calculating...</div>
                     </div>
                     <div style="margin-bottom: 0;">
                         <button class="uniselv-btn btn-primary" onclick="UniselvResMan.saveReportSchedule()" style="width: 100%;">
@@ -1679,7 +1679,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         </tr>
                     </thead>
                     <tbody id="reports-table-body">
-                        <tr><td colspan="7" style="text-align: center; color: #64748b; padding: 25px;">Loading scheduled reports...</td></tr>
+                        <tr><td colspan="7" style="text-align: center; color: var(--uniselv-text-muted); padding: 25px;">Loading scheduled reports...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1697,7 +1697,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         Branding & Localization Settings (B02, B03)
                     </h5>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 16px;">Customize plugin portal name, brand logo URL, primary accent color, and interface locale.</p>
+                <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Customize plugin portal name, brand logo URL, primary accent color, and interface locale.</p>
 
                 <div class="uniselv-form-group">
                     <label class="uniselv-form-label">Brand / Product Title</label>
@@ -1706,7 +1706,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <div class="uniselv-form-group">
                     <label class="uniselv-form-label">Brand Logo Image URL (Optional)</label>
                     <input type="text" id="brand-logo-input" class="uniselv-form-input" style="max-width: 100%;" placeholder="https://yourdomain.com/logo.png" value="' . $brand_logo . '">
-                    <small style="color: #64748b;">Leave blank to use default UNISELV SVG icon.</small>
+                    <small style="color: var(--uniselv-text-muted);">Leave blank to use default UNISELV SVG icon.</small>
                 </div>
                 <div class="uniselv-form-group">
                     <label class="uniselv-form-label">Primary Theme Accent Color</label>
@@ -1746,7 +1746,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh
                     </button>
                 </div>
-                <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 16px;">Map WHMCS, Blesta, or custom billing package names to Webuzo native cgroup resource plans.</p>
+                <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Map WHMCS, Blesta, or custom billing package names to Webuzo native cgroup resource plans.</p>
 
                 <!-- Mapping Table -->
                 <div style="max-height: 220px; overflow-y: auto; margin-bottom: 16px;">
@@ -1755,7 +1755,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                             <tr><th>Billing Package</th><th>Webuzo Plan</th><th>Action</th></tr>
                         </thead>
                         <tbody id="package-mappings-body">
-                            <tr><td colspan="3" style="text-align: center; color: #64748b; padding: 15px;">Loading mappings...</td></tr>
+                            <tr><td colspan="3" style="text-align: center; color: var(--uniselv-text-muted); padding: 15px;">Loading mappings...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -1772,8 +1772,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
                 <!-- Subcard 3: External Webhook Documentation (B06, B07) -->
                 <div style="margin-top: 20px; border-top: 1px solid var(--uniselv-border); padding-top: 16px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 8px;">Billing Webhook Integration Endpoint (B06, B07)</h6>
-                    <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 8px;">External billing systems (WHMCS post-provisioning hooks, Blesta events) can synchronize user plans securely with transactional rollback:</p>
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 8px;">Billing Webhook Integration Endpoint (B06, B07)</h6>
+                    <p style="font-size: 0.84rem; color: var(--uniselv-text-muted); margin-bottom: 8px;">External billing systems (WHMCS post-provisioning hooks, Blesta events) can synchronize user plans securely with transactional rollback:</p>
                     <div style="background: #0f172a; color: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.78rem; font-family: monospace; overflow-x: auto; margin-bottom: 8px;">
 Admin session required: port 2005, subact=adapter_sync, POST form data and the current CSRF token.<br>
 External integrations POST to <code>/uniselv-resman/webhook.php</code> on the Admin HTTPS port with configured Bearer/HMAC authentication.<br>
@@ -1784,7 +1784,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                 <!-- Subcard 4: Role & Account Feature Permissions Governance (B04) -->
                 <div style="margin-top: 24px; border-top: 1px solid var(--uniselv-border); padding-top: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h6 style="font-weight: 700; color: #1e293b; margin: 0; display: flex; align-items: center; gap: 8px;">
+                        <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
                             <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #6366f1;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                             Role & Account Feature Permissions Governance (B04)
                         </h6>
@@ -1792,21 +1792,21 @@ Do not use the customer port (2003). An unattended external provider route has n
                             <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Permissions
                         </button>
                     </div>
-                    <p style="font-size: 0.84rem; color: #64748b; margin-bottom: 16px;">Configure role baselines and per-account granular overrides for enduser process termination, telemetry exports, and historical queries.</p>
+                    <p style="font-size: 0.84rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Configure role baselines and per-account granular overrides for enduser process termination, telemetry exports, and historical queries.</p>
 
                     <div class="uniselv-grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
                         <!-- Role Baselines -->
-                        <div style="background: #f8fafc; border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
-                            <h6 style="font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-bottom: 12px;">Role-Level Baselines</h6>
+                        <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
+                            <h6 style="font-size: 0.88rem; font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px;">Role-Level Baselines</h6>
                             <table class="uniselv-table" style="font-size: 0.82rem;">
                                 <thead><tr><th>Role</th><th>Permission</th><th>Granted</th><th>Action</th></tr></thead>
-                                <tbody id="role-permissions-body"><tr><td colspan="4" style="text-align:center; color:#64748b; padding:10px;">Loading...</td></tr></tbody>
+                                <tbody id="role-permissions-body"><tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">Loading...</td></tr></tbody>
                             </table>
                         </div>
 
                         <!-- Account Granular Overrides -->
-                        <div style="background: #f8fafc; border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
-                            <h6 style="font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-bottom: 12px;">Granular Account Overrides</h6>
+                        <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
+                            <h6 style="font-size: 0.88rem; font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px;">Granular Account Overrides</h6>
                             <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
                                 <input type="text" id="perm-user-input" class="uniselv-form-input" placeholder="Username (e.g. ub1)" style="flex: 1; min-width: 120px; font-size: 0.82rem;">
                                 <select id="perm-key-select" class="uniselv-form-input" style="flex: 1; min-width: 160px; font-size: 0.82rem;">
@@ -1827,7 +1827,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                             </div>
                             <table class="uniselv-table" style="font-size: 0.82rem;">
                                 <thead><tr><th>Account</th><th>Permission</th><th>Status</th><th>Updated By</th></tr></thead>
-                                <tbody id="account-permissions-body"><tr><td colspan="4" style="text-align:center; color:#64748b; padding:10px;">No overrides configured.</td></tr></tbody>
+                                <tbody id="account-permissions-body"><tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">No overrides configured.</td></tr></tbody>
                             </table>
                         </div>
                     </div>
@@ -1842,7 +1842,7 @@ Do not use the customer port (2003). An unattended external provider route has n
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <h5 style="font-weight: 700; margin: 0 0 4px 0;"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Administrative Audit History (B08)</h5>
-                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Searchable, exportable administrative audit history tracking all boost allocations, policy changes, plan modifications, and system rollbacks.</p>
+                    <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin: 0;">Searchable, exportable administrative audit history tracking all boost allocations, policy changes, plan modifications, and system rollbacks.</p>
                 </div>
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <input type="text" id="audit-search-input" class="uniselv-form-input" placeholder="Search actor, action, account..." style="width: 220px;" onkeyup="if(event.key===\'Enter\') UniselvResMan.loadAuditLogs()">
@@ -1878,7 +1878,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                         </tr>
                     </thead>
                     <tbody id="audit-log-body">
-                        <tr><td colspan="5" style="text-align: center; color: #64748b; padding: 25px;">Loading administrative audit logs...</td></tr>
+                        <tr><td colspan="5" style="text-align: center; color: var(--uniselv-text-muted); padding: 25px;">Loading administrative audit logs...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1892,7 +1892,7 @@ Do not use the customer port (2003). An unattended external provider route has n
             <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
                 <div>
                     <h5 style="margin:0 0 4px 0;">OpenSwoole Governance, Multi-PHP Automation &amp; Live Testing</h5>
-                    <p style="margin:0;font-size:0.86rem;color:#64748b;">Automatically compile &amp; enable OpenSwoole across all installed &amp; future PHP versions (mapped to real extension_dir), run PHP/INI readiness checks, execute live cgroup v2 &amp; worker-cap self-tests, and manage plan/account limits.</p>
+                    <p style="margin:0;font-size:0.86rem;color: var(--uniselv-text-muted);">Automatically compile &amp; enable OpenSwoole across all installed &amp; future PHP versions (mapped to real extension_dir), run PHP/INI readiness checks, execute live cgroup v2 &amp; worker-cap self-tests, and manage plan/account limits.</p>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="uniselv-btn btn-outline" id="osw-refresh-btn" onclick="UniselvResMan.loadOpenSwooleGovernance()">Refresh</button>
@@ -1911,7 +1911,7 @@ Do not use the customer port (2003). An unattended external provider route has n
             <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
                 <div>
                     <h5 style="margin:0 0 4px 0;">Platform Operations, Managed Laravel Services &amp; Tenant Isolation</h5>
-                    <p style="margin:0;font-size:0.86rem;color:#64748b;">One-click OS build preflight &amp; Composer installer, managed Laravel Queue Workers / Horizon / Reverb / Scheduler services inside account cgroup v2 slices, Redis ACL tenant isolation, port registry, heavy binary guard, log watchdog, and server-to-server policy migration.</p>
+                    <p style="margin:0;font-size:0.86rem;color: var(--uniselv-text-muted);">One-click OS build preflight &amp; Composer installer, managed Laravel Queue Workers / Horizon / Reverb / Scheduler services inside account cgroup v2 slices, Redis ACL tenant isolation, port registry, heavy binary guard, log watchdog, and server-to-server policy migration.</p>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="uniselv-btn btn-outline" id="plt-refresh-btn" onclick="UniselvResMan.loadPlatformAdmin()">Refresh</button>
@@ -1939,7 +1939,7 @@ Do not use the customer port (2003). An unattended external provider route has n
             <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
                 <div>
                     <h5 style="margin:0 0 4px 0;">OpenSwoole Governance, Testing &amp; Multi-PHP Automation</h5>
-                    <p style="margin:0;font-size:0.86rem;color:#64748b;">Manage PHP extensions, run readiness checks &amp; live cgroup/worker-cap self-tests, and configure per-plan/account OpenSwoole budgets in the dedicated OpenSwoole tab.</p>
+                    <p style="margin:0;font-size:0.86rem;color: var(--uniselv-text-muted);">Manage PHP extensions, run readiness checks &amp; live cgroup/worker-cap self-tests, and configure per-plan/account OpenSwoole budgets in the dedicated OpenSwoole tab.</p>
                 </div>
                 <button class="uniselv-btn btn-primary" onclick="UniselvResMan.switchTab(\'openswoole\')">Open OpenSwoole Console</button>
             </div>
@@ -1962,7 +1962,7 @@ Do not use the customer port (2003). An unattended external provider route has n
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <h5 style="font-weight: 700; margin: 0 0 4px 0;"><i class="fas fa-sliders-h"></i> System Settings & Feature Governance</h5>
-                    <p style="font-size: 0.88rem; color: #64748b; margin: 0;">Configure background agent behaviors, automated diagnostic triggers, visual threshold alerts, and enduser self-service capabilities.</p>
+                    <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin: 0;">Configure background agent behaviors, automated diagnostic triggers, visual threshold alerts, and enduser self-service capabilities.</p>
                 </div>
                 <button class="uniselv-btn btn-primary" id="btn-save-features" onclick="UniselvResMan.saveFeatureSettings()">
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Save Feature Settings
@@ -1973,7 +1973,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                 
                 <!-- Section A: Telemetry & Engine Frequency -->
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 18px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         Telemetry & Sampling Engine
                     </h6>
@@ -1997,7 +1997,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                             <option value="15">15 Seconds — Low CPU Overhead</option>
                             <option value="30">30 Seconds — Minimal Headroom</option>
                         </select>
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Controls the background sampling frequency across all customer cgroup slices.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Controls the background sampling frequency across all customer cgroup slices.</small>
                     </div>
 
                     <div class="uniselv-switch-container" style="margin-top: 12px; margin-bottom: 0;">
@@ -2014,7 +2014,7 @@ Do not use the customer port (2003). An unattended external provider route has n
 
                 <!-- Section B: Automated Forensic Diagnostics -->
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 18px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #8b5cf6;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         Automated Incident Snapshots
                     </h6>
@@ -2055,44 +2055,44 @@ Do not use the customer port (2003). An unattended external provider route has n
                     <div class="uniselv-form-group" style="margin-top: 10px; margin-bottom: 0;">
                         <label class="uniselv-form-label">Incident Snapshot Cooldown (Seconds)</label>
                         <input type="number" id="setting-snap-cooldown" min="5" max="600" class="uniselv-form-input" style="max-width: 100%;" value="60">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Minimum interval between snapshots per tenant to guard against burst storage flood.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Minimum interval between snapshots per tenant to guard against burst storage flood.</small>
                     </div>
                 </div>
 
                 <!-- Section C: Visual Warning Thresholds -->
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 18px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-warning);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                         Warning Alert Thresholds
                     </h6>
-                    <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 14px;">Controls when dashboard progress bars and status badges switch to ELEVATED / WARNING states.</p>
+                    <p style="font-size: 0.8rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Controls when dashboard progress bars and status badges switch to ELEVATED / WARNING states.</p>
 
                     <div class="uniselv-form-group">
                         <label class="uniselv-form-label">CPU Warning Threshold (% of Assigned Allowance)</label>
                         <input type="number" id="setting-thresh-cpu" min="10" max="99" class="uniselv-form-input" style="max-width: 100%;" value="75">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Default: 75%. Displays orange warning badge when exceeded.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Default: 75%. Displays orange warning badge when exceeded.</small>
                     </div>
 
                     <div class="uniselv-form-group">
                         <label class="uniselv-form-label">Memory Warning Threshold (% of Assigned RAM)</label>
                         <input type="number" id="setting-thresh-mem" min="10" max="99" class="uniselv-form-input" style="max-width: 100%;" value="80">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Default: 80%. Displays moderate pressure warning badge.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Default: 80%. Displays moderate pressure warning badge.</small>
                     </div>
 
                     <div class="uniselv-form-group" style="margin-bottom: 0;">
                         <label class="uniselv-form-label">Active Tasks / PIDs Warning Threshold (% of Limit)</label>
                         <input type="number" id="setting-thresh-tasks" min="10" max="99" class="uniselv-form-input" style="max-width: 100%;" value="80">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Default: 80%. Warns when worker threads approach ceiling.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Default: 80%. Warns when worker threads approach ceiling.</small>
                     </div>
                 </div>
 
                 <!-- Section D: Enduser Self-Service Permissions -->
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 18px;">
-                    <h6 style="font-weight: 700; color: #1e293b; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                    <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-success);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
                         Enduser Self-Service Permissions
                     </h6>
-                    <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 14px;">Govern capabilities and troubleshooting actions available in customer control panels.</p>
+                    <p style="font-size: 0.8rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Govern capabilities and troubleshooting actions available in customer control panels.</p>
 
                     <div class="uniselv-switch-container">
                         <div class="uniselv-switch-text">
@@ -2136,7 +2136,7 @@ Do not use the customer port (2003). An unattended external provider route has n
             <!-- Card 2: Telemetry Storage & Retention Policy -->
             <div class="uniselv-card">
                 <h5 style="font-weight: 700; margin-bottom: 12px;"><i class="fas fa-database"></i> Telemetry Storage & Retention Policy</h5>
-                <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Configure sliding-window retention thresholds to prevent unbounded SQLite disk growth. Automated hourly maintenance purges stale records, while manual pruning can be triggered immediately.</p>
+                <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Configure sliding-window retention thresholds to prevent unbounded SQLite disk growth. Automated hourly maintenance purges stale records, while manual pruning can be triggered immediately.</p>
                 
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; font-weight: 600;">
@@ -2146,7 +2146,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                     <div class="uniselv-storage-bar-bg">
                         <div id="storage-bar-fill" class="uniselv-storage-bar-fill" style="width: 0%;"></div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; font-size: 0.82rem; color: #475569;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; font-size: 0.82rem; color: var(--uniselv-text-muted);">
                         <div><strong>Samples:</strong> <span id="storage-samples-count">--</span></div>
                         <div><strong>Snapshots:</strong> <span id="storage-snapshots-count">--</span></div>
                         <div><strong>Incident Events:</strong> <span id="storage-events-count">--</span></div>
@@ -2158,22 +2158,22 @@ Do not use the customer port (2003). An unattended external provider route has n
                     <div class="uniselv-form-group">
                         <label class="uniselv-form-label">Telemetry Samples Retention (Days)</label>
                         <input type="number" id="retention-samples" min="1" max="365" class="uniselv-form-input" value="30">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">High-resolution CPU, memory, and I/O records.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">High-resolution CPU, memory, and I/O records.</small>
                     </div>
                     <div class="uniselv-form-group">
                         <label class="uniselv-form-label">Diagnostic Snapshots Retention (Days)</label>
                         <input type="number" id="retention-snapshots" min="1" max="90" class="uniselv-form-input" value="14">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Process hierarchy, HTTP traces, and slow SQL query snapshots.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Process hierarchy, HTTP traces, and slow SQL query snapshots.</small>
                     </div>
                     <div class="uniselv-form-group">
                         <label class="uniselv-form-label">Resource Events & Throttling Incidents (Days)</label>
                         <input type="number" id="retention-events" min="1" max="180" class="uniselv-form-input" value="30">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">CPU throttling events, OOM terminations, and task exhaustion alerts.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">CPU throttling events, OOM terminations, and task exhaustion alerts.</small>
                     </div>
                     <div class="uniselv-form-group">
                         <label class="uniselv-form-label">Audit Trail Logs Retention (Days)</label>
                         <input type="number" id="retention-audit" min="7" max="365" class="uniselv-form-input" value="90">
-                        <small style="color: #64748b; display: block; margin-top: 4px;">Administrative plan mutations, overrides, and billing webhook entries.</small>
+                        <small style="color: var(--uniselv-text-muted); display: block; margin-top: 4px;">Administrative plan mutations, overrides, and billing webhook entries.</small>
                     </div>
                 </div>
 
@@ -2198,18 +2198,18 @@ Do not use the customer port (2003). An unattended external provider route has n
             <!-- Card 3: Background Daemon Health & Maintenance Mode -->
             <div class="uniselv-card">
                 <h5 style="font-weight: 700; margin-bottom: 12px;">Background Daemon Health</h5>
-                <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Telemetry collection agent status, runtime memory footprint, and maintenance mode controls.</p>
+                <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Telemetry collection agent status, runtime memory footprint, and maintenance mode controls.</p>
                 <div class="uniselv-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 16px;">
                     <div>
-                        <label style="font-size: 0.85rem; color:#64748b;">Agent PID</label>
+                        <label style="font-size: 0.85rem; color: var(--uniselv-text-muted);">Agent PID</label>
                         <div style="font-weight: 700; font-size: 1.1rem;">' . (isset($health['agent_pid']) ? $health['agent_pid'] : 'Unavailable') . '</div>
                     </div>
                     <div>
-                        <label style="font-size: 0.85rem; color:#64748b;">Agent Memory (RSS)</label>
+                        <label style="font-size: 0.85rem; color: var(--uniselv-text-muted);">Agent Memory (RSS)</label>
                         <div style="font-weight: 700; font-size: 1.1rem;">' . (isset($health['agent_rss_formatted']) ? $health['agent_rss_formatted'] : 'Unavailable') . '</div>
                     </div>
                     <div>
-                        <label style="font-size: 0.85rem; color:#64748b;">Systemd Memory Constraint</label>
+                        <label style="font-size: 0.85rem; color: var(--uniselv-text-muted);">Systemd Memory Constraint</label>
                         <div style="font-weight: 700; font-size: 1.1rem; color: var(--uniselv-success);">' . (isset($health['memory_cap_formatted']) ? htmlspecialchars($health['memory_cap_formatted']) : 'Unavailable') . '</div>
                     </div>
                 </div>
@@ -2227,7 +2227,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                     <button class="uniselv-btn btn-outline" onclick="UniselvResMan.toggleMaintenanceMode(' . (empty($health['maintenance_mode']) ? 'true' : 'false') . ')">
                         ' . (empty($health['maintenance_mode']) ? 'Enable Maintenance Mode' : 'Disable Maintenance Mode') . '
                     </button>
-                    <small style="color: #64748b;">Pauses automated telemetry changes and background events during maintenance work.</small>
+                    <small style="color: var(--uniselv-text-muted);">Pauses automated telemetry changes and background events during maintenance work.</small>
                 </div>
             </div>
         </div>
@@ -2242,7 +2242,7 @@ Do not use the customer port (2003). An unattended external provider route has n
     echo '<div id="uniselv-override-modal" class="uniselv-modal-overlay" style="display: none;">
         <div class="uniselv-modal">
             <h4 style="font-weight: 700; margin-bottom: 14px;">Grant Temporary Resource Boost</h4>
-            <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Temporarily boost account <strong id="override-target-display"></strong>. The boost automatically expires and cleanly restores the original plan.</p>
+            <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Temporarily boost account <strong id="override-target-display"></strong>. The boost automatically expires and cleanly restores the original plan.</p>
             <input type="hidden" id="override-username">
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Select Boosted Plan:</label>
@@ -2267,7 +2267,7 @@ Do not use the customer port (2003). An unattended external provider route has n
     echo '<div id="uniselv-golden-modal" class="uniselv-modal-overlay" style="display: none;">
         <div class="uniselv-modal">
             <h4 style="font-weight: 700; margin-bottom: 14px;">Reconfigure Golden Shield Governance</h4>
-            <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Configure shared aggregate CPU headroom and physical memory safety thresholds. Manual values may reduce hosting capacity but cannot consume the hardware-scaled Auto reserve.</p>
+            <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Configure shared aggregate CPU headroom and physical memory safety thresholds. Manual values may reduce hosting capacity but cannot consume the hardware-scaled Auto reserve.</p>
             <div style="margin-bottom: 14px;">
                 <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Governance Mode:</label>
                 <select id="golden-mode" class="form-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);" onchange="UniselvResMan.onGoldenModeChange(this.value)">
@@ -2279,7 +2279,7 @@ Do not use the customer port (2003). An unattended external provider route has n
                 <div style="margin-bottom: 14px;">
                     <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Hosting Pool CPU Quota (%):</label>
                     <input type="number" id="golden-cpu-pct-modal" value="' . (isset($cfg['customerCpuPercent']) ? $cfg['customerCpuPercent'] : '') . '" min="50" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--uniselv-border);">
-                    <small style="color: #64748b;">E.g. 340% for 4 vCPUs (leaving 60% system headroom).</small>
+                    <small style="color: var(--uniselv-text-muted);">E.g. 340% for 4 vCPUs (leaving 60% system headroom).</small>
                 </div>
                 <div style="margin-bottom: 14px;">
                     <label style="font-weight: 600; font-size: 0.85rem; display: block; margin-bottom: 6px;">Hosting Memory Cap (MiB):</label>
@@ -2297,9 +2297,9 @@ Do not use the customer port (2003). An unattended external provider route has n
     echo '<div id="uniselv-restore-modal" class="uniselv-modal-overlay" style="display: none;">
         <div class="uniselv-modal" style="max-width: 600px;">
             <h4 style="font-weight: 700; margin-bottom: 8px;">Restore Golden Shield Policy Backup</h4>
-            <p style="font-size: 0.88rem; color: #64748b; margin-bottom: 16px;">Select a verified configuration checkpoint to restore. The system validates the schema, checks path traversal safety, applies kernel memory caps and CPU quotas, and automatically creates a rollback checkpoint.</p>
+            <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Select a verified configuration checkpoint to restore. The system validates the schema, checks path traversal safety, applies kernel memory caps and CPU quotas, and automatically creates a rollback checkpoint.</p>
             <div id="uniselv-backups-container-modal" style="max-height: 280px; overflow-y: auto; margin-bottom: 20px;">
-                <div style="text-align: center; padding: 20px; color: #64748b;">Loading configuration backups...</div>
+                <div style="text-align: center; padding: 20px; color: var(--uniselv-text-muted);">Loading configuration backups...</div>
             </div>
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
                 <button class="uniselv-btn btn-outline" onclick="UniselvResMan.closeModal(\'uniselv-restore-modal\')">Cancel</button>
@@ -2822,18 +2822,18 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </h5>
                 <span class="uniselv-badge badge-normal">' . $php_workers['total_workers'] . ' Total</span>
             </div>
-            <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Active worker pools, concurrency state, and process queues running for this account.</p>
+            <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Active worker pools, concurrency state, and process queues running for this account.</p>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; text-align: center;">
                 <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
-                    <div style="font-size: 0.8rem; color: #64748b;">Active Workers</div>
-                    <div style="font-size: 1.2rem; font-weight: 700; color: #1e293b;">' . $php_workers['total_workers'] . '</div>
+                    <div style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Active Workers</div>
+                    <div style="font-size: 1.2rem; font-weight: 700; color: var(--uniselv-text-main);">' . $php_workers['total_workers'] . '</div>
                 </div>
                 <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
-                    <div style="font-size: 0.8rem; color: #64748b;">Busy (Executing)</div>
+                    <div style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Busy (Executing)</div>
                     <div style="font-size: 1.2rem; font-weight: 700; color: #2563eb;">' . $php_workers['total_busy'] . '</div>
                 </div>
                 <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
-                    <div style="font-size: 0.8rem; color: #64748b;">Idle (Waiting)</div>
+                    <div style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Idle (Waiting)</div>
                     <div style="font-size: 1.2rem; font-weight: 700; color: #10b981;">' . $php_workers['total_idle'] . '</div>
                 </div>
             </div>';
@@ -2854,7 +2854,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         }
         echo '</tbody></table></div>';
     } else {
-        echo '<div style="font-size: 0.86rem; color: #64748b; text-align: center; padding: 12px;">No active PHP worker pools currently spawned. Workers scale dynamically on inbound HTTP traffic.</div>';
+        echo '<div style="font-size: 0.86rem; color: var(--uniselv-text-muted); text-align: center; padding: 12px;">No active PHP worker pools currently spawned. Workers scale dynamically on inbound HTTP traffic.</div>';
     }
     echo '</div>
 
@@ -2867,15 +2867,15 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </h5>
                 <span class="uniselv-badge ' . ((isset($upgrade['status']) && $upgrade['status'] === 'UPGRADE_RECOMMENDED') ? 'badge-warning' : 'badge-normal') . '">' . (isset($upgrade['status']) ? htmlspecialchars($upgrade['status']) : 'OPTIMAL') . '</span>
             </div>
-            <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">' . (isset($upgrade['summary']) ? htmlspecialchars($upgrade['summary']) : 'Resource profile is balanced.') . '</p>
+            <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">' . (isset($upgrade['summary']) ? htmlspecialchars($upgrade['summary']) : 'Resource profile is balanced.') . '</p>
             
             <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
-                <div style="font-weight: 600; font-size: 0.85rem; color: #1e293b; margin-bottom: 6px;">Measured Primary Bottleneck:</div>
-                <div style="font-size: 0.88rem; color: #475569;">' . (isset($opt['primary_bottleneck']) ? htmlspecialchars($opt['primary_bottleneck']) : 'No active bottleneck detected') . '</div>
+                <div style="font-weight: 600; font-size: 0.85rem; color: var(--uniselv-text-main); margin-bottom: 6px;">Measured Primary Bottleneck:</div>
+                <div style="font-size: 0.88rem; color: var(--uniselv-text-muted);">' . (isset($opt['primary_bottleneck']) ? htmlspecialchars($opt['primary_bottleneck']) : 'No active bottleneck detected') . '</div>
             </div>';
 
     if (!empty($opt['recommendations'])) {
-        echo '<div style="font-size: 0.84rem; color: #334155;"><strong>Actionable Recommendations:</strong><ul style="margin: 6px 0 0 16px; padding: 0;">';
+        echo '<div style="font-size: 0.84rem; color: var(--uniselv-text-main);"><strong>Actionable Recommendations:</strong><ul style="margin: 6px 0 0 16px; padding: 0;">';
         foreach (array_slice($opt['recommendations'], 0, 3) as $rec) {
             echo '<li style="margin-bottom: 4px;">' . htmlspecialchars($rec) . '</li>';
         }
@@ -2894,19 +2894,19 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 ' . ($chrome_ok ? 'ACTIVE &amp; PERMITTED' : 'RESTRICTED') . '
             </span>
         </div>
-        <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 14px;">Headless browser runtime, live task duration, and dedicated sandbox memory usage.</p>
+        <p style="font-size: 0.86rem; color: var(--uniselv-text-muted); margin-bottom: 14px;">Headless browser runtime, live task duration, and dedicated sandbox memory usage.</p>
         
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; text-align: center;">
             <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
-                <div style="font-size: 0.8rem; color: #64748b;">Active Tasks</div>
-                <div style="font-size: 1.2rem; font-weight: 700; color: #1e293b;" id="uniselv-val-chrome-procs">' . $chrome_running . '</div>
+                <div style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Active Tasks</div>
+                <div style="font-size: 1.2rem; font-weight: 700; color: var(--uniselv-text-main);" id="uniselv-val-chrome-procs">' . $chrome_running . '</div>
             </div>
             <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
-                <div style="font-size: 0.8rem; color: #64748b;">Chrome RAM</div>
+                <div style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Chrome RAM</div>
                 <div style="font-size: 1.2rem; font-weight: 700; color: #0284c7;" id="uniselv-val-chrome-rss">' . round($chrome_rss, 1) . ' MiB</div>
             </div>
             <div style="background: var(--uniselv-bg-subtle); padding: 10px; border-radius: 8px; border: 1px solid var(--uniselv-border);">
-                <div style="font-size: 0.8rem; color: #64748b;">Runtime State</div>
+                <div style="font-size: 0.8rem; color: var(--uniselv-text-muted);">Runtime State</div>
                 <div style="font-size: 0.88rem; font-weight: 700; color: ' . ($chrome_running > 0 ? '#16a34a' : '#64748b') . '; margin-top: 4px;" id="uniselv-val-chrome-state">' . ($chrome_running > 0 ? $chrome_age_formatted : 'IDLE') . '</div>
             </div>
         </div>
@@ -2941,18 +2941,18 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="vertical-align: middle; margin-right: 4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh
                 </button>
             </div>
-            <div style="font-size: 0.84rem; color: #64748b;">
+            <div style="font-size: 0.84rem; color: var(--uniselv-text-muted);">
                 Server Time: <strong>' . date('Y-m-d H:i') . '</strong>
             </div>
         </div>
 
         <!-- 1. Account Total Card (cPanel Parity) -->
         <div class="uniselv-card mb-4" id="uniselv-account-total-card">
-            <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: #1e293b;">Account Total</h5>
+            <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: var(--uniselv-text-main);">Account Total</h5>
             <div class="uniselv-table-wrap">
                 <table class="uniselv-table" style="margin-bottom: 0;">
                     <thead>
-                        <tr style="background:#f8fafc; font-size:0.82rem; text-transform:uppercase; color:#475569;">
+                        <tr style="background: var(--uniselv-bg-subtle); font-size:0.82rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                             <th>Description</th>
                             <th>Usage</th>
                             <th>Limit</th>
@@ -2960,7 +2960,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                         </tr>
                     </thead>
                     <tbody id="uniselv-account-total-tbody">
-                        <tr><td colspan="4" style="text-align:center; color:#64748b; padding:20px;">Loading account totals...</td></tr>
+                        <tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:20px;">Loading account totals...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -2968,9 +2968,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
         <!-- 2. 8 Interactive Charts Grid (cPanel Parity) -->
         <div style="margin-bottom: 24px;">
-            <h5 style="margin-bottom: 14px; font-weight: 700; font-size: 1.05rem; color: #1e293b;">Resource Charts</h5>
+            <h5 style="margin-bottom: 14px; font-weight: 700; font-size: 1.05rem; color: var(--uniselv-text-main);">Resource Charts</h5>
             <div id="uniselv-usage-8charts-grid" class="uniselv-charts-8grid">
-                <div style="grid-column: 1 / -1; text-align: center; color: #64748b; padding: 40px; background: #ffffff; border: 1px solid var(--uniselv-border); border-radius: 8px;">
+                <div style="grid-column: 1 / -1; text-align: center; color: var(--uniselv-text-muted); padding: 40px; background: var(--uniselv-bg-card); border: 1px solid var(--uniselv-border); border-radius: 8px;">
                     Loading 8 interactive resource telemetry charts...
                 </div>
             </div>
@@ -2978,31 +2978,31 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
         <!-- 3. Usage Historical Rollup Table (cPanel Parity) -->
         <div class="uniselv-card mb-4" id="uniselv-usage-rollup-card">
-            <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: #1e293b;">Usage</h5>
+            <h5 style="margin-bottom: 12px; font-weight: 700; font-size: 1.05rem; color: var(--uniselv-text-main);">Usage</h5>
             <div class="uniselv-table-wrap">
                 <table class="uniselv-table uniselv-cpanel-usage-table" style="margin-bottom: 0;">
                     <thead>
-                        <tr style="background:#f8fafc; font-size:0.8rem; text-transform:uppercase; color:#475569;">
+                        <tr style="background: var(--uniselv-bg-subtle); font-size:0.8rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                             <th rowspan="2" style="vertical-align:middle;">From</th>
                             <th rowspan="2" style="vertical-align:middle;">To</th>
-                            <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">SPEED</th>
-                            <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">PMEM</th>
-                            <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">IO</th>
-                            <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">EP</th>
-                            <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">NPROC</th>
-                            <th colspan="3" style="text-align:center; border-left:1px solid #e2e8f0;">IOPS</th>
+                            <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">SPEED</th>
+                            <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">PMEM</th>
+                            <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">IO</th>
+                            <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">EP</th>
+                            <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">NPROC</th>
+                            <th colspan="3" style="text-align:center; border-left: 1px solid var(--uniselv-border);">IOPS</th>
                         </tr>
-                        <tr style="background:#f1f5f9; font-size:0.75rem; color:#64748b; text-align:center;">
-                            <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                            <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                            <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                            <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                            <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
-                            <th style="border-left:1px solid #e2e8f0;">a</th><th>l</th><th>f</th>
+                        <tr style="background: var(--uniselv-bg-subtle); font-size:0.75rem; color: var(--uniselv-text-muted); text-align:center;">
+                            <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                            <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                            <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                            <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                            <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
+                            <th style="border-left: 1px solid var(--uniselv-border);">a</th><th>l</th><th>f</th>
                         </tr>
                     </thead>
                     <tbody id="uniselv-usage-rollup-tbody">
-                        <tr><td colspan="20" style="text-align:center; color:#64748b; padding:24px;">Loading hourly usage records...</td></tr>
+                        <tr><td colspan="20" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">Loading hourly usage records...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -3012,7 +3012,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <!-- 4. Active Account Processes (cPanel Parity) -->
         <div class="uniselv-card mb-4" id="uniselv-active-processes-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                <h5 style="margin:0; font-weight:700; font-size:1.05rem; color:#1e293b;">Active Processes</h5>
+                <h5 style="margin:0; font-weight:700; font-size:1.05rem; color: var(--uniselv-text-main);">Active Processes</h5>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadLiveProcesses()" title="Refresh Processes">Refresh Processes</button>
                     <button class="uniselv-cpanel-btn" style="background:#fef2f2;color:#991b1b;border-color:#fca5a5;" onclick="UniselvResMan.killStuckCliTasks()" title="Safely terminate hanging CLI/queue processes without affecting web traffic">⚡ Kill Stuck CLI Tasks</button>
@@ -3021,7 +3021,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div class="uniselv-table-wrap">
                 <table class="uniselv-table" style="margin-bottom:0;">
                     <thead>
-                        <tr style="background:#f8fafc; font-size:0.8rem; text-transform:uppercase; color:#475569;">
+                        <tr style="background: var(--uniselv-bg-subtle); font-size:0.8rem; text-transform:uppercase; color: var(--uniselv-text-muted);">
                             <th style="width:100px;">PID</th>
                             <th>CMD</th>
                             <th style="width:110px; text-align:right;">CPU</th>
@@ -3044,7 +3044,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </tr>';
         }
     } else {
-        echo '<tr><td colspan="5" style="text-align:center; color:#64748b; padding:24px;">No active background processes currently running for this account.</td></tr>';
+        echo '<tr><td colspan="5" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">No active background processes currently running for this account.</td></tr>';
     }
     echo '          </tbody>
                 </table>
@@ -3053,8 +3053,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <div class="uniselv-card mb-4" id="uniselv-enduser-openswoole-card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:10px;">
                 <div>
-                    <h5 style="margin:0 0 4px 0;font-weight:700;font-size:1.05rem;color:#1e293b;">OpenSwoole Assigned Resource Budget &amp; Runtime</h5>
-                    <p style="margin:0;font-size:0.84rem;color:#64748b;">Shows whether OpenSwoole is enabled on your plan, your safe worker ceiling inside your account cgroup slice, and active OpenSwoole workers.</p>
+                    <h5 style="margin:0 0 4px 0;font-weight:700;font-size:1.05rem;color: var(--uniselv-text-main);">OpenSwoole Assigned Resource Budget &amp; Runtime</h5>
+                    <p style="margin:0;font-size:0.84rem;color: var(--uniselv-text-muted);">Shows whether OpenSwoole is enabled on your plan, your safe worker ceiling inside your account cgroup slice, and active OpenSwoole workers.</p>
                 </div>
                 <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadEnduserOpenSwoole()">Refresh OpenSwoole</button>
             </div>
@@ -3072,7 +3072,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <button class="uniselv-btn btn-outline uniselv-range-btn" data-range="30d">Last 30 Days</button>
         </div>
         <div id="uniselv-history-charts">
-            <div class="uniselv-card" style="text-align: center; color: #64748b; padding: 40px;">Select a time range above to view historical resource telemetry charts.</div>
+            <div class="uniselv-card" style="text-align: center; color: var(--uniselv-text-muted); padding: 40px;">Select a time range above to view historical resource telemetry charts.</div>
         </div>
     </div>';
 
@@ -3081,7 +3081,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <div class="uniselv-card mb-4">
             <div class="uniselv-cpanel-header" style="margin-bottom: 16px;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <h5 style="margin: 0; font-weight: 700; font-size: 1.15rem; color: #1e293b;">Snapshots</h5>
+                    <h5 style="margin: 0; font-weight: 700; font-size: 1.15rem; color: var(--uniselv-text-main);">Snapshots</h5>
                     <div class="uniselv-cpanel-arrows">
                         <button class="uniselv-cpanel-btn" id="enduser-snap-prev-btn" onclick="UniselvResMan.enduserPrevSnapshot()" title="Previous Snapshot">&laquo;</button>
                         <button class="uniselv-cpanel-btn" id="enduser-snap-next-btn" onclick="UniselvResMan.enduserNextSnapshot()" title="Next Snapshot">&raquo;</button>
@@ -3089,13 +3089,13 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #64748b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-text-muted);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <select id="enduser-snap-date-select" class="uniselv-cpanel-select" onchange="UniselvResMan.onEnduserSnapshotDateChange(this.value)">
                             <option value="">Loading dates...</option>
                         </select>
                     </div>
                     <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 0.85rem; color: #64748b;">Choose snapshot:</span>
+                        <span style="font-size: 0.85rem; color: var(--uniselv-text-muted);">Choose snapshot:</span>
                         <select id="enduser-snap-time-select" class="uniselv-cpanel-select" onchange="UniselvResMan.onEnduserSnapshotTimeChange(this.value)">
                             <option value="">Loading snapshots...</option>
                         </select>
@@ -3112,7 +3112,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </div>
 
             <div id="enduser-snap-content" style="padding-top: 14px;">
-                <div style="text-align: center; color: #64748b; padding: 30px;">Loading snapshot records...</div>
+                <div style="text-align: center; color: var(--uniselv-text-muted); padding: 30px;">Loading snapshot records...</div>
             </div>
         </div>
     </div>';
@@ -3123,7 +3123,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
                 <div>
                     <h5 style="margin:0 0 4px 0; font-weight:700;">Resource Events & Incident Log</h5>
-                    <p style="margin:0; font-size:0.86rem; color:#64748b;">Automated logs of resource thresholds, throttle incidents, and memory warnings.</p>
+                    <p style="margin:0; font-size:0.86rem; color: var(--uniselv-text-muted);">Automated logs of resource thresholds, throttle incidents, and memory warnings.</p>
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <select id="uniselv-notif-status-filter" class="uniselv-cpanel-select" onchange="UniselvResMan.filterNotifications(this.value)">
@@ -3170,7 +3170,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 $actions_html = '<button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.markNotification(' . $e['id'] . ', \'unread\')">Mark Unread</button> ' .
                                 '<button class="uniselv-btn btn-outline btn-sm" style="color:#ef4444;" onclick="UniselvResMan.markNotification(' . $e['id'] . ', \'dismissed\')">Dismiss</button>';
             } else {
-                $actions_html = '<span style="color:#94a3b8; font-size:0.8rem;">Dismissed</span>';
+                $actions_html = '<span style="color: var(--uniselv-text-subtle); font-size:0.8rem;">Dismissed</span>';
             }
 
             echo '<tr class="uniselv-notif-row" data-status="' . htmlspecialchars($st) . '">
@@ -3183,7 +3183,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </tr>';
         }
     } else {
-        echo '<tr><td colspan="6" style="text-align:center; color:#64748b; padding:24px;">No resource limit events recorded. System running smoothly.</td></tr>';
+        echo '<tr><td colspan="6" style="text-align:center; color: var(--uniselv-text-muted); padding:24px;">No resource limit events recorded. System running smoothly.</td></tr>';
     }
     echo '          </tbody>
                 </table>
@@ -3197,7 +3197,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;">
                 <div>
                     <h5 style="margin:0 0 4px 0;">App Services, Laravel Workers, Dedicated Ports &amp; Redis Isolation</h5>
-                    <p style="margin:0;font-size:0.86rem;color:#64748b;">Install and control Laravel Queue Workers, Horizon, Reverb WebSocket, and Scheduler with one click (no terminal commands needed), inspect assigned ports &amp; sockets, generate your isolated Redis ACL credentials, and trim large application logs safely.</p>
+                    <p style="margin:0;font-size:0.86rem;color: var(--uniselv-text-muted);">Install and control Laravel Queue Workers, Horizon, Reverb WebSocket, and Scheduler with one click (no terminal commands needed), inspect assigned ports &amp; sockets, generate your isolated Redis ACL credentials, and trim large application logs safely.</p>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="uniselv-btn btn-outline" onclick="UniselvResMan.loadEnduserServices()">Refresh Services</button>

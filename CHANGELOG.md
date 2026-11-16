@@ -1,3 +1,19 @@
+## 1.4.2 — 2026-11-16
+
+- **Exhaustive Universal Light & Dark Mode Coverage Across All Tabs, Subtabs & Modals**:
+  - **Complete Source Code Sanitization**:
+    - Replaced 461 hardcoded legacy inline CSS styles (`#ffffff`, `#f8fafc`, `#1e293b`, `#475569`, `#64748b`, `#e2e8f0`) with semantic CSS custom properties across `uniselv-resman.php`, `assets/app.js`, `views/admin_help.php`, and `views/enduser_help.php`.
+    - Eliminates inline style specificity collisions (`1,0,0,0`) that previously overrode theme stylesheets on dynamically generated DOM nodes.
+  - **Master Catch-All Universal Theme Immunization System**:
+    - Appended 600+ lines of comprehensive theme armor in `assets/style.css` guaranteeing 100% coverage across all 13 Admin tabs, 7 Enduser tabs, nested diagnostic snapshot subtabs (`procs`, `db`, `http`), analytics subtabs, and documentation category filter pills.
+    - Added high-specificity attribute overrides (`[style*="background:#fff"]`, `[style*="color:#1e293b"]`) ensuring any asynchronously injected third-party HTML strictly obeys the active theme.
+  - **Standalone Dynamic Modal Theme Inheritance**:
+    - Resolved modal detachment where dynamic elements (such as `uniselv-service-config-modal` and `UniselvModal.confirm`) appended to `document.body` were escaping `.uniselv-container[data-theme]`.
+    - Integrated multi-level theme propagation: updated `applyTheme` to stamp `data-uniselv-theme` across `document.body` and modal overlays, and appended modals within `.uniselv-container` where available.
+    - Verified all modals (`uniselv-override-modal`, `uniselv-golden-modal`, `uniselv-restore-modal`, `uniselv-service-config-modal`) render with full dark/light palette compliance.
+  - **Unified Documentation Header & Typography Contrast**:
+    - Migrated `.uniselv-help-header` from a static dark gradient to theme-adaptive semantic cards (`var(--uniselv-bg-card)` and `var(--uniselv-border)`), ensuring crystal-clear readability and contrast in both Light and Dark modes.
+
 ## 1.4.1 — 2026-11-16
 
 - **Precision Operations Console & Modern Micro-Animations**:

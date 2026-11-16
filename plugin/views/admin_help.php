@@ -118,7 +118,7 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
             <div class="uniselv-help-card-desc">
                 UNISELV Resource Manager automates server-wide resource governance, real-time telemetry collection, and cgroups v2 kernel isolation for Webuzo.
             </div>
-            <ol style="margin: 0 0 14px 20px; padding: 0; color: #475569; font-size: 0.9rem; line-height: 1.6;">
+            <ol style="margin: 0 0 14px 20px; padding: 0; color: var(--uniselv-text-muted); font-size: 0.9rem; line-height: 1.6;">
                 <li><strong>Automatic Governance:</strong> The background agent (<code>uniselv-resman-agent.service</code>) starts automatically, collects telemetry at the frequency selected under System &amp; Agent Health (5 seconds is the default), manages database retention, and validates cgroup sync.</li>
                 <li><strong>Native Plan Synchronization:</strong> Click <strong>Bulk Sync All Plans</strong> at the top right to verify that all Webuzo plans are propagated into individual account slices (<code>golden-&lt;uid&gt;.slice</code>).</li>
                 <li><strong>Golden Shield Safety Cap:</strong> Check the <strong>Golden Shield Governance</strong> tab to confirm that parent aggregate limits (<code>golden.slice</code>) are active with shared aggregate CPU headroom (e.g. 340% hosting + 60% system headroom on 4 vCPUs).</li>
@@ -186,7 +186,7 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                 <strong>Gauge fill:</strong> 0% is empty, 50% half and 100% full. Missing data is neutral. Hardware Detection is inventory; its ring does not represent usage. Admin Shared CPU Headroom shows configured hosting share (340% / 400% = 85% on four vCPUs). RAM is aggregate memory usage / enforced cap; System Load is load1 / vCPU count, not CPU utilization.<br>
                 <strong>1. CPU % (Core Equivalent):</strong> 100% CPU represents one logical CPU/vCPU worth of scheduled execution time; it does not guarantee a dedicated physical core. On a 4 vCPU server, 400% represents total machine capacity.<br>
                 <strong>Allowance Percentage Example:</strong> If an account is assigned a 200% CPU quota (2 cores) and consumes 150% CPU, its allowance usage is:
-                <div style="background:#f1f5f9; padding:8px 12px; border-radius:6px; margin:6px 0; font-family:monospace; font-size:0.85rem;">
+                <div style="background: var(--uniselv-bg-subtle); padding:8px 12px; border-radius:6px; margin:6px 0; font-family:monospace; font-size:0.85rem;">
                     Allowance Used = (150% Actual / 200% Quota) * 100 = 75.0%
                 </div>
                 <strong>2. Memory Breakdown (Anon vs Cache vs Swap):</strong>
@@ -299,43 +299,43 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                 Diagnostic commands for terminal verification. Click <strong>Copy</strong> to copy any command to your clipboard.
             </div>
             
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">1. Verify Background Daemon Status & Memory:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">1. Verify Background Daemon Status & Memory:</p>
             <div class="uniselv-code-block">
                 <code>systemctl status uniselv-resman-agent</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard('systemctl status uniselv-resman-agent', this)">Copy</button>
             </div>
 
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">2. Inspect Live Daemon Logs for Reconciliation or Errors:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">2. Inspect Live Daemon Logs for Reconciliation or Errors:</p>
             <div class="uniselv-code-block">
                 <code>journalctl -u uniselv-resman-agent -n 50 --no-pager</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard('journalctl -u uniselv-resman-agent -n 50 --no-pager', this)">Copy</button>
             </div>
 
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">3. Verify Kernel Cgroup Slices & Limits:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">3. Verify Kernel Cgroup Slices & Limits:</p>
             <div class="uniselv-code-block">
                 <code>cat /sys/fs/cgroup/golden.slice/cpu.max && cat /sys/fs/cgroup/golden.slice/memory.max</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard('cat /sys/fs/cgroup/golden.slice/cpu.max && cat /sys/fs/cgroup/golden.slice/memory.max', this)">Copy</button>
             </div>
 
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">4. Inspect Persistent Systemd Drop-in Configuration:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">4. Inspect Persistent Systemd Drop-in Configuration:</p>
             <div class="uniselv-code-block">
                 <code>cat /etc/systemd/system/golden.slice.d/50-uniselv-limits.conf</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard('cat /etc/systemd/system/golden.slice.d/50-uniselv-limits.conf', this)">Copy</button>
             </div>
 
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">5. Execute IPC Socket Health Query Directly:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">5. Execute IPC Socket Health Query Directly:</p>
             <div class="uniselv-code-block">
                 <code>sudo python3 -c "import json,socket; s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); s.settimeout(10); s.connect('/run/uniselv-resman/agent.sock'); s.sendall((json.dumps({'action':'get_agent_health','auth':{'user':'root','is_admin':True}})+'\n').encode()); print(s.makefile().readline()); s.close()"</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
             </div>
 
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">6. Verify OpenSwoole Loaded Across All Webuzo PHP Branches:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">6. Verify OpenSwoole Loaded Across All Webuzo PHP Branches:</p>
             <div class="uniselv-code-block">
                 <code>for p in /usr/local/apps/php*/bin/php; do echo "=== $p ==="; "$p" -m | grep -i swoole; done</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
             </div>
 
-            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color:#1e293b;">7. Inspect Managed Laravel Services &amp; Platform Dependency Job:</p>
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">7. Inspect Managed Laravel Services &amp; Platform Dependency Job:</p>
             <div class="uniselv-code-block">
                 <code>systemctl list-units 'uniselv-app-*' --no-pager && cat /var/lib/uniselv-resource-manager/platform/dep_job.json</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
@@ -347,7 +347,7 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
             <span class="uniselv-help-badge badge-cat-about">About</span>
             <h4 class="uniselv-help-card-title">About UNISELV Resource Manager & System Compatibility</h4>
             <div class="uniselv-help-card-desc">
-                <table style="width:100%; border-collapse:collapse; font-size:0.88rem; color:#334155;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.88rem; color: var(--uniselv-text-main);">
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong> — OpenSwoole Runtime Governance &amp; Managed Laravel Platform Edition.</td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td><?php echo $uniselvHelpEscape($uniselvHelpOs['PRETTY_NAME'] ?? 'Unavailable'); ?></td></tr>
                     <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td><?php echo $uniselvHelpEscape(php_uname('r') . ' (' . php_uname('m') . ')'); ?></td></tr>
@@ -371,32 +371,32 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                 <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 14px;">
                     <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 4px 6px rgba(37,99,235,0.25);">RR</div>
                     <div>
-                        <h5 style="margin: 0 0 4px 0; font-weight: 700; color: #1e293b; font-size: 1.05rem;">Refat Rahman</h5>
-                        <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Full-Stack Engineer, Linux Systems Specialist & Extension Developer</p>
+                        <h5 style="margin: 0 0 4px 0; font-weight: 700; color: var(--uniselv-text-main); font-size: 1.05rem;">Refat Rahman</h5>
+                        <p style="margin: 0; font-size: 0.85rem; color: var(--uniselv-text-muted);">Full-Stack Engineer, Linux Systems Specialist & Extension Developer</p>
                     </div>
                 </div>
-                <p style="font-size: 0.88rem; color: #475569; margin-bottom: 16px; line-height: 1.5;">
+                <p style="font-size: 0.88rem; color: var(--uniselv-text-muted); margin-bottom: 16px; line-height: 1.5;">
                     Specialized in enterprise web hosting automation, Linux kernel containerization (cgroups v2), high-concurrency microservices, and Webuzo ecosystem integration.
                 </p>
                 <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                        <span style="font-weight: 600; color: #475569;">Website:</span>
+                        <span style="font-weight: 600; color: var(--uniselv-text-muted);">Website:</span>
                         <a href="https://refat.ovh" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: none;">refat.ovh</a>
                     </div>
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                        <span style="font-weight: 600; color: #475569;">GitHub:</span>
-                        <a href="https://github.com/refatbd" target="_blank" style="color: #1e293b; font-weight: 600; text-decoration: none;">github.com/refatbd</a>
+                        <span style="font-weight: 600; color: var(--uniselv-text-muted);">GitHub:</span>
+                        <a href="https://github.com/refatbd" target="_blank" style="color: var(--uniselv-text-main); font-weight: 600; text-decoration: none;">github.com/refatbd</a>
                     </div>
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                        <span style="font-weight: 600; color: #475569;">Telegram:</span>
+                        <span style="font-weight: 600; color: var(--uniselv-text-muted);">Telegram:</span>
                         <a href="https://t.me/refatbd" target="_blank" style="color: #0284c7; font-weight: 600; text-decoration: none;">t.me/refatbd</a>
                     </div>
                     <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
-                        <span style="font-weight: 600; color: #475569;">Facebook:</span>
+                        <span style="font-weight: 600; color: var(--uniselv-text-muted);">Facebook:</span>
                         <a href="https://www.facebook.com/rjrefat/" target="_blank" style="color: #1877f2; font-weight: 600; text-decoration: none;">facebook.com/rjrefat</a>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                        <span style="font-weight: 600; color: #475569;">Instagram:</span>
+                        <span style="font-weight: 600; color: var(--uniselv-text-muted);">Instagram:</span>
                         <a href="https://www.instagram.com/refat_official" target="_blank" style="color: #e1306c; font-weight: 600; text-decoration: none;">instagram.com/refat_official</a>
                     </div>
                 </div>
