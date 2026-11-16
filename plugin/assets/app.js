@@ -1809,7 +1809,7 @@ const UniselvResMan = {
             line.setAttribute('x2', width - padRight);
             line.setAttribute('y1', yPos);
             line.setAttribute('y2', yPos);
-            line.setAttribute('stroke', '#f1f5f9');
+            line.setAttribute('stroke', 'var(--uniselv-border, #e2e8f0)'); line.setAttribute('class', 'uniselv-chart-grid-line');
             line.setAttribute('stroke-width', '1');
             svg.appendChild(line);
 

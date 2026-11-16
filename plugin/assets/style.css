@@ -1325,56 +1325,79 @@
     gap: 4px;
 }
 .uniselv-cpanel-btn {
-    background: #ffffff;
-    border: 1px solid var(--uniselv-border);
-    border-radius: 4px;
-    padding: 3px 10px;
-    font-size: 0.95rem;
-    font-weight: 700;
+    background: var(--uniselv-bg-card);
+    border: 1px solid var(--uniselv-border-strong);
+    border-radius: 6px;
+    padding: 6px 14px;
+    height: 34px;
+    font-size: 0.85rem;
+    font-weight: 600;
     cursor: pointer;
-    color: #475569;
-    transition: all 0.15s ease;
+    color: var(--uniselv-text-main);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    line-height: 1;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
 }
 .uniselv-cpanel-btn:hover:not(:disabled) {
-    background: #f1f5f9;
-    color: #1e293b;
-    border-color: #cbd5e1;
+    background: var(--uniselv-bg-subtle);
+    color: var(--uniselv-primary);
+    border-color: var(--uniselv-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.uniselv-cpanel-btn:active:not(:disabled) {
+    transform: scale(0.97);
 }
 .uniselv-cpanel-btn:disabled {
-    opacity: 0.35;
+    opacity: 0.45;
     cursor: not-allowed;
+    border-color: var(--uniselv-border);
 }
 .uniselv-cpanel-select {
-    padding: 6px 10px;
-    border: 1px solid var(--uniselv-border);
-    border-radius: 5px;
-    background-color: #ffffff;
+    height: 34px;
+    padding: 6px 12px;
+    border: 1px solid var(--uniselv-border-strong);
+    border-radius: 6px;
+    background-color: var(--uniselv-bg-card);
     font-size: 0.85rem;
-    color: #1e293b;
+    color: var(--uniselv-text-main);
     font-weight: 500;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.uniselv-cpanel-select:focus {
+    border-color: var(--uniselv-primary);
+    box-shadow: 0 0 0 2px var(--uniselv-primary-soft);
+    outline: none;
 }
 .uniselv-cpanel-subtabs {
     display: flex;
-    gap: 28px;
-    border-bottom: 2px solid #e2e8f0;
-    margin-top: 14px;
+    align-items: center;
+    gap: 24px;
+    border-bottom: 2px solid var(--uniselv-border);
+    margin: 16px 0;
+    padding-bottom: 0;
 }
 .uniselv-cpanel-subtab {
     background: none;
     border: none;
-    padding: 8px 0;
+    padding: 8px 4px 10px 4px;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #64748b;
+    color: var(--uniselv-text-muted);
     cursor: pointer;
     position: relative;
     transition: color 0.15s ease;
+    white-space: nowrap;
 }
 .uniselv-cpanel-subtab:hover {
-    color: #1e293b;
+    color: var(--uniselv-text-main);
 }
 .uniselv-cpanel-subtab.active {
-    color: #2563eb;
+    color: var(--uniselv-primary) !important;
 }
 .uniselv-cpanel-subtab.active::after {
     content: '';
@@ -1383,7 +1406,8 @@
     left: 0;
     right: 0;
     height: 2px;
-    background-color: #2563eb;
+    background-color: var(--uniselv-primary);
+    border-radius: 2px 2px 0 0;
 }
 
 /* ==================== CPANEL CURRENT USAGE & 8 CHARTS UI ==================== */
@@ -1399,27 +1423,28 @@
     }
 }
 .uniselv-chart-card {
-    background: #ffffff;
+    background: var(--uniselv-bg-card);
     border: 1px solid var(--uniselv-border);
-    border-radius: 8px;
-    padding: 14px 16px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-radius: var(--uniselv-radius-card, 12px);
+    padding: 16px 18px;
+    box-shadow: var(--uniselv-shadow-card);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .uniselv-chart-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 .uniselv-chart-title {
     font-weight: 700;
     font-size: 0.92rem;
-    color: #1e293b;
+    color: var(--uniselv-text-main);
     margin: 0;
 }
 .uniselv-chart-stat {
     font-size: 0.82rem;
-    color: #64748b;
+    color: var(--uniselv-text-muted);
     font-weight: 500;
 }
 .uniselv-cpanel-usage-table th, .uniselv-cpanel-usage-table td {
@@ -1461,8 +1486,8 @@
     justify-content: space-between;
     align-items: center;
     padding: 14px 18px;
-    background: #ffffff;
-    border-top: 1px solid var(--uniselv-border-strong);
+    background: var(--uniselv-bg-card);
+    border-top: 1px solid var(--uniselv-border);
     border-radius: 0 0 var(--uniselv-radius-card) var(--uniselv-radius-card);
     flex-wrap: wrap;
     gap: 12px;
@@ -1482,35 +1507,45 @@
     font-size: 0.84rem;
     font-weight: 600;
     border: 1px solid var(--uniselv-border-strong);
-    background: #ffffff;
-    color: #334155;
+    background: var(--uniselv-bg-card);
+    color: var(--uniselv-text-main);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
     min-width: 34px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
 }
 .uniselv-page-btn:hover:not(:disabled) {
-    background: #f1f5f9;
-    border-color: #cbd5e1;
-    color: #0f172a;
+    background: var(--uniselv-bg-subtle);
+    border-color: var(--uniselv-primary);
+    color: var(--uniselv-primary);
 }
 .uniselv-page-btn.active {
-    background: var(--uniselv-primary);
-    border-color: var(--uniselv-primary);
-    color: #ffffff;
+    background: var(--uniselv-primary) !important;
+    border-color: var(--uniselv-primary) !important;
+    color: #ffffff !important;
+}
+.uniselv-container[data-theme="dark"] .uniselv-page-btn.active,
+[data-uniselv-theme="dark"] .uniselv-page-btn.active {
+    color: #101714 !important;
+    font-weight: 700 !important;
 }
 .uniselv-page-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
 }
 .uniselv-page-size-select {
-    padding: 5px 8px;
+    padding: 5px 10px;
     border: 1px solid var(--uniselv-border-strong);
     border-radius: 6px;
     font-size: 0.84rem;
-    background: #fff;
-    color: #334155;
+    height: 32px;
+    background: var(--uniselv-bg-card);
+    color: var(--uniselv-text-main);
 }
 
 /* Empty State Component */
@@ -3423,3 +3458,108 @@
     border-bottom: 1px solid #F1F5F9 !important;
 }
 
+/* ==========================================================================
+   MASTER PRODUCTION-GRADE THEME HARDENING & CONTRAST IMMUNIZATION (V1.4.3)
+   Fixes all button positions, white-boxes, loading rows, and modals.
+   ========================================================================== */
+
+/* 1. All Button Styles in Dark Mode */
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-btn,
+[data-uniselv-theme="dark"] .uniselv-cpanel-btn,
+[data-theme="dark"] .uniselv-cpanel-btn {
+    background-color: var(--uniselv-bg-subtle, #1D2924) !important;
+    color: var(--uniselv-text-main, #E8EFEB) !important;
+    border: 1px solid var(--uniselv-border-strong, #46594F) !important;
+}
+
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-btn:hover:not(:disabled),
+[data-uniselv-theme="dark"] .uniselv-cpanel-btn:hover:not(:disabled),
+[data-theme="dark"] .uniselv-cpanel-btn:hover:not(:disabled) {
+    background-color: var(--uniselv-bg-inset, #26352E) !important;
+    color: var(--uniselv-primary, #72BDAA) !important;
+    border-color: var(--uniselv-primary, #72BDAA) !important;
+}
+
+.uniselv-container[data-theme="dark"] .uniselv-cpanel-btn:disabled,
+[data-uniselv-theme="dark"] .uniselv-cpanel-btn:disabled,
+[data-theme="dark"] .uniselv-cpanel-btn:disabled {
+    background-color: var(--uniselv-bg-card, #17211D) !important;
+    color: var(--uniselv-text-subtle, #87968D) !important;
+    border-color: var(--uniselv-border, #304139) !important;
+    opacity: 0.45 !important;
+}
+
+/* 2. Light Theme Button Normalization */
+.uniselv-container[data-theme="light"] .uniselv-cpanel-btn,
+[data-uniselv-theme="light"] .uniselv-cpanel-btn {
+    background-color: #FFFFFF !important;
+    color: #0F172A !important;
+    border: 1px solid #CBD5E1 !important;
+}
+
+.uniselv-container[data-theme="light"] .uniselv-cpanel-btn:hover:not(:disabled),
+[data-uniselv-theme="light"] .uniselv-cpanel-btn:hover:not(:disabled) {
+    background-color: #F8FAFC !important;
+    color: var(--uniselv-primary, #176B5B) !important;
+    border-color: var(--uniselv-primary, #176B5B) !important;
+}
+
+/* 3. Table Rows & Loading State Defense */
+.uniselv-container tr,
+.uniselv-container tbody tr,
+.uniselv-table tr,
+.uniselv-field-table tr,
+.uniselv-cpanel-usage-table tr {
+    color: var(--uniselv-text-main) !important;
+}
+
+.uniselv-container[data-theme="dark"] tr,
+.uniselv-container[data-theme="dark"] tbody tr,
+[data-uniselv-theme="dark"] tr,
+[data-uniselv-theme="dark"] tbody tr {
+    color: var(--uniselv-text-main, #E8EFEB) !important;
+}
+
+/* 4. Active Page & Pill Buttons High Contrast in Dark Mode */
+.uniselv-container[data-theme="dark"] .uniselv-page-btn.active,
+[data-uniselv-theme="dark"] .uniselv-page-btn.active {
+    color: #101714 !important;
+    font-weight: 700 !important;
+}
+
+/* 5. SVG Chart Elements Immunization */
+.uniselv-container[data-theme="dark"] svg text,
+[data-uniselv-theme="dark"] svg text {
+    fill: var(--uniselv-text-muted, #A5B2AA) !important;
+}
+
+.uniselv-container[data-theme="dark"] svg line:not([stroke^="#dc"]):not([stroke^="#ef"]):not([stroke^="red"]):not([stroke*="220, 38, 38"]),
+[data-uniselv-theme="dark"] svg line:not([stroke^="#dc"]):not([stroke^="#ef"]):not([stroke^="red"]):not([stroke*="220, 38, 38"]) {
+    stroke: var(--uniselv-border, #304139) !important;
+}
+
+.uniselv-container[data-theme="light"] svg text,
+[data-uniselv-theme="light"] svg text {
+    fill: #475569 !important;
+}
+
+.uniselv-container[data-theme="light"] svg line:not([stroke^="#dc"]):not([stroke^="#ef"]):not([stroke^="red"]):not([stroke*="220, 38, 38"]),
+[data-uniselv-theme="light"] svg line:not([stroke^="#dc"]):not([stroke^="#ef"]):not([stroke^="red"]):not([stroke*="220, 38, 38"]) {
+    stroke: #E2E8F0 !important;
+}
+
+/* 6. Layout Alignments: Timeframe Toolbar & Card Header Action Groups */
+.uniselv-timeframe-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.uniselv-card-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}

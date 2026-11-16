@@ -1,3 +1,21 @@
+## 1.4.3 — 2026-11-16
+
+- **Production Hardening & Universal Button / Grid / Table Alignment Parity**:
+  - **Button Dimension & Alignment Parity**:
+    - Standardized `.uniselv-cpanel-btn`, `.uniselv-cpanel-select`, and `.uniselv-btn` to strict 34px height and flexbox centering (`display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; font-size: 0.85rem; font-weight: 600; border-radius: 6px;`).
+    - Resolves vertical misalignments between toolbar select boxes (34px) and buttons (previously 26px) across Admin Analytics, Enduser Usage, Snapshots, and Notifications.
+  - **Universal Dark-Mode Button Theme Armor**:
+    - Eliminated legacy hardcoded `#ffffff` backgrounds on `.uniselv-cpanel-btn`, binding all control buttons to theme-adaptive semantic variables (`var(--uniselv-bg-card)`, `var(--uniselv-text-main)`, `var(--uniselv-border)`).
+    - Resolves white-box button glitches on `Refresh`, `Refresh Processes`, Snapshots `«` / `»` toolbar, `⚡ Kill Stuck CLI Tasks`, and `Refresh OpenSwoole`.
+  - **Pagination Contrast & Legibility Hardening**:
+    - Hardened `.uniselv-page-btn.active` in dark mode to pair bright seafoam green (`#72BDAA`) with deep slate text (`#101714`), elevating contrast ratio from 2.19:1 to >8.5:1 (WCAG AAA compliant).
+  - **Dynamic Table Loading & Empty State Immunization**:
+    - Protected loading states and empty messages (e.g. `Loading hourly usage records...`, `No active background processes...`) against dark Bootstrap text overrides, ensuring crystal-clear readability.
+  - **Chart Grid Line Semantic Adaptation**:
+    - Modernized SVG chart horizontal grid line generation in `app.js` to adaptively use `var(--uniselv-border, #e2e8f0)` via class `uniselv-chart-grid-line`.
+  - **Exhaustive 20-Screen Full-Page Visual Verification**:
+    - Audited 100% of all Admin tabs (`#overview`, `#accounts` + `uniselv-override-modal`, `#analytics` subtabs 1 & 2, `#audit`, `#goldenshield` + `uniselv-golden-modal` & `uniselv-restore-modal`, `#capacity`, `#reports`, `#integrations`, `#auditlog`, `#openswoole`, `#platform`, `#health`, `#help`) and Enduser tabs (`#dashboard` + `uniselv-service-config-modal`, `#processes`, `#history`, `#snapshots`, `#notifications`, `#services`, `#help`) in both Light and Dark modes via full-page screenshots on live host `51.79.144.93`.
+
 ## 1.4.2 — 2026-11-16
 
 - **Exhaustive Universal Light & Dark Mode Coverage Across All Tabs, Subtabs & Modals**:
