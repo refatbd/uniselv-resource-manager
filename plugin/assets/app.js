@@ -390,11 +390,50 @@ const UniselvResMan = {
     csrfToken: '',
     pollTimer: null,
 
+    initTheme: function() {
+        let theme = 'light';
+        try {
+            theme = localStorage.getItem('uniselv_theme') || 'light';
+        } catch(e) {}
+        this.applyTheme(theme);
+    },
+
+    toggleTheme: function() {
+        const container = document.getElementById('uniselv-main-container') || document.querySelector('.uniselv-container');
+        const current = container?.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        this.applyTheme(next);
+        try {
+            localStorage.setItem('uniselv_theme', next);
+        } catch(e) {}
+        if (typeof UniselvToast !== 'undefined' && UniselvToast.show) {
+            UniselvToast.show(next === 'dark' ? 'Dark theme enabled' : 'Light theme enabled', 'info', 1600);
+        }
+    },
+
+    applyTheme: function(theme) {
+        const container = document.getElementById('uniselv-main-container') || document.querySelector('.uniselv-container');
+        if (container) {
+            container.setAttribute('data-theme', theme);
+        }
+        document.documentElement.setAttribute('data-uniselv-theme', theme);
+        const toggleBtn = document.getElementById('uniselv-theme-toggle');
+        if (toggleBtn) {
+            toggleBtn.setAttribute('data-current-theme', theme);
+            toggleBtn.setAttribute('aria-label', theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme');
+            const labelEl = toggleBtn.querySelector('.uniselv-theme-label');
+            if (labelEl) {
+                labelEl.textContent = theme === 'dark' ? 'Dark' : 'Light';
+            }
+        }
+    },
+
     init: function(endpoint, isAdmin, user, csrfToken) {
         this.apiEndpoint = endpoint;
         this.isAdmin = isAdmin;
         this.currentUser = user;
         this.csrfToken = csrfToken || '';
+        this.initTheme();
         this.bindTabs();
         this.bindEvents();
 

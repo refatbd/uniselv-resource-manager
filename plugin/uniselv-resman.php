@@ -576,7 +576,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 </script>';
     echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.4.0' . '"></script>';
 
-    echo '<div class="uniselv-container">';
+    echo '<div class="uniselv-container" id="uniselv-main-container">';
+    echo '<script>(function(){try{var t=localStorage.getItem("uniselv_theme")||"light";document.getElementById("uniselv-main-container").setAttribute("data-theme",t);}catch(e){}})();</script>';
     
     // Header
     echo '<div class="uniselv-header">
@@ -589,7 +590,12 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <p class="uniselv-brand-subtitle">' . __u('brand_subtitle', $locale) . '</p>
             </div>
         </div>
-        <div class="uniselv-header-tools">
+        <div class="uniselv-header-tools" style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" id="uniselv-theme-toggle" class="uniselv-theme-toggle" aria-label="Toggle Light/Dark Theme" onclick="UniselvResMan.toggleTheme()" title="Toggle Light/Dark Theme">
+                <svg class="uniselv-theme-icon uniselv-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg class="uniselv-theme-icon uniselv-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <span class="uniselv-theme-label">Theme</span>
+            </button>
             <details class="uniselv-header-menu">
                 <summary>' . __u('help_language', $locale) . '</summary>
                 <div class="uniselv-header-menu-items">
@@ -680,6 +686,27 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Now
             </button>
         </div>';
+    echo '<div class="uniselv-hardware-banner">
+        <div class="uniselv-hardware-item">
+            <span class="uniselv-hardware-label">Processor</span>
+            <span class="uniselv-hardware-value">' . htmlspecialchars((string)$cpu_cores) . ' Cores</span>
+        </div>
+        <div class="uniselv-hardware-sep"></div>
+        <div class="uniselv-hardware-item">
+            <span class="uniselv-hardware-label">Physical Memory</span>
+            <span class="uniselv-hardware-value">' . htmlspecialchars((string)$total_ram) . '</span>
+        </div>
+        <div class="uniselv-hardware-sep"></div>
+        <div class="uniselv-hardware-item">
+            <span class="uniselv-hardware-label">Load Averages</span>
+            <span class="uniselv-hardware-value tabular">' . $l1 . ', ' . $l5 . ', ' . $l15 . '</span>
+        </div>
+        <div class="uniselv-hardware-sep"></div>
+        <div class="uniselv-hardware-item">
+            <span class="uniselv-hardware-label">Golden Shield Headroom</span>
+            <span class="uniselv-hardware-value" style="color: var(--uniselv-success);">' . ($headroom_mib !== 'Unavailable' ? round($headroom_mib/1024, 2) . ' GiB Reserve' : 'Safe Capacity') . '</span>
+        </div>
+    </div>';
     echo '<div class="uniselv-grid">
         <!-- 1. Admin Hardware Detection -->
         <div class="uniselv-card uniselv-gauge-card theme-cpu">
@@ -2414,7 +2441,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 </script>';
     echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.4.0' . '"></script>';
 
-    echo '<div class="uniselv-container">';
+    echo '<div class="uniselv-container" id="uniselv-main-container">';
+    echo '<script>(function(){try{var t=localStorage.getItem("uniselv_theme")||"light";document.getElementById("uniselv-main-container").setAttribute("data-theme",t);}catch(e){}})();</script>';
 
     // Header
     echo '<div class="uniselv-header">
@@ -2428,6 +2456,11 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button type="button" id="uniselv-theme-toggle" class="uniselv-theme-toggle" aria-label="Toggle Light/Dark Theme" onclick="UniselvResMan.toggleTheme()" title="Toggle Light/Dark Theme">
+                <svg class="uniselv-theme-icon uniselv-theme-sun" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <svg class="uniselv-theme-icon uniselv-theme-moon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <span class="uniselv-theme-label">Theme</span>
+            </button>
             <a href="' . $brand_support . '" target="_blank" class="uniselv-help-pill" style="text-decoration: none;">
                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/></svg> Support
             </a>
