@@ -497,7 +497,8 @@ class IpcRequestHandler:
                     'get_enduser_notifications', 'mark_notification', 'get_enduser_support_export', 'get_branding_settings',
                     'get_enduser_openswoole', 'get_enduser_platform_services', 'save_laravel_service',
                     'control_laravel_service', 'sync_laravel_workers', 'enduser_redis_action', 'scan_app_logs', 'truncate_app_log',
-                    'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes'}
+                    'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes',
+                    'enduser_chrome_test', 'enduser_chrome_kill', 'enduser_service_test'}
                 reseller_admin = {'get_admin_accounts', 'get_admin_account_detail', 'set_temporary_override', 'cancel_temporary_override', 'get_audit_log', 'get_admin_audit_limits', 'audit_limits'}
                 if action not in reseller_common | reseller_admin:
                     return {'error': 'Forbidden: Server-wide action requires root', 'status_code': 403}
@@ -569,6 +570,9 @@ class IpcRequestHandler:
                 return platform_manager.run_user_chrome_test(target_user, self.db_path, is_admin=False)
             elif action == 'enduser_chrome_kill':
                 return platform_manager.kill_user_chrome_processes(target_user, self.collector, self.db_path)
+            elif action == 'enduser_service_test':
+                srv = str(params.get('service') or 'all').strip().lower()
+                return platform_manager.run_enduser_service_test(self.collector, self.db_path, target_user, srv, params)
             elif action == 'get_branding_settings':
                 return self.action_get_branding_settings()
             elif action == 'process_webhook':
@@ -4680,6 +4684,9 @@ class IpcRequestHandler:
         logs = platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path, target_user=target_user)
         rt = platform_manager.scan_tenant_runtimes_and_binaries(self.collector, self.db_path)
         own_rt = [p for p in rt.get('processes', []) if p.get('username') == target_user]
+        supervisor_st = platform_manager.get_supervisor_status()
+        osw_st = openswoole_manager.get_enduser_status_payload(self.collector, self.db_path, target_user)
+        impl_data = platform_manager.get_enduser_implementation_data(self.collector, self.db_path, target_user)
         return {
             'success': True,
             'username': target_user,
@@ -4691,6 +4698,9 @@ class IpcRequestHandler:
             'logs': logs,
             'runtimes': own_rt,
             'chrome': platform_manager.get_user_chrome_info(self.collector, self.db_path, target_user),
+            'supervisor': supervisor_st,
+            'openswoole': osw_st,
+            'implementation_data': impl_data,
         }
 
     def action_save_laravel_service(self, actor: str, target_user: str, params: Dict[str, Any], is_root_admin: bool = False) -> Dict[str, Any]:

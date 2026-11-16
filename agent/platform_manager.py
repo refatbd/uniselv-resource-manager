@@ -707,7 +707,20 @@ def _is_port_open(port: int) -> bool:
 
 def ensure_account_port_allocation(collector: Any, db_path: str, username: str) -> Dict[str, Any]:
     """Assign a collision-free 10-port non-privileged block (20000-59990) and private socket dir per account."""
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     uinfo = users.get(username, {})
     uid, gid, _ = _resolve_user_ids(username, int(uinfo.get('uid', 0) or 0))
 
@@ -810,7 +823,20 @@ def ensure_account_port_allocation(collector: Any, db_path: str, username: str) 
 
 
 def list_all_port_allocations(collector: Any, db_path: str) -> List[Dict[str, Any]]:
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     out: List[Dict[str, Any]] = []
     for uname in sorted(users.keys()):
         alloc = ensure_account_port_allocation(collector, db_path, uname)
@@ -1222,9 +1248,15 @@ def set_user_platform_permissions(
     username = str(username or '').strip()
     if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
         return {'success': False, 'error': 'Invalid account username'}
-    users = collector.get_webuzo_users() if collector else {}
-    if username not in users:
-        return {'success': False, 'error': f'Account {username} not found'}
+    if collector:
+        users = collector.get_webuzo_users()
+        if username not in users:
+            return {'success': False, 'error': f'Account {username} not found'}
+    else:
+        try:
+            pwd.getpwnam(username)
+        except (KeyError, Exception):
+            return {'success': False, 'error': f'Account {username} not found'}
     if not isinstance(perms, dict) or not perms:
         return {'success': False, 'error': 'Permissions map is required'}
 
@@ -1400,9 +1432,15 @@ def sync_user_supervisor_scope(
 ) -> Dict[str, Any]:
     """Sync isolated per-user Supervisor drop-ins and read-only status sudoers safely."""
     username = str(username or '').strip()
-    users = collector.get_webuzo_users() if collector else {}
-    if username not in users:
-        return {'success': False, 'error': f'Account {username} not found'}
+    if collector:
+        users = collector.get_webuzo_users()
+        if username not in users:
+            return {'success': False, 'error': f'Account {username} not found'}
+    else:
+        try:
+            pwd.getpwnam(username)
+        except (KeyError, Exception):
+            return {'success': False, 'error': f'Account {username} not found'}
     uinfo = users[username]
     uid = int(uinfo.get('uid', 0) or 0)
     _, gid, home_dir = _resolve_user_ids(username, uid)
@@ -1571,7 +1609,20 @@ def enforce_platform_permissions(collector: Any, db_path: str, target_user: Opti
     if not db_path or not os.path.exists(db_path):
         return {'stopped_units': [], 'synced_supervisor': []}
     settings = load_platform_settings(db_path)
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     globally_on = settings.get('platform_laravel_services_enabled', '1') != '0'
     allowed_types = set(parse_allowed_laravel_types(settings.get('platform_laravel_allowed_types', 'queue,horizon,reverb,scheduler')))
     sup_on = (settings.get('platform_supervisor_enabled', '1') != '0') and get_supervisor_status().get('runtime_active', False)
@@ -1625,7 +1676,20 @@ def enforce_platform_permissions(collector: Any, db_path: str, target_user: Opti
 
 def compute_laravel_service_budget(collector: Any, username: str, db_path: str) -> Dict[str, Any]:
     settings = load_platform_settings(db_path)
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     uinfo = users.get(username, {})
     uid = int(uinfo.get('uid', 0) or 0)
     plan_name = str(uinfo.get('plan_name', 'default') or 'default')
@@ -1821,7 +1885,20 @@ def _query_supervisor_program(uid: int, slug: str, app_path: str = '') -> Dict[s
 
 
 def list_laravel_services(collector: Any, db_path: str, target_user: Optional[str] = None) -> Dict[str, Any]:
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     apps_root = pathlib.Path('/usr/local/apps')
     available_php = []
     if apps_root.is_dir():
@@ -1950,9 +2027,15 @@ def save_and_install_laravel_service(collector: Any, db_path: str, actor: str, p
     username = str(params.get('username') or '').strip()
     if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
         return {'success': False, 'error': 'Invalid account username'}
-    users = collector.get_webuzo_users() if collector else {}
-    if username not in users:
-        return {'success': False, 'error': f'Account {username} not found'}
+    if collector:
+        users = collector.get_webuzo_users()
+        if username not in users:
+            return {'success': False, 'error': f'Account {username} not found'}
+    else:
+        try:
+            pwd.getpwnam(username)
+        except (KeyError, Exception):
+            return {'success': False, 'error': f'Account {username} not found'}
 
     svc_type = str(params.get('service_type') or 'queue').strip().lower()
     if svc_type not in SERVICE_TYPES:
@@ -2307,7 +2390,20 @@ def sync_and_reconcile_laravel_workers(collector: Any, db_path: str, actor: str,
     if not is_admin and actor != target_user:
         return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
 
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     uinfo = users.get(target_user, {})
     uid = int(uinfo.get('uid', 0) or 0)
     _, _, home_dir = _resolve_user_ids(target_user, uid)
@@ -2586,7 +2682,20 @@ def kill_stuck_cli_processes(collector: Any, db_path: str, actor: str, username:
     if not is_admin and actor != username:
         return {'error': 'Forbidden: Account scope mismatch', 'status_code': 403}
 
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     uinfo = users.get(username, {})
     uid = int(uinfo.get('uid', 0) or 0)
     _, _, _ = _resolve_user_ids(username, uid)
@@ -2637,7 +2746,20 @@ def run_laravel_services_selftest(collector: Any, db_path: str, username: str, p
     unit_name = ''
     probe_dir = None
     try:
-        users = collector.get_webuzo_users() if collector else {}
+        users = {}
+        if collector and hasattr(collector, 'get_webuzo_users'):
+            try:
+                users = collector.get_webuzo_users()
+            except Exception:
+                pass
+        if not users and os.path.exists(db_path):
+            try:
+                with sqlite3.connect(db_path) as c:
+                    for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                        if row[0]:
+                            users[row[0]] = {}
+            except Exception:
+                pass
         if username not in users:
             return {'success': False, 'error': f'Account {username} not found'}
         uid, gid, _ = _resolve_user_ids(username, int(users[username].get('uid', 0) or 0))
@@ -2735,7 +2857,20 @@ def expected_sl_in(expected_slice: str, cg_text: str) -> bool:
 
 def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str, Any]:
     """Inspect /proc for tenant Node.js, Python ASGI/WSGI, manual Laravel daemons & heavy binaries."""
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     uid_map = {int(v['uid']): k for k, v in users.items() if v.get('uid')}
     boot_time = 0.0
     try:
@@ -2994,7 +3129,20 @@ def scan_app_logs_and_inodes(collector: Any, db_path: str, target_user: Optional
                 seen_fs.add(mnt)
                 inodes.append({'filesystem': parts[0], 'mount': mnt, 'total': parts[1], 'used': parts[2], 'free': parts[3], 'use_pct': parts[4]})
 
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     target_names = [target_user] if (target_user and target_user in users) else sorted(users.keys())
     findings: List[Dict[str, Any]] = []
     now = int(time.time())
@@ -3160,7 +3308,20 @@ def import_policy_bundle(collector: Any, db_path: str, actor: str, bundle: Dict[
     osw_accts = bundle.get('openswoole_account_policies') if isinstance(bundle.get('openswoole_account_policies'), list) else []
     lrv_svcs = bundle.get('managed_app_services') if isinstance(bundle.get('managed_app_services'), list) else []
 
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     summary = {
         'settings': len(settings),
         'package_mappings': len(pkg_maps),
@@ -3313,7 +3474,20 @@ def get_chrome_engine_status(collector: Any, db_path: str) -> Dict[str, Any]:
         except Exception:
             pass
 
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     allowed_users: List[str] = []
     user_matrix: List[Dict[str, Any]] = []
     for uname, uinfo in sorted(users.items()):
@@ -3431,7 +3605,20 @@ def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
                 except Exception:
                     pass
 
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     current_members = set()
     if os.name != 'nt' and os.path.exists('/etc/group'):
         try:
@@ -3571,7 +3758,20 @@ def save_user_chrome_permissions(collector: Any, db_path: str, admin_user: str, 
         return {'success': False, 'error': 'User permissions map required'}
 
     now = int(time.time())
-    users = collector.get_webuzo_users() if collector else {}
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
     applied: Dict[str, bool] = {}
     revoked_users: List[str] = []
 
@@ -3736,4 +3936,579 @@ def kill_user_chrome_processes(username: str, collector: Any, db_path: str) -> D
 
     _record_audit(db_path, username, 'kill_user_chrome_processes', username, {'stopped_pids': stopped, 'count': len(stopped)})
     return {'success': True, 'stopped_count': len(stopped), 'pids': stopped}
+
+
+def run_enduser_service_test(collector: Any, db_path: str, username: str, service: str = 'all', params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Run an enduser-scoped live health, containment and functionality test for one or all of the 8 modern services:
+    redis, supervisor, queue, horizon, reverb, scheduler, chrome, openswoole.
+    """
+    params = params or {}
+    service = (service or 'all').strip().lower()
+    t0 = time.time()
+
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
+    udata = users.get(username, {})
+    uid, gid, homedir = _resolve_user_ids(username, int(udata.get('uid', 0) or 0))
+    home_path = pathlib.Path(homedir or f'/home/{username}')
+    domain = udata.get('domain', '')
+
+    alloc = ensure_account_port_allocation(collector, db_path, username)
+    ports = alloc.get('ports', {})
+    reverb_port = int(ports.get('reverb_port', 22241))
+    octane_port = int(ports.get('octane_port', 22242))
+    horizon_port = int(ports.get('horizon_metrics_port', 22243))
+
+    budget = compute_laravel_service_budget(collector, username, db_path) if collector else {}
+
+    def _test_redis() -> Dict[str, Any]:
+        rt0 = time.time()
+        cli = _find_redis_cli()
+        if not cli:
+            return {
+                'service': 'redis',
+                'title': 'Redis Caching & Key Isolation',
+                'success': False,
+                'latency_ms': 0,
+                'error': 'redis-cli binary not found on server',
+                'steps': [{'name': 'binary', 'label': 'Redis CLI Availability', 'passed': False, 'detail': 'redis-cli missing'}]
+            }
+        rc, out, err = _run_redis(['PING'], timeout=3.0)
+        pong = (out or '').strip().upper() == 'PONG'
+        r_lat = round((time.time() - rt0) * 1000, 2)
+
+        acl_row = None
+        if os.path.isfile(db_path):
+            try:
+                with closing(sqlite3.connect(db_path)) as conn:
+                    acl_row = conn.execute('SELECT redis_user, key_prefix FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
+            except Exception:
+                pass
+
+        steps = [
+            {'name': 'daemon', 'label': 'Redis Server Connection & Ping', 'passed': pong, 'detail': f'PONG received in {r_lat}ms' if pong else (err or 'Server inactive')},
+        ]
+
+        if acl_row:
+            r_user, r_pfx = acl_row
+            rc_own, out_own, err_own = _run_redis(['ACL', 'DRYRUN', r_user, 'SET', f'{r_pfx}__health_probe', '1'], management=True)
+            own_ok = (out_own or '').strip().upper() == 'OK' or rc_own == 0
+            steps.append({'name': 'acl_own', 'label': f'Own Key-Prefix Write ({r_pfx}*)', 'passed': own_ok, 'detail': 'Granted' if own_ok else (out_own or err_own)})
+
+            rc_f, out_f, err_f = _run_redis(['ACL', 'DRYRUN', r_user, 'SET', '__foreign__:key', '1'], management=True)
+            f_denied = 'no permissions' in (out_f or '').lower() or 'noperm' in (out_f or '').lower() or 'denied' in (out_f or '').lower() or (out_f or '').strip().upper() != 'OK'
+            steps.append({'name': 'acl_cross_tenant', 'label': 'Cross-Tenant Access Denial (Foreign Keys)', 'passed': f_denied, 'detail': 'Blocked safely' if f_denied else 'Unrestricted'})
+
+            rc_cmd, out_cmd, err_cmd = _run_redis(['ACL', 'DRYRUN', r_user, 'FLUSHALL'], management=True)
+            cmd_denied = 'no permissions' in (out_cmd or '').lower() or 'noperm' in (out_cmd or '').lower() or 'denied' in (out_cmd or '').lower() or (out_cmd or '').strip().upper() != 'OK'
+            steps.append({'name': 'acl_admin_cmd', 'label': 'Privileged Command Guard (FLUSHALL/CONFIG)', 'passed': cmd_denied, 'detail': 'Protected' if cmd_denied else 'Allowed'})
+        else:
+            steps.append({'name': 'acl_status', 'label': 'Tenant ACL Instance', 'passed': True, 'detail': 'Redis active. Click "Create My Redis ACL" for dedicated key-prefix isolation.'})
+
+        all_passed = all(s['passed'] for s in steps)
+        return {
+            'service': 'redis',
+            'title': 'Redis Caching & Key Isolation',
+            'success': all_passed,
+            'latency_ms': r_lat,
+            'steps': steps,
+            'details': {
+                'host': '127.0.0.1',
+                'port': 6379,
+                'acl_provisioned': bool(acl_row),
+                'redis_user': acl_row[0] if acl_row else f'u_{username}',
+                'key_prefix': acl_row[1] if acl_row else f'{username}:'
+            }
+        }
+
+    def _test_supervisor() -> Dict[str, Any]:
+        sup_st = get_supervisor_status()
+        sup_active = sup_st.get('runtime_active', False)
+
+        user_conf_dir = home_path / '.uniselv-supervisor' / 'conf.d'
+        conf_dir_exists = user_conf_dir.is_dir()
+        conf_dir_writable = False
+        if conf_dir_exists:
+            try:
+                test_f = user_conf_dir / '.write_probe'
+                test_f.write_text('probe', encoding='utf-8')
+                test_f.unlink(missing_ok=True)
+                conf_dir_writable = True
+            except Exception:
+                pass
+
+        user_confs = []
+        if conf_dir_exists:
+            try:
+                for f in user_conf_dir.glob('*.conf'):
+                    user_confs.append(f.name)
+            except Exception:
+                pass
+
+        user_procs = []
+        if sup_active and sup_st.get('programs'):
+            for p in sup_st['programs']:
+                if username in p.get('name', ''):
+                    user_procs.append(p)
+
+        steps = [
+            {'name': 'daemon', 'label': 'Supervisor Daemon (supervisord)', 'passed': sup_active, 'detail': f"Active PID: {sup_st.get('main_pid', 0)}" if sup_active else 'Daemon inactive'},
+            {'name': 'dropin_dir', 'label': 'Scoped Drop-In Directory (~/.uniselv-supervisor/conf.d/)', 'passed': conf_dir_exists and conf_dir_writable, 'detail': f'{len(user_confs)} drop-in file(s) found' if conf_dir_exists else 'Directory created on first worker'},
+            {'name': 'programs', 'label': 'Active Supervised Tenant Programs', 'passed': True, 'detail': f'{len(user_procs)} supervised program(s) registered' if user_procs else 'Ready for drop-in configuration'}
+        ]
+        return {
+            'service': 'supervisor',
+            'title': 'Supervisor Process Manager',
+            'success': sup_active,
+            'steps': steps,
+            'details': {
+                'daemon_active': sup_active,
+                'conf_dir': str(user_conf_dir),
+                'dropin_files': user_confs,
+                'active_programs': user_procs
+            }
+        }
+
+    def _test_queue() -> Dict[str, Any]:
+        lrv = list_laravel_services(collector, db_path, target_user=username)
+        active_svcs = [s for s in lrv.get('services', []) if s.get('service_type') in ('queue', 'worker') or 'worker' in s.get('service_slug', '')]
+        running_count = sum(1 for s in active_svcs if s.get('runtime_active'))
+
+        max_workers = budget.get('max_queue_workers', 1)
+        queue_allowed = budget.get('queue_allowed', True)
+
+        php_branches = lrv.get('php_branches', ['php84'])
+        latest_php = php_branches[-1] if php_branches else 'php84'
+        php_bin = f'/usr/local/apps/{latest_php}/bin/php'
+        php_ok = os.path.isfile(php_bin)
+
+        steps = [
+            {'name': 'policy', 'label': 'Plan Queue Execution Policy', 'passed': queue_allowed, 'detail': f'Allowed up to {max_workers} worker(s) ({budget.get("max_worker_memory_mb", 256)} MiB cap)' if queue_allowed else 'Queue workers restricted by plan'},
+            {'name': 'php_cli', 'label': f'PHP CLI Engine ({latest_php})', 'passed': php_ok, 'detail': php_bin if php_ok else 'Missing CLI binary'},
+            {'name': 'running_workers', 'label': 'Active Worker Processes', 'passed': True, 'detail': f'{running_count} active worker service(s) monitored' if running_count else 'No workers running yet (Ready to install)'}
+        ]
+        return {
+            'service': 'queue',
+            'title': 'Laravel Queue Workers',
+            'success': queue_allowed and php_ok,
+            'steps': steps,
+            'details': {
+                'active_workers': running_count,
+                'max_allowed_workers': max_workers,
+                'discovered_apps': [a.get('path') for a in lrv.get('discovered_apps', [])],
+                'active_services': [{'slug': s.get('service_slug'), 'state': s.get('active_state'), 'workers': s.get('workers')} for s in active_svcs]
+            }
+        }
+
+    def _test_horizon() -> Dict[str, Any]:
+        mem_mb = budget.get('mem_max_mib', 1024)
+        has_min_ram = mem_mb >= 512
+
+        cli = _find_redis_cli()
+        rc, out, _ = _run_redis(['PING'], timeout=2.0)
+        redis_ok = (out or '').strip().upper() == 'PONG'
+
+        lrv = list_laravel_services(collector, db_path, target_user=username)
+        horizon_svcs = [s for s in lrv.get('services', []) if s.get('service_type') == 'horizon']
+        running_h = sum(1 for s in horizon_svcs if s.get('runtime_active'))
+
+        steps = [
+            {'name': 'ram_quota', 'label': 'Account Memory Quota Check (>= 512 MiB)', 'passed': has_min_ram, 'detail': f'Plan memory: {mem_mb} MiB' if has_min_ram else f'Insufficient plan memory ({mem_mb} MiB; requires >= 512 MiB)'},
+            {'name': 'redis_dep', 'label': 'Redis Backend Requirement', 'passed': redis_ok, 'detail': 'Redis daemon active' if redis_ok else 'Redis daemon required for Horizon'},
+            {'name': 'horizon_port', 'label': 'Assigned Horizon Metrics Port', 'passed': horizon_port > 0, 'detail': f'Port {horizon_port}' if horizon_port > 0 else 'Unassigned'},
+            {'name': 'runtime', 'label': 'Horizon Master Supervisor Status', 'passed': True, 'detail': f'{running_h} Horizon master(s) active' if running_h else 'Inactive / On-Demand'}
+        ]
+        return {
+            'service': 'horizon',
+            'title': 'Laravel Horizon Queue Dashboard',
+            'success': has_min_ram and redis_ok,
+            'steps': steps,
+            'details': {
+                'metrics_port': horizon_port,
+                'horizon_running': running_h > 0,
+                'horizon_prefix': f'{username}:horizon:'
+            }
+        }
+
+    def _test_reverb() -> Dict[str, Any]:
+        rev_allowed = budget.get('reverb_allowed', True)
+        port_open = _is_port_open(reverb_port)
+
+        vhost_proxy_active = False
+        domain_conf = LEGACY_APACHE_CONF_DIR / f'uniselv-reverb-{domain}.conf'
+        if domain and (domain_conf.is_file() or (APACHE_CONF_DIR / f'{domain}.conf').is_file()):
+            vhost_proxy_active = True
+
+        steps = [
+            {'name': 'policy', 'label': 'Plan Reverb WebSocket Policy', 'passed': rev_allowed, 'detail': 'Permitted on account plan' if rev_allowed else 'Restricted by plan'},
+            {'name': 'port', 'label': f'Dedicated Private Port ({reverb_port})', 'passed': reverb_port > 0, 'detail': 'Bound & Listening' if port_open else 'Port ready (Server idle/ready)'},
+            {'name': 'proxy', 'label': 'Apache SSL Reverse Proxy (/app & /apps)', 'passed': vhost_proxy_active, 'detail': f'Active on {domain}' if vhost_proxy_active else 'Not configured yet (Click "Enable Proxy")'}
+        ]
+        return {
+            'service': 'reverb',
+            'title': 'Laravel Reverb / WebSocket',
+            'success': rev_allowed and reverb_port > 0,
+            'steps': steps,
+            'details': {
+                'port': reverb_port,
+                'listening': port_open,
+                'domain': domain,
+                'proxy_active': vhost_proxy_active,
+                'client_ws_url': f'wss://{domain}/app' if domain else f'ws://127.0.0.1:{reverb_port}/app'
+            }
+        }
+
+    def _test_scheduler() -> Dict[str, Any]:
+        cron_lines = _read_crontab_lines(username)
+        sched_lines = [l for l in cron_lines if 'artisan' in l and 'schedule:run' in l]
+        cron_registered = len(sched_lines) > 0
+
+        lrv = list_laravel_services(collector, db_path, target_user=username)
+        php_branches = lrv.get('php_branches', ['php84'])
+        latest_php = php_branches[-1] if php_branches else 'php84'
+        php_bin = f'/usr/local/apps/{latest_php}/bin/php'
+
+        steps = [
+            {'name': 'cron_job', 'label': 'Webuzo Crontab Runner (* * * * *)', 'passed': cron_registered, 'detail': sched_lines[0].strip() if cron_registered else 'Not registered yet (Click "⏱️ Webuzo Cron")'},
+            {'name': 'php_cli', 'label': f'PHP CLI Runner ({latest_php})', 'passed': os.path.isfile(php_bin), 'detail': php_bin if os.path.isfile(php_bin) else 'PHP CLI missing'}
+        ]
+        return {
+            'service': 'scheduler',
+            'title': 'Laravel Scheduler (Automated Cron)',
+            'success': os.path.isfile(php_bin),
+            'steps': steps,
+            'details': {
+                'cron_registered': cron_registered,
+                'cron_line': sched_lines[0].strip() if cron_registered else f'* * * * * {php_bin} {home_path}/public_html/artisan schedule:run > /dev/null 2>&1',
+                'php_binary': php_bin
+            }
+        }
+
+    def _test_chrome() -> Dict[str, Any]:
+        res = run_user_chrome_test(username, db_path, is_admin=False)
+        bin_path = _find_chrome_binary()
+        steps = [
+            {'name': 'binary', 'label': 'Google Chrome / Headless Binary', 'passed': bool(bin_path), 'detail': bin_path or 'Chrome not found'},
+            {'name': 'execution', 'label': 'Sandbox Isolation & DOM Dump Smoke Test', 'passed': res.get('success', False), 'detail': f"Finished in {res.get('duration_sec', 0)}s (Exit code {res.get('exit_code', 0)})" if res.get('success') else (res.get('raw_error') or res.get('error') or 'Execution failed')}
+        ]
+        return {
+            'service': 'chrome',
+            'title': 'Chrome Browser Engine (Headless)',
+            'success': res.get('success', False),
+            'latency_ms': round(float(res.get('duration_sec', 0)) * 1000, 1),
+            'steps': steps,
+            'details': {
+                'executable_path': bin_path,
+                'version': 'Google Chrome Stable',
+                'output_snippet': res.get('output_snippet', '')
+            }
+        }
+
+    def _test_openswoole() -> Dict[str, Any]:
+        active_php = []
+        guidance = {}
+        if collector and hasattr(collector, 'get_webuzo_users'):
+            try:
+                osw_payload = osw_mgr.get_enduser_status_payload(collector, db_path, username)
+                for pv in osw_payload.get('php_versions', []):
+                    if pv.get('has_openswoole'):
+                        active_php.append(pv.get('version'))
+                guidance = osw_payload.get('guidance', {})
+            except Exception:
+                pass
+
+        if not active_php:
+            for b in ['php84', 'php82', 'php81', 'php74']:
+                p = f'/usr/local/apps/{b}/bin/php'
+                if os.path.isfile(p):
+                    try:
+                        res = subprocess.run([p, '-m'], capture_output=True, text=True, timeout=2)
+                        if 'openswoole' in (res.stdout or '').lower():
+                            active_php.append(b)
+                    except Exception:
+                        pass
+
+        osw_ok = len(active_php) > 0
+        coroutine_ok = False
+        php_bin = None
+        for b in reversed(active_php):
+            p = f'/usr/local/apps/{b}/bin/php'
+            if os.path.isfile(p):
+                php_bin = p
+                break
+
+        if php_bin and os.name != 'nt':
+            try:
+                probe_cmd = [php_bin, '-r', "if(extension_loaded('openswoole') && (class_exists('OpenSwoole\\\\Coroutine') || class_exists('Swoole\\\\Coroutine'))){ echo 'COROUTINE_READY'; }"]
+                r = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=5)
+                coroutine_ok = 'COROUTINE_READY' in (r.stdout or '')
+            except Exception:
+                pass
+        elif os.name == 'nt':
+            coroutine_ok = True
+
+        steps = [
+            {'name': 'extension', 'label': 'OpenSwoole PHP Module Loaded', 'passed': osw_ok, 'detail': f'Active on {", ".join(active_php).upper()}' if osw_ok else 'OpenSwoole module not enabled'},
+            {'name': 'coroutine', 'label': 'Asynchronous Coroutine Engine', 'passed': coroutine_ok, 'detail': 'Ready for high-concurrency event loops' if coroutine_ok else 'Coroutine engine verification failed'},
+            {'name': 'octane_port', 'label': f'Dedicated Octane Port ({octane_port})', 'passed': octane_port > 0, 'detail': f'Assigned Port {octane_port}' if octane_port > 0 else 'Unassigned'}
+        ]
+        return {
+            'service': 'openswoole',
+            'title': 'OpenSwoole Runtime & Octane',
+            'success': osw_ok and coroutine_ok,
+            'steps': steps,
+            'details': {
+                'supported_php': active_php,
+                'octane_port': octane_port,
+                'coroutine_ready': coroutine_ok,
+                'recommended_cmd': guidance.get('recommended_octane_command', '')
+            }
+        }
+
+    tests_map = {
+        'redis': _test_redis,
+        'supervisor': _test_supervisor,
+        'queue': _test_queue,
+        'horizon': _test_horizon,
+        'reverb': _test_reverb,
+        'scheduler': _test_scheduler,
+        'chrome': _test_chrome,
+        'openswoole': _test_openswoole
+    }
+
+    if service in tests_map:
+        res = tests_map[service]()
+        res['timestamp'] = int(time.time())
+        res['total_duration_sec'] = round(time.time() - t0, 3)
+        return {'success': True, 'result': res}
+    else:
+        results = {}
+        all_ok = True
+        for k, fn in tests_map.items():
+            r = fn()
+            results[k] = r
+            if not r.get('success'):
+                all_ok = False
+        return {
+            'success': True,
+            'service': 'all',
+            'all_passed': all_ok,
+            'total_duration_sec': round(time.time() - t0, 3),
+            'results': results,
+            'timestamp': int(time.time())
+        }
+
+
+def get_enduser_implementation_data(collector: Any, db_path: str, username: str) -> Dict[str, Any]:
+    """Generate exact pre-filled configuration data, input field schemas, and snippets for the 8 modern services."""
+    users = {}
+    if collector and hasattr(collector, 'get_webuzo_users'):
+        try:
+            users = collector.get_webuzo_users()
+        except Exception:
+            pass
+    if not users and os.path.exists(db_path):
+        try:
+            with sqlite3.connect(db_path) as c:
+                for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
+                    if row[0]:
+                        users[row[0]] = {}
+        except Exception:
+            pass
+    udata = users.get(username, {})
+    uid, gid, homedir = _resolve_user_ids(username, int(udata.get('uid', 0) or 0))
+    home_path = homedir or f'/home/{username}'
+    domain = udata.get('domain', '') or f'{username}.local'
+
+    alloc = ensure_account_port_allocation(collector, db_path, username)
+    ports = alloc.get('ports', {})
+    reverb_port = int(ports.get('reverb_port', 22241))
+    octane_port = int(ports.get('octane_port', 22242))
+    horizon_port = int(ports.get('horizon_metrics_port', 22243))
+
+    budget = compute_laravel_service_budget(collector, username, db_path) if collector else {}
+    max_workers = budget.get('max_queue_workers', 1)
+    max_mem = budget.get('max_worker_memory_mb', 256)
+
+    # Redis ACL info
+    acl_user = f'u_{username}'
+    acl_prefix = f'{username}:'
+    acl_pass = '[YOUR_REDIS_ACL_PASSWORD]'
+    if os.path.isfile(db_path):
+        try:
+            with closing(sqlite3.connect(db_path)) as conn:
+                row = conn.execute('SELECT redis_user, key_prefix, password FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
+                if row:
+                    acl_user = row[0] or acl_user
+                    acl_prefix = row[1] or acl_prefix
+                    if len(row) > 2 and row[2]:
+                        acl_pass = row[2]
+        except Exception:
+            pass
+
+    php_branches = ['php84', 'php82', 'php81', 'php74']
+    latest_php = 'php84'
+    for b in php_branches:
+        if os.path.isfile(f'/usr/local/apps/{b}/bin/php'):
+            latest_php = b
+            break
+    php_bin = f'/usr/local/apps/{latest_php}/bin/php'
+    chrome_bin = _find_chrome_binary() or '/usr/bin/google-chrome-stable'
+
+    return {
+        'username': username,
+        'domain': domain,
+        'homedir': home_path,
+        'default_app_path': f'{home_path}/public_html',
+        'default_php_binary': php_bin,
+        'latest_php': latest_php,
+        'redis': {
+            'title': 'Redis Caching & Isolation',
+            'env': {
+                'REDIS_CLIENT': 'phpredis',
+                'REDIS_HOST': '127.0.0.1',
+                'REDIS_PORT': '6379',
+                'REDIS_USERNAME': acl_user,
+                'REDIS_PASSWORD': acl_pass,
+                'REDIS_PREFIX': acl_prefix,
+                'CACHE_PREFIX': f'{username}:cache:',
+                'HORIZON_PREFIX': f'{username}:horizon:'
+            },
+            'fields': [
+                {'key': 'REDIS_HOST', 'label': 'Redis Host', 'value': '127.0.0.1', 'help': 'Always 127.0.0.1 for local high-speed Unix loopback'},
+                {'key': 'REDIS_PORT', 'label': 'Redis Port', 'value': '6379', 'help': 'Standard Redis server port'},
+                {'key': 'REDIS_USERNAME', 'label': 'Isolated ACL User', 'value': acl_user, 'help': 'Restricted to your account key prefix only'},
+                {'key': 'REDIS_PASSWORD', 'label': 'ACL Password', 'value': acl_pass, 'help': 'Your private password (generated via UNISELV)'},
+                {'key': 'REDIS_PREFIX', 'label': 'Key Namespace Prefix', 'value': acl_prefix, 'help': 'Mandatory: All Redis keys must start with this prefix'}
+            ],
+            'env_snippet': f"REDIS_CLIENT=phpredis\nREDIS_HOST=127.0.0.1\nREDIS_PORT=6379\nREDIS_USERNAME={acl_user}\nREDIS_PASSWORD={acl_pass}\nREDIS_PREFIX={acl_prefix}\nCACHE_PREFIX={username}:cache:\nHORIZON_PREFIX={username}:horizon:",
+            'config_path': 'config/database.php'
+        },
+        'supervisor': {
+            'title': 'Supervisor Process Manager',
+            'conf_dir': f'{home_path}/.uniselv-supervisor/conf.d',
+            'log_dir': f'{home_path}/.uniselv-logs',
+            'sample_filename': f'{home_path}/.uniselv-supervisor/conf.d/worker.conf',
+            'fields': [
+                {'key': 'program_name', 'label': 'Program Name', 'value': f'{username}-worker', 'help': 'Unique identifier for the worker'},
+                {'key': 'command', 'label': 'Execution Command', 'value': f'{php_bin} {home_path}/public_html/artisan queue:work --sleep=3 --tries=3 --max-time=3600', 'help': 'Full path to PHP and artisan command'},
+                {'key': 'numprocs', 'label': 'Number of Processes', 'value': str(min(2, max_workers)), 'help': f'Number of worker instances (Plan limit: {max_workers})'},
+                {'key': 'stdout_logfile', 'label': 'Log File', 'value': f'{home_path}/.uniselv-logs/worker.log', 'help': 'Path where output is written'}
+            ],
+            'conf_snippet': f"[program:{username}-worker]\nprocess_name=%(program_name)s_%(process_num)02d\ncommand={php_bin} {home_path}/public_html/artisan queue:work --sleep=3 --tries=3 --max-time=3600\nautostart=true\nautorestart=true\nstopasgroup=true\nkillasgroup=true\nnumprocs={min(2, max_workers)}\nredirect_stderr=true\nstdout_logfile={home_path}/.uniselv-logs/worker.log\nstdout_logfile_maxbytes=10MB\nstdout_logfile_backups=2"
+        },
+        'queue': {
+            'title': 'Laravel Queue Workers',
+            'env': {
+                'QUEUE_CONNECTION': 'redis'
+            },
+            'fields': [
+                {'key': 'QUEUE_CONNECTION', 'label': 'Queue Connection Driver', 'value': 'redis', 'help': 'Use redis or database (redis is recommended for speed)'},
+                {'key': 'QUEUE_NAMES', 'label': 'Queues to Listen', 'value': 'default,high,notifications', 'help': 'Comma-separated queue priority list'},
+                {'key': 'WORKER_COUNT', 'label': 'Worker Instances', 'value': str(min(2, max_workers)), 'help': f'Max allowed by plan: {max_workers}'},
+                {'key': 'MEMORY_CAP', 'label': 'Memory Limit Per Worker', 'value': f'{max_mem}M', 'help': f'Restart worker if it exceeds {max_mem} MiB RAM'}
+            ],
+            'env_snippet': "QUEUE_CONNECTION=redis",
+            'artisan_cmd': f"{php_bin} {home_path}/public_html/artisan queue:work --sleep=3 --tries=3 --timeout=90 --max-time=3600 --memory={max_mem}"
+        },
+        'horizon': {
+            'title': 'Laravel Horizon Dashboard',
+            'metrics_port': horizon_port,
+            'env': {
+                'HORIZON_PREFIX': f'{username}:horizon:'
+            },
+            'fields': [
+                {'key': 'HORIZON_PREFIX', 'label': 'Horizon Redis Prefix', 'value': f'{username}:horizon:', 'help': 'Must match your account prefix to avoid conflicts'},
+                {'key': 'HORIZON_PORT', 'label': 'Metrics Port', 'value': str(horizon_port), 'help': 'Assigned private metrics port'},
+                {'key': 'MEMORY_REQUIREMENT', 'label': 'Plan Memory Requirement', 'value': '>= 512 MiB', 'help': 'Horizon requires at least 512 MiB plan RAM'}
+            ],
+            'env_snippet': f"HORIZON_PREFIX={username}:horizon:",
+            'artisan_cmd': f"{php_bin} {home_path}/public_html/artisan horizon",
+            'supervisor_snippet': f"[program:{username}-horizon]\ncommand={php_bin} {home_path}/public_html/artisan horizon\nautostart=true\nautorestart=true\nredirect_stderr=true\nstdout_logfile={home_path}/.uniselv-logs/horizon.log\nstopwaitsecs=3600"
+        },
+        'reverb': {
+            'title': 'Laravel Reverb / WebSocket',
+            'port': reverb_port,
+            'env': {
+                'BROADCAST_CONNECTION': 'reverb',
+                'REVERB_APP_ID': 'uniselv-app',
+                'REVERB_APP_KEY': f'app-key-{username[:8]}',
+                'REVERB_APP_SECRET': f'sec-{secrets.token_hex(8)}',
+                'REVERB_HOST': '127.0.0.1',
+                'REVERB_PORT': str(reverb_port),
+                'REVERB_SCHEME': 'http',
+                'VITE_REVERB_APP_KEY': '${REVERB_APP_KEY}',
+                'VITE_REVERB_HOST': domain,
+                'VITE_REVERB_PORT': '443',
+                'VITE_REVERB_SCHEME': 'https'
+            },
+            'fields': [
+                {'key': 'REVERB_HOST', 'label': 'Internal Binding Host', 'value': '127.0.0.1', 'help': 'Reverb server binds to localhost on your dedicated port'},
+                {'key': 'REVERB_PORT', 'label': 'Dedicated Reverb Port', 'value': str(reverb_port), 'help': f'Your exclusive conflict-free port: {reverb_port}'},
+                {'key': 'VITE_REVERB_HOST', 'label': 'Client-Facing Host', 'value': domain, 'help': 'Your domain name for secure wss:// connections'},
+                {'key': 'VITE_REVERB_PORT', 'label': 'Client-Facing Port', 'value': '443', 'help': 'Port 443 (proxied via Apache SSL automatically)'},
+                {'key': 'VITE_REVERB_SCHEME', 'label': 'Client-Facing Scheme', 'value': 'https', 'help': 'Secure HTTPS/WSS protocol'}
+            ],
+            'env_snippet': f"BROADCAST_CONNECTION=reverb\nREVERB_APP_ID=uniselv-app\nREVERB_APP_KEY=app-key-{username[:8]}\nREVERB_APP_SECRET=sec-{secrets.token_hex(8)}\nREVERB_HOST=\"127.0.0.1\"\nREVERB_PORT={reverb_port}\nREVERB_SCHEME=http\n\n# Frontend Vite Echo config:\nVITE_REVERB_APP_KEY=\"${{REVERB_APP_KEY}}\"\nVITE_REVERB_HOST=\"{domain}\"\nVITE_REVERB_PORT=443\nVITE_REVERB_SCHEME=https",
+            'apache_proxy_snippet': f"ProxyPass /app ws://127.0.0.1:{reverb_port}/app\nProxyPassReverse /app ws://127.0.0.1:{reverb_port}/app\nProxyPass /apps ws://127.0.0.1:{reverb_port}/apps\nProxyPassReverse /apps ws://127.0.0.1:{reverb_port}/apps",
+            'artisan_cmd': f"{php_bin} {home_path}/public_html/artisan reverb:start --host=127.0.0.1 --port={reverb_port}"
+        },
+        'scheduler': {
+            'title': 'Laravel Scheduler (Automated Cron)',
+            'fields': [
+                {'key': 'CRON_INTERVAL', 'label': 'Recurrence Schedule', 'value': '* * * * *', 'help': 'Every single minute'},
+                {'key': 'PHP_CLI_PATH', 'label': 'PHP Binary Path', 'value': php_bin, 'help': 'Dedicated Webuzo CLI PHP'},
+                {'key': 'ARTISAN_PATH', 'label': 'Artisan File Path', 'value': f'{home_path}/public_html/artisan', 'help': 'Absolute path to your artisan entry point'}
+            ],
+            'crontab_snippet': f"* * * * * {php_bin} {home_path}/public_html/artisan schedule:run > /dev/null 2>&1"
+        },
+        'chrome': {
+            'title': 'Chrome Browser Engine (Headless)',
+            'executable_path': chrome_bin,
+            'env': {
+                'PUPPETEER_EXECUTABLE_PATH': chrome_bin,
+                'CHROME_PATH': chrome_bin
+            },
+            'fields': [
+                {'key': 'CHROME_PATH', 'label': 'Chrome Binary Path', 'value': chrome_bin, 'help': 'System Google Chrome headless binary'},
+                {'key': 'PUPPETEER_EXECUTABLE_PATH', 'label': 'Puppeteer Path', 'value': chrome_bin, 'help': 'For Node.js Puppeteer or Spatie Browsershot'},
+                {'key': 'REQUIRED_FLAGS', 'label': 'Essential Headless Flags', 'value': '--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --headless=new', 'help': 'Mandatory flags for containerized/shared server isolation'}
+            ],
+            'env_snippet': f"PUPPETEER_EXECUTABLE_PATH={chrome_bin}\nCHROME_PATH={chrome_bin}",
+            'browsershot_snippet': f"use Spatie\\Browsershot\\Browsershot;\n\n$pdf = Browsershot::html('<h1>Invoice Sample</h1>')\n    ->setChromePath('{chrome_bin}')\n    ->addChromiumArguments([\n        'no-sandbox',\n        'disable-setuid-sandbox',\n        'disable-dev-shm-usage'\n    ])\n    ->pdf();"
+        },
+        'openswoole': {
+            'title': 'OpenSwoole Runtime & Laravel Octane',
+            'octane_port': octane_port,
+            'env': {
+                'OCTANE_SERVER': 'swoole',
+                'OCTANE_PORT': str(octane_port),
+                'OCTANE_WORKERS': '2',
+                'OCTANE_TASK_WORKERS': '1'
+            },
+            'fields': [
+                {'key': 'OCTANE_SERVER', 'label': 'Octane Server Engine', 'value': 'swoole', 'help': 'OpenSwoole asynchronous high-speed runtime'},
+                {'key': 'OCTANE_PORT', 'label': 'Dedicated Octane Port', 'value': str(octane_port), 'help': f'Your exclusive Octane port: {octane_port}'},
+                {'key': 'OCTANE_WORKERS', 'label': 'Max HTTP Workers', 'value': '2', 'help': 'Number of persistent worker processes in memory'},
+                {'key': 'OCTANE_TASK_WORKERS', 'label': 'Task Workers', 'value': '1', 'help': 'Dedicated task workers for async background jobs'}
+            ],
+            'env_snippet': f"OCTANE_SERVER=swoole\nOCTANE_PORT={octane_port}\nOCTANE_WORKERS=2\nOCTANE_TASK_WORKERS=1",
+            'artisan_cmd': f"{php_bin} {home_path}/public_html/artisan octane:start --server=swoole --host=127.0.0.1 --port={octane_port} --workers=2"
+        }
+    }
+
+
 

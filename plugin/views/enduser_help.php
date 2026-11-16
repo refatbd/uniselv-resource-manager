@@ -36,6 +36,7 @@ sort($uniselvEuPhp);
     <!-- Category Filter Navigation Pills -->
     <div class="uniselv-help-cats">
         <button class="uniselv-cat-btn active" data-cat="all" onclick="UniselvResMan.setHelpCategory('all')">All Documentation</button>
+        <button class="uniselv-cat-btn" data-cat="stack-suite" onclick="UniselvResMan.setHelpCategory('stack-suite')">🚀 8 Services Developer Guide</button>
         <button class="uniselv-cat-btn" data-cat="quickstart" onclick="UniselvResMan.setHelpCategory('quickstart')">Getting Started</button>
         <button class="uniselv-cat-btn" data-cat="laravel" onclick="UniselvResMan.setHelpCategory('laravel')">Laravel &amp; App Blueprint</button>
         <button class="uniselv-cat-btn" data-cat="features" onclick="UniselvResMan.setHelpCategory('features')">Features & Tools</button>
@@ -47,6 +48,326 @@ sort($uniselvEuPhp);
 
     <!-- Documentation Articles Grid -->
     <div class="uniselv-help-grid">
+
+        <!-- ==================== 8 MODERN SERVICES DEVELOPER GUIDES ==================== -->
+
+        <!-- 1. REDIS GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-redis" style="border-top: 3px solid #ef4444;">
+            <span class="uniselv-help-badge" style="background:#fef2f2;color:#dc2626;border:1px solid #fee2e2;">Stack Guide 1 / 8</span>
+            <h4 class="uniselv-help-card-title">1. Redis Caching, Session &amp; Key-Prefix Isolation Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Redis is an ultra-fast in-memory key-value data store. Offloading application caching, sessions, and queue backends to Redis improves response times by up to 3x compared to MySQL or filesystem storage. UNISELV enforces dedicated ACL credentials and key-prefix isolation per account, preventing cross-tenant access and ensuring complete data isolation.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Required <code>.env</code> Configuration Fields:</h5>
+                <table class="uniselv-field-table">
+                    <thead>
+                        <tr><th>Field Name</th><th>Value / Placement</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>REDIS_CLIENT</code></td><td><code>phpredis</code></td><td>High-speed pre-compiled C-extension in Webuzo PHP</td></tr>
+                        <tr><td><code>REDIS_HOST</code></td><td><code>127.0.0.1</code></td><td>Local loopback host for minimal socket latency</td></tr>
+                        <tr><td><code>REDIS_PORT</code></td><td><code>6379</code></td><td>Standard Redis TCP listener port</td></tr>
+                        <tr><td><code>REDIS_USERNAME</code></td><td><code>u_&lt;your_username&gt;</code></td><td>Dedicated ACL username provisioned for your account</td></tr>
+                        <tr><td><code>REDIS_PASSWORD</code></td><td>Copy from Redis card in Dashboard</td><td>Secure ACL password provisioned by UNISELV</td></tr>
+                        <tr><td><code>REDIS_PREFIX</code></td><td><code>&lt;your_username&gt;:</code></td><td>Mandatory: Enforced namespace prefix for tenant isolation</td></tr>
+                        <tr><td><code>CACHE_PREFIX</code></td><td><code>&lt;your_username&gt;:cache:</code></td><td>Cache subsystem namespace isolation prefix</td></tr>
+                    </tbody>
+                </table>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Production Copy-Ready <code>.env</code> Snippet:</h5>
+                <pre class="uniselv-code-block"><code>REDIS_CLIENT=phpredis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_USERNAME=u_yourusername
+REDIS_PASSWORD=your_acl_password_here
+REDIS_PREFIX=yourusername:
+CACHE_PREFIX=yourusername:cache:
+HORIZON_PREFIX=yourusername:horizon:
+CACHE_STORE=redis
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Laravel Implementation Example:</h5>
+                <pre class="uniselv-code-block"><code>use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
+
+// Store cache with a 1-hour expiration:
+Cache::put('latest_products', $products, 3600);
+
+// Direct Redis command execution:
+Redis::set('daily_visitors', 1250);
+$visitors = Redis::get('daily_visitors');</code></pre>
+
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click the <strong>⚡ Test</strong> button on the <em>Redis</em> card in your UNISELV dashboard to instantly verify connection latency, prefix write permissions, cross-tenant denial guards, and administrative command protection.</p>
+            </div>
+        </div>
+
+        <!-- 2. SUPERVISOR GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-supervisor" style="border-top: 3px solid #8b5cf6;">
+            <span class="uniselv-help-badge" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ede9fe;">Stack Guide 2 / 8</span>
+            <h4 class="uniselv-help-card-title">2. Supervisor Process Manager (Non-Root User Scoped) Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Supervisor keeps background workers, queue consumers, and WebSocket servers running continuously 24/7. It automatically restarts them upon unexpected exits, fatal crashes, or server reboots. UNISELV enables non-root user-scoped drop-in configuration files located directly inside your home directory.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Drop-In Configuration File Location:</h5>
+                <p style="font-size:0.83rem;margin:0 0 6px 0;">Create your configuration file in the following path inside your home directory:<br>
+                <code>/home/&lt;username&gt;/.uniselv-supervisor/conf.d/worker.conf</code></p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Configuration Directives &amp; Parameters:</h5>
+                <table class="uniselv-field-table">
+                    <thead>
+                        <tr><th>Directive (Key)</th><th>Recommended Value</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>[program:name]</code></td><td><code>[program:&lt;user&gt;-worker]</code></td><td>Unique program identifier</td></tr>
+                        <tr><td><code>command</code></td><td><code>/usr/local/apps/php84/bin/php /home/.../artisan queue:work</code></td><td>Absolute execution path with PHP binary and flags</td></tr>
+                        <tr><td><code>autostart</code></td><td><code>true</code></td><td>Start automatically on system boot or daemon start</td></tr>
+                        <tr><td><code>autorestart</code></td><td><code>true</code></td><td>Restart immediately if process exits unexpectedly</td></tr>
+                        <tr><td><code>numprocs</code></td><td><code>2</code></td><td>Number of parallel worker instances to spawn</td></tr>
+                        <tr><td><code>stdout_logfile</code></td><td><code>/home/&lt;user&gt;/.uniselv-logs/worker.log</code></td><td>Destination for standard output and diagnostic logs</td></tr>
+                    </tbody>
+                </table>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Production Copy-Ready <code>worker.conf</code> Snippet:</h5>
+                <pre class="uniselv-code-block"><code>[program:my-app-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=/usr/local/apps/php84/bin/php /home/username/public_html/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/home/username/.uniselv-logs/worker.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=2</code></pre>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Once saved, the UNISELV agent automatically registers the drop-in. Click <strong>⚡ Test</strong> on the <em>Supervisor</em> card to inspect daemon status and active drop-in configuration files.</p>
+            </div>
+        </div>
+
+        <!-- 3. LARAVEL QUEUE WORKERS GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-queue" style="border-top: 3px solid #3b82f6;">
+            <span class="uniselv-help-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #dbeafe;">Stack Guide 3 / 8</span>
+            <h4 class="uniselv-help-card-title">3. Laravel Queue Workers Implementation Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Long-running tasks such as sending emails, dispatching push notifications, PDF rendering, and processing webhooks should never block HTTP web requests. Queue workers offload these jobs to the background, allowing web requests to complete in sub-50ms latency while background tasks are handled asynchronously.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Required <code>.env</code> Configuration:</h5>
+                <pre class="uniselv-code-block"><code>QUEUE_CONNECTION=redis</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Creating and Dispatching a Job:</h5>
+                <pre class="uniselv-code-block"><code>// Generate job in project: php artisan make:job SendWelcomeEmail
+
+namespace App\Jobs;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Mail;
+
+class SendWelcomeEmail implements ShouldQueue
+{
+    use Queueable;
+
+    public function __construct(public $user) {}
+
+    public function handle(): void
+    {
+        Mail::to($this->user->email)->send(new \App\Mail\WelcomeMail($this->user));
+    }
+}
+
+// Dispatching from controller or event:
+SendWelcomeEmail::dispatch($user);</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Worker Execution Command with Memory Safeguards:</h5>
+                <pre class="uniselv-code-block"><code>/usr/local/apps/php84/bin/php /home/user/public_html/artisan queue:work --sleep=3 --tries=3 --timeout=90 --max-time=3600 --memory=256</code></pre>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Queue Workers</em> card to verify your plan queue quota, PHP CLI availability, and active worker count.</p>
+            </div>
+        </div>
+
+        <!-- 4. LARAVEL HORIZON GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-horizon" style="border-top: 3px solid #6366f1;">
+            <span class="uniselv-help-badge" style="background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;">Stack Guide 4 / 8</span>
+            <h4 class="uniselv-help-card-title">4. Laravel Horizon Queue Dashboard &amp; Monitoring Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Laravel Horizon provides a dashboard and code-driven configuration for Redis queues. It offers real-time job throughput metrics, runtime graphs, queue wait times, job failure diagnostics, and auto-balancing worker pools.</p>
+
+                <p style="font-size:0.82rem;color:#b45309;background:#fffbeb;padding:6px 10px;border-radius:6px;border:1px solid #fde68a;"><strong>Prerequisites:</strong> Horizon requires active Redis ACL credentials and at least 512 MiB of account memory allocated on your hosting plan.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Installation &amp; <code>.env</code> Configuration:</h5>
+                <pre class="uniselv-code-block"><code>composer require laravel/horizon
+php artisan horizon:install
+
+# Set dedicated Horizon prefix in .env:
+HORIZON_PREFIX=yourusername:horizon:</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Dashboard Access Authorization (HorizonServiceProvider.php):</h5>
+                <pre class="uniselv-code-block"><code>// In app/Providers/HorizonServiceProvider.php define authorized users:
+protected function gate(): void
+{
+    Gate::define('viewHorizon', function ($user = null) {
+        return in_array($user?->email, [
+            'admin@yourdomain.com',
+        ]);
+    });
+}</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Continuous Horizon Execution via Supervisor:</h5>
+                <pre class="uniselv-code-block"><code># In ~/.uniselv-supervisor/conf.d/horizon.conf:
+command=/usr/local/apps/php84/bin/php /home/username/public_html/artisan horizon</code></pre>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Horizon Dashboard</em> card to check memory quota compliance, Redis dependencies, and assigned metrics port allocation.</p>
+            </div>
+        </div>
+
+        <!-- 5. LARAVEL REVERB GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-reverb" style="border-top: 3px solid #f59e0b;">
+            <span class="uniselv-help-badge" style="background:#fffbeb;color:#d97706;border:1px solid #fef3c7;">Stack Guide 5 / 8</span>
+            <h4 class="uniselv-help-card-title">5. Laravel Reverb / WebSocket &amp; SSL Reverse Proxy Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Laravel Reverb is a high-speed, first-party WebSocket server designed for seamless integration with Laravel. It powers real-time chat, live notifications, live order tracking, and dynamic UI updates without page refreshes, eliminating third-party subscription costs (such as Pusher).</p>
+
+                <p style="font-size:0.82rem;color:#1d4ed8;background:#eff6ff;padding:6px 10px;border-radius:6px;border:1px solid #bfdbfe;"><strong>Dedicated Port &amp; SSL Reverse Proxy:</strong> UNISELV assigns an exclusive private port (e.g., 22241) to your account. Browsers connect via standard <code>wss://yourdomain.com/app</code> through an Apache SSL reverse proxy configured with 1-click in the dashboard.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Required <code>.env</code> Configuration:</h5>
+                <pre class="uniselv-code-block"><code>BROADCAST_CONNECTION=reverb
+REVERB_APP_ID=my-reverb-app
+REVERB_APP_KEY=my-reverb-key-123
+REVERB_APP_SECRET=my-reverb-secret-abc
+REVERB_HOST="127.0.0.1"
+REVERB_PORT=22241
+REVERB_SCHEME=http
+
+# Browser &amp; Vite Frontend Settings:
+VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+VITE_REVERB_HOST="yourdomain.com"
+VITE_REVERB_PORT=443
+VITE_REVERB_SCHEME=https</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Broadcasting a Real-Time Event in Laravel:</h5>
+                <pre class="uniselv-code-block"><code>namespace App\Events;
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+
+class OrderUpdated implements ShouldBroadcast
+{
+    public function __construct(public $order) {}
+
+    public function broadcastOn(): Channel
+    {
+        return new Channel('orders');
+    }
+}
+
+// Firing the event:
+broadcast(new OrderUpdated($order));</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Client-Side Echo Listener (JavaScript):</h5>
+                <pre class="uniselv-code-block"><code>window.Echo.channel('orders')
+    .listen('OrderUpdated', (e) => {
+        console.log('Order status updated:', e.order.status);
+    });</code></pre>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Reverb / WebSocket</em> card to verify port readiness, SSL reverse proxy configuration, and connection availability.</p>
+            </div>
+        </div>
+
+        <!-- 6. LARAVEL SCHEDULER GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-scheduler" style="border-top: 3px solid #06b6d4;">
+            <span class="uniselv-help-badge" style="background:#ecfeff;color:#0891b2;border:1px solid #cffafe;">Stack Guide 6 / 8</span>
+            <h4 class="uniselv-help-card-title">6. Laravel Scheduler &amp; Automated Webuzo Cron Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Instead of managing multiple disparate server crons, Laravel Scheduler uses a single 1-minute crontab entry to execute all scheduled commands defined directly in your application code (daily backups, database cleanup, hourly email summaries, etc.).</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. 1-Click Webuzo Cron Registration:</h5>
+                <p style="font-size:0.83rem;margin:0 0 6px 0;">Click the <strong>"⏱️ Webuzo Cron"</strong> button on the Scheduler card to register the following cron command automatically without needing SSH:</p>
+                <pre class="uniselv-code-block"><code>* * * * * /usr/local/apps/php84/bin/php /home/username/public_html/artisan schedule:run > /dev/null 2>&1</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Defining Scheduled Tasks in Laravel (routes/console.php):</h5>
+                <pre class="uniselv-code-block"><code>use Illuminate\Support\Facades\Schedule;
+
+// Daily database backup at 2:00 AM:
+Schedule::command('backup:clean')->dailyAt('01:30');
+Schedule::command('backup:run')->dailyAt('02:00');
+
+// Hourly cache pruning:
+Schedule::command('cache:prune-stale-tags')->hourly();
+
+// Custom scheduled closure:
+Schedule::call(function () {
+    \App\Models\Order::where('status', 'unpaid')->where('created_at', '<', now()->subDays(3))->delete();
+})->daily();</code></pre>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Laravel Scheduler</em> card to verify crontab registration and PHP CLI execution readiness.</p>
+            </div>
+        </div>
+
+        <!-- 7. CHROME BROWSER ENGINE GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-chrome" style="border-top: 3px solid #14b8a6;">
+            <span class="uniselv-help-badge" style="background:#f0fdfa;color:#0d9488;border:1px solid #ccfbf1;">Stack Guide 7 / 8</span>
+            <h4 class="uniselv-help-card-title">7. Chrome Browser Engine (Headless PDF &amp; Screenshots) Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> Headless Chrome is utilized on the server for rendering pixel-perfect PDF invoices, taking automated webpage screenshots, generating social share cards, and running headless browser automations via Spatie Browsershot or Puppeteer.</p>
+
+                <p style="font-size:0.82rem;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:6px;border:1px solid #fde68a;"><strong>Mandatory Sandbox Flags:</strong> Running Chrome within user containment slices requires <code>--no-sandbox</code>, <code>--disable-setuid-sandbox</code>, and <code>--disable-dev-shm-usage</code> flags to ensure safe execution.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. System Binary &amp; <code>.env</code> Fields:</h5>
+                <table class="uniselv-field-table">
+                    <thead>
+                        <tr><th>Field Name</th><th>Value</th><th>Description</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><code>CHROME_PATH</code></td><td><code>/usr/bin/google-chrome-stable</code></td><td>Server Google Chrome headless binary</td></tr>
+                        <tr><td><code>PUPPETEER_EXECUTABLE_PATH</code></td><td><code>/usr/bin/google-chrome-stable</code></td><td>System Chrome executable for Puppeteer</td></tr>
+                    </tbody>
+                </table>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Generating PDFs with Spatie Browsershot (PHP):</h5>
+                <pre class="uniselv-code-block"><code>// composer require spatie/browsershot
+use Spatie\Browsershot\Browsershot;
+
+$pdfData = Browsershot::html('&lt;h1&gt;Customer Invoice #1024&lt;/h1&gt;&lt;p&gt;Payment Status: Completed&lt;/p&gt;')
+    ->setChromePath('/usr/bin/google-chrome-stable')
+    ->addChromiumArguments([
+        'no-sandbox',
+        'disable-setuid-sandbox',
+        'disable-dev-shm-usage',
+        'headless=new'
+    ])
+    ->format('A4')
+    ->pdf();
+
+return response($pdfData)->header('Content-Type', 'application/pdf');</code></pre>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Chrome Browser Engine</em> card to run a live headless DOM rendering smoke test inside your account's containment slice.</p>
+            </div>
+        </div>
+
+        <!-- 8. OPENSWOOLE & OCTANE GUIDE -->
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-openswoole" style="border-top: 3px solid #10b981;">
+            <span class="uniselv-help-badge" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;">Stack Guide 8 / 8</span>
+            <h4 class="uniselv-help-card-title">8. OpenSwoole Runtime &amp; Laravel Octane Acceleration Guide</h4>
+            <div class="uniselv-help-card-desc">
+                <p><strong>Overview &amp; Architecture:</strong> In standard PHP-FPM, the entire Laravel framework bootstraps on every single request. OpenSwoole and Laravel Octane keep the application booted in memory, serving incoming requests via high-concurrency event loops, achieving up to 10x throughput and sub-10ms response times.</p>
+
+                <p style="font-size:0.82rem;color:#047857;background:#ecfdf5;padding:6px 10px;border-radius:6px;border:1px solid #a7f3d0;"><strong>Pre-Compiled Extensions:</strong> OpenSwoole is pre-compiled across PHP 7.4, 8.1, 8.2, and 8.4 on the UNISELV server. A dedicated port is reserved specifically for your account's Octane server.</p>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">1. Installation &amp; <code>.env</code> Configuration:</h5>
+                <pre class="uniselv-code-block"><code>composer require laravel/octane
+php artisan octane:install --server=swoole
+
+# In your .env file:
+OCTANE_SERVER=swoole
+OCTANE_PORT=22242
+OCTANE_WORKERS=2
+OCTANE_TASK_WORKERS=1</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">2. Continuous Octane Daemon Execution via Supervisor:</h5>
+                <pre class="uniselv-code-block"><code>/usr/local/apps/php84/bin/php /home/username/public_html/artisan octane:start --server=swoole --host=127.0.0.1 --port=22242 --workers=2</code></pre>
+
+                <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color:#1e293b;">3. Architecture Best Practice (Stateless Coding):</h5>
+                <p style="font-size:0.83rem;color:#475569;margin:0;">Because the application remains in memory across requests, do not store request-specific state in static properties or singletons. Handle each request statelessly to maintain high reliability.</p>
+                <p style="font-size:0.8rem;color:#475569;margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>OpenSwoole Runtime</em> card to verify the PHP module, Coroutine engine availability, and dedicated Octane port readiness.</p>
+            </div>
+        </div>
+
+        <!-- ==================== END 8 MODERN SERVICES DEVELOPER GUIDES ==================== -->
+
 
         <!-- 1. QUICK START -->
         <div class="uniselv-help-card" data-cat="quickstart" id="help-topic-quickstart">

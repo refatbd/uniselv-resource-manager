@@ -412,7 +412,10 @@ const UniselvResMan = {
         const initialTab = this.resolveTabAlias(window.location.hash);
         const initialExists = initialTab && document.querySelector(`.uniselv-tab-btn[data-tab="${initialTab}"]`);
         this.switchTab(initialExists ? initialTab : defaultTab, !window.location.hash);
-        if (!this.isAdmin && initialTab && initialTab !== 'dashboard') this.refreshLiveTelemetry(true);
+        if (!this.isAdmin) {
+            this.loadEnduserStackSuite();
+            if (initialTab && initialTab !== 'dashboard') this.refreshLiveTelemetry(true);
+        }
     },
 
     resolveTabAlias: function(hash) {
@@ -582,6 +585,7 @@ const UniselvResMan = {
         } else {
             if (resolved === 'dashboard') {
                 this.refreshLiveTelemetry(true);
+                this.loadEnduserStackSuite();
             } else if (resolved === 'processes') {
                 const tf = document.getElementById('uniselv-usage-timeframe')?.value || 'today';
                 this.loadCurrentUsage(tf);
@@ -5716,6 +5720,503 @@ const UniselvResMan = {
 
     // ==================== ENDUSER APP SERVICES & TOOLS ====================
 
+    loadEnduserStackSuite: function(force = false) {
+        const dashMount = document.getElementById('uniselv-enduser-dashboard-suite');
+        if (!dashMount) return;
+        if (this._platformServicesData && !force) {
+            this.renderModernStackSuite(dashMount, this._platformServicesData);
+            return;
+        }
+        dashMount.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;color:#64748b;font-size:0.85rem;"><span class="uniselv-card-pulse" style="display:inline-block;margin-right:8px;">●</span> Loading 8-Service Application Runtime & Stack Suite...</div>';
+        this.callApi('platform_services', {}, (err, res) => {
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                dashMount.innerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;color:#92400e;font-size:0.83rem;">Stack suite temporarily unavailable: ${err || d?.error || 'Check daemon'}</div>`;
+                return;
+            }
+            this._platformServicesData = d;
+            this.renderModernStackSuite(dashMount, d);
+        });
+    },
+
+    renderModernStackSuite: function(host, d) {
+        if (!host || !d) return;
+        const mk = this._mkEl.bind(this);
+        host.replaceChildren();
+
+        const impl = d.implementation_data || {};
+        const lrv = d.laravel || {};
+        const budget = lrv.budget || {};
+        const redisData = d.redis || {};
+        const ports = (d.port_allocation || lrv.port_allocation || {}).ports || {};
+        const supervisorData = d.supervisor || {};
+        const oswData = d.openswoole || {};
+        const chromeData = d.chrome || {};
+        const disc = lrv.discovered_apps || [];
+        const activeSvcs = lrv.services || [];
+
+        // Main Wrapper Box
+        const container = mk('div', { class: 'uniselv-suite-container' });
+
+        // Header Row
+        const topRow = mk('div', { class: 'uniselv-suite-top' });
+        const titleWrap = mk('div');
+        const mainTitle = mk('h5', { class: 'uniselv-suite-title' },
+            mk('span', { style: 'color:var(--uniselv-primary);font-size:1.25rem;' }, '⚡'),
+            'Modern Application & Runtime Stack (8 Services)'
+        );
+        const subTitle = mk('p', { class: 'uniselv-suite-subtitle' },
+            'Live service status, interactive instant diagnostic tests, and copy-ready project implementation inputs for Laravel & web projects.'
+        );
+        titleWrap.append(mainTitle, subTitle);
+
+        const actionsWrap = mk('div', { style: 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;' });
+        const testAllBtn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, '⚡ Test All 8 Services');
+        testAllBtn.onclick = () => this.testAllStackServices(testAllBtn);
+
+        const copyAllEnvBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '📋 Copy Complete .env');
+        copyAllEnvBtn.onclick = () => this.copyUnifiedEnv(impl, copyAllEnvBtn);
+
+        const refreshBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '🔄 Refresh');
+        refreshBtn.onclick = () => {
+            this._platformServicesData = null;
+            this.loadEnduserStackSuite(true);
+            if (document.getElementById('uniselv-enduser-services-body')) this.loadEnduserServices();
+        };
+
+        actionsWrap.append(testAllBtn, copyAllEnvBtn, refreshBtn);
+        topRow.append(titleWrap, actionsWrap);
+        container.append(topRow);
+
+        // Grid of 8 Services
+        const grid = mk('div', { class: 'uniselv-suite-grid' });
+
+        const servicesList = [
+            {
+                key: 'redis',
+                title: 'Redis Caching & Isolation',
+                category: 'In-Memory Cache & Queues',
+                accent: '#ef4444',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+                iconBg: 'linear-gradient(135deg, #ef4444, #b91c1c)',
+                status: (redisData.accounts || []).length ? 'ACTIVE (ACL Provisioned)' : 'READY (127.0.0.1:6379)',
+                statusType: (redisData.accounts || []).length ? 'active' : 'ready',
+                metrics: [
+                    ['Host', '127.0.0.1'],
+                    ['Port', '6379'],
+                    ['Prefix', impl.redis?.env?.REDIS_PREFIX || `${d.username}:`]
+                ],
+                desc: 'Dedicated prefix-isolated Redis cache, session storage, and queue backend for Laravel & WordPress.'
+            },
+            {
+                key: 'supervisor',
+                title: 'Supervisor Process Manager',
+                category: 'Background Daemon Manager',
+                accent: '#8b5cf6',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>',
+                iconBg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                status: supervisorData.runtime_active ? 'ACTIVE & SUPERVISED' : 'READY (Daemon Idle)',
+                statusType: supervisorData.runtime_active ? 'active' : 'ready',
+                metrics: [
+                    ['Conf.d', '~/.uniselv-supervisor/conf.d'],
+                    ['Slice', budget.expected_slice || 'Account Slice']
+                ],
+                desc: 'Non-root user-scoped Supervisor drop-ins ensuring background workers auto-restart upon reboot or crash.'
+            },
+            {
+                key: 'queue',
+                title: 'Laravel Queue Workers',
+                category: 'Async Task Processing',
+                accent: '#3b82f6',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>',
+                iconBg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                status: activeSvcs.some(s => s.runtime_active) ? `ACTIVE (${activeSvcs.filter(s => s.runtime_active).length} Workers)` : (budget.queue_allowed ? `PERMITTED (Max ${budget.max_queue_workers || 1})` : 'DISABLED'),
+                statusType: activeSvcs.some(s => s.runtime_active) ? 'active' : (budget.queue_allowed ? 'ready' : 'warning'),
+                metrics: [
+                    ['Max Workers', String(budget.max_queue_workers || 1)],
+                    ['RAM Cap', `${budget.max_worker_memory_mb || 256} MiB`]
+                ],
+                desc: 'Offloads slow operations (emails, notifications, processing) to background workers for sub-50ms web latency.'
+            },
+            {
+                key: 'horizon',
+                title: 'Laravel Horizon Dashboard',
+                category: 'Queue Metrics & Autoscaling',
+                accent: '#6366f1',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>',
+                iconBg: 'linear-gradient(135deg, #6366f1, #4338ca)',
+                status: (budget.mem_max_mib >= 512) ? `READY (Port ${ports.horizon_metrics_port || 22243})` : 'REQUIRES >= 512M RAM',
+                statusType: (budget.mem_max_mib >= 512) ? 'ready' : 'warning',
+                metrics: [
+                    ['Metrics Port', String(ports.horizon_metrics_port || 22243)],
+                    ['Prefix', impl.horizon?.env?.HORIZON_PREFIX || `${d.username}:horizon:`]
+                ],
+                desc: 'Real-time Redis queue dashboard, job throughput analytics, runtime graphs, and automatic balancing.'
+            },
+            {
+                key: 'reverb',
+                title: 'Laravel Reverb / WebSocket',
+                category: 'Real-Time WebSocket Engine',
+                accent: '#f59e0b',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/></svg>',
+                iconBg: 'linear-gradient(135deg, #f59e0b, #b45309)',
+                status: (budget.reverb_allowed) ? `READY (Port ${ports.reverb_port || 22241})` : 'DISABLED BY ADMIN',
+                statusType: (budget.reverb_allowed) ? 'ready' : 'warning',
+                metrics: [
+                    ['Private Port', String(ports.reverb_port || 22241)],
+                    ['Client URL', `wss://${impl.domain || 'domain'}/app`]
+                ],
+                desc: 'First-party high-performance WebSocket server for instant chat, live updates, and push notifications.'
+            },
+            {
+                key: 'scheduler',
+                title: 'Laravel Scheduler (Cron)',
+                category: 'Automated Job Recurrence',
+                accent: '#06b6d4',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                iconBg: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                status: 'READY (1-Minute Cron)',
+                statusType: 'ready',
+                metrics: [
+                    ['Interval', '* * * * * (1m)'],
+                    ['Binary', impl.latest_php ? `PHP ${impl.latest_php.replace('php','')}` : 'PHP CLI']
+                ],
+                desc: 'Automates recurring tasks, daily cleanups, database maintenance, and email digests using a single Webuzo cron.'
+            },
+            {
+                key: 'chrome',
+                title: 'Chrome Browser Engine',
+                category: 'Headless PDF & Snapshots',
+                accent: '#14b8a6',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>',
+                iconBg: 'linear-gradient(135deg, #14b8a6, #0d9488)',
+                status: chromeData.effective_allowed ? 'ACTIVE & PERMITTED' : (chromeData.globally_enabled ? 'DISABLED' : 'GLOBALLY DISABLED'),
+                statusType: chromeData.effective_allowed ? 'active' : 'warning',
+                metrics: [
+                    ['Binary', 'Google Chrome Stable'],
+                    ['Sandbox', '--no-sandbox']
+                ],
+                desc: 'Server-side headless Chrome engine for generating pixel-perfect invoices, PDF generation, and Browsershot.'
+            },
+            {
+                key: 'openswoole',
+                title: 'OpenSwoole & Laravel Octane',
+                category: 'High-Speed Async Runtime',
+                accent: '#10b981',
+                iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
+                iconBg: 'linear-gradient(135deg, #10b981, #059669)',
+                status: (oswData.policy?.allowed !== false) ? `ACTIVE (Port ${ports.octane_port || 22242})` : 'DISABLED',
+                statusType: (oswData.policy?.allowed !== false) ? 'active' : 'warning',
+                metrics: [
+                    ['Octane Port', String(ports.octane_port || 22242)],
+                    ['PHP Runtimes', '7.4, 8.1, 8.2, 8.4']
+                ],
+                desc: 'Maintains Laravel in memory for instant request execution, up to 10,000 req/sec and 10x faster response time.'
+            }
+        ];
+
+        servicesList.forEach(srv => {
+            const card = mk('div', { class: 'uniselv-service-card', id: `uniselv-card-srv-${srv.key}` });
+            card.style.setProperty('--card-accent', srv.accent);
+
+            const cTop = mk('div', { class: 'uniselv-card-top-row' });
+            const meta = mk('div', { class: 'uniselv-service-meta' });
+            const iconBox = mk('div', { class: 'uniselv-service-icon', style: `background: ${srv.iconBg};` });
+            iconBox.innerHTML = srv.iconSvg;
+
+            const tCol = mk('div');
+            tCol.append(
+                mk('div', { class: 'uniselv-service-category' }, srv.category),
+                mk('div', { class: 'uniselv-service-title' }, srv.title)
+            );
+            meta.append(iconBox, tCol);
+
+            const badge = mk('span', { class: `uniselv-status-pill status-pill-${srv.statusType}`, id: `uniselv-pill-${srv.key}` },
+                mk('span', { class: 'uniselv-status-dot' }),
+                srv.status
+            );
+            cTop.append(meta, badge);
+            card.append(cTop);
+
+            const cBody = mk('div', { class: 'uniselv-service-body' });
+            const tagsRow = mk('div', { class: 'uniselv-metric-tag-row' });
+            srv.metrics.forEach(([lbl, val]) => {
+                tagsRow.append(mk('span', { class: 'uniselv-metric-tag' }, `${lbl}: `, mk('strong', {}, val)));
+            });
+            cBody.append(tagsRow, mk('p', { class: 'uniselv-service-desc' }, srv.desc));
+
+            const resultBox = mk('div', { class: 'uniselv-service-test-result', id: `uniselv-test-res-${srv.key}`, style: 'display:none;' });
+            cBody.append(resultBox);
+            card.append(cBody);
+
+            const cActs = mk('div', { class: 'uniselv-service-actions' });
+            const testBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', id: `uniselv-btn-test-${srv.key}`, style: 'padding:4px 10px;font-size:0.77rem;font-weight:600;' }, '⚡ Test');
+            testBtn.onclick = () => this.testStackService(srv.key, testBtn, resultBox);
+
+            const configBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.77rem;' }, '⚙️ Config & Fields');
+            configBtn.onclick = () => this.showServiceConfigModal(srv.key, impl[srv.key] || {}, impl);
+
+            const guideBtn = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button', style: 'padding:4px 10px;font-size:0.77rem;border-color:transparent;color:#475569;' }, '📖 Guide');
+            guideBtn.onclick = () => this.openHelpTopic(`guide-${srv.key}`);
+
+            cActs.append(testBtn, configBtn, guideBtn);
+            card.append(cActs);
+
+            grid.append(card);
+        });
+
+        container.append(grid);
+        host.append(container);
+    },
+
+    testStackService: function(serviceKey, btnEl, resEl) {
+        if (!resEl) resEl = document.getElementById(`uniselv-test-res-${serviceKey}`);
+        if (!btnEl) btnEl = document.getElementById(`uniselv-btn-test-${serviceKey}`);
+        const origText = btnEl ? btnEl.textContent : '⚡ Test';
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.textContent = '⏳ Testing...';
+        }
+        if (resEl) {
+            resEl.style.display = 'block';
+            resEl.innerHTML = '<span class="uniselv-card-pulse" style="display:inline-block;margin-right:6px;">●</span> Executing live server containment & health probe...';
+        }
+        this.callApi('service_test', { service: serviceKey }, (err, res) => {
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.textContent = origText;
+            }
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                const errMsg = err || d?.error || 'Diagnostic test failed';
+                UniselvNotify.error(`${serviceKey.toUpperCase()}: ${errMsg}`);
+                if (resEl) {
+                    resEl.innerHTML = `<div style="color:#dc2626;font-weight:600;">✕ Test Failed: ${errMsg}</div>`;
+                }
+                return;
+            }
+            const result = d.result || d;
+            const steps = result.steps || [];
+            const allPassed = result.success !== false && (steps.length ? steps.every(s => s.passed) : true);
+            const lat = result.latency_ms !== undefined ? ` · Latency: ${result.latency_ms}ms` : '';
+
+            const pill = document.getElementById(`uniselv-pill-${serviceKey}`);
+            if (pill) {
+                pill.className = `uniselv-status-pill ${allPassed ? 'status-pill-active' : 'status-pill-warning'}`;
+                pill.replaceChildren(
+                    this._mkEl('span', { class: 'uniselv-status-dot' }),
+                    document.createTextNode(allPassed ? 'VERIFIED ACTIVE ✓' : 'TEST ATTENTION ⚠️')
+                );
+            }
+
+            if (resEl) {
+                resEl.style.display = 'block';
+                const wrap = this._mkEl('div');
+                wrap.append(
+                    this._mkEl('div', { style: `font-weight:700;color:${allPassed ? '#16a34a' : '#b45309'};display:flex;justify-content:space-between;` },
+                        allPassed ? '✓ All Diagnostic Probes Passed' : '⚠️ Warning in Diagnostic Checks',
+                        this._mkEl('span', { style: 'font-weight:normal;color:#64748b;font-size:0.75rem;' }, lat)
+                    )
+                );
+                if (steps.length) {
+                    const ul = this._mkEl('ul', { class: 'uniselv-step-list' });
+                    steps.forEach(s => {
+                        const li = this._mkEl('li', { class: 'uniselv-step-item' });
+                        const ico = this._mkEl('span', { class: s.passed ? 'uniselv-step-icon-ok' : 'uniselv-step-icon-fail' }, s.passed ? '✓' : '✕');
+                        const txt = this._mkEl('span', {}, `${s.label}: `, this._mkEl('span', { style: 'color:#64748b;' }, s.detail || (s.passed ? 'OK' : 'Failed')));
+                        li.append(ico, txt);
+                        ul.append(li);
+                    });
+                    wrap.append(ul);
+                }
+                resEl.replaceChildren(wrap);
+            }
+            if (allPassed) {
+                UniselvNotify.success(`${result.title || serviceKey.toUpperCase()} passed all diagnostic checks!`);
+            } else {
+                UniselvNotify.warning(`${result.title || serviceKey.toUpperCase()} completed with attention notices.`);
+            }
+        }, { timeoutMs: 35000 });
+    },
+
+    testAllStackServices: function(btnEl) {
+        const origText = btnEl ? btnEl.textContent : '⚡ Test All 8 Services';
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.textContent = '⏳ Testing All 8 Services...';
+        }
+        UniselvNotify.info('Running full diagnostic test suite across all 8 modern services...');
+        this.callApi('service_test', { service: 'all' }, (err, res) => {
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.textContent = origText;
+            }
+            const d = res?.data || res;
+            if (err || !d?.success) {
+                UniselvNotify.error(`Test suite failed: ${err || d?.error || 'Unknown error'}`);
+                return;
+            }
+            const results = d.results || {};
+            let passedCount = 0;
+            let totalCount = 0;
+            for (const [srvKey, r] of Object.entries(results)) {
+                totalCount++;
+                const ok = r.success !== false;
+                if (ok) passedCount++;
+                const resEl = document.getElementById(`uniselv-test-res-${srvKey}`);
+                const pill = document.getElementById(`uniselv-pill-${srvKey}`);
+                if (pill) {
+                    pill.className = `uniselv-status-pill ${ok ? 'status-pill-active' : 'status-pill-warning'}`;
+                    pill.replaceChildren(
+                        this._mkEl('span', { class: 'uniselv-status-dot' }),
+                        document.createTextNode(ok ? 'VERIFIED ACTIVE ✓' : 'TEST ATTENTION ⚠️')
+                    );
+                }
+                if (resEl) {
+                    resEl.style.display = 'block';
+                    const wrap = this._mkEl('div');
+                    const lat = r.latency_ms !== undefined ? ` (${r.latency_ms}ms)` : '';
+                    wrap.append(
+                        this._mkEl('div', { style: `font-weight:700;color:${ok ? '#16a34a' : '#b45309'};` },
+                            ok ? `✓ Verified Active${lat}` : '⚠️ Attention Needed'
+                        )
+                    );
+                    const steps = r.steps || [];
+                    if (steps.length) {
+                        const ul = this._mkEl('ul', { class: 'uniselv-step-list' });
+                        steps.forEach(s => {
+                            const li = this._mkEl('li', { class: 'uniselv-step-item' });
+                            li.append(
+                                this._mkEl('span', { class: s.passed ? 'uniselv-step-icon-ok' : 'uniselv-step-icon-fail' }, s.passed ? '✓' : '✕'),
+                                this._mkEl('span', {}, `${s.label}: `, this._mkEl('span', { style: 'color:#64748b;' }, s.detail || (s.passed ? 'OK' : 'Failed')))
+                            );
+                            ul.append(li);
+                        });
+                        wrap.append(ul);
+                    }
+                    resEl.replaceChildren(wrap);
+                }
+            }
+            UniselvNotify.success(`Stack Suite Complete: ${passedCount} of ${totalCount} services verified in ${d.total_duration_sec || 0}s!`);
+        }, { timeoutMs: 40000 });
+    },
+
+    showServiceConfigModal: function(serviceKey, srvData, fullImpl) {
+        const modalId = 'uniselv-service-config-modal';
+        let existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+
+        const mk = this._mkEl.bind(this);
+        const modal = mk('div', { class: 'uniselv-modal-overlay', id: modalId });
+        const dialog = mk('div', { class: 'uniselv-modal-dialog' });
+
+        const header = mk('div', { class: 'uniselv-modal-header' });
+        header.append(
+            mk('h5', { style: 'margin:0;font-weight:700;display:flex;align-items:center;gap:8px;' },
+                '⚙️ ' + (srvData.title || `${serviceKey.toUpperCase()} Configuration & Project Input Fields`)
+            )
+        );
+        const closeBtn = mk('button', {
+            type: 'button',
+            style: 'background:none;border:none;font-size:1.4rem;line-height:1;cursor:pointer;color:#64748b;'
+        }, '×');
+        closeBtn.onclick = () => modal.remove();
+        header.append(closeBtn);
+        dialog.append(header);
+
+        const body = mk('div', { class: 'uniselv-modal-body' });
+        body.append(mk('p', { style: 'font-size:0.84rem;color:#475569;margin:0 0 14px 0;' },
+            'These environment variables and input fields are specifically generated and pre-filled for your account. Copy and paste them directly into your project without modification.'
+        ));
+
+        const fields = srvData.fields || [];
+        if (fields.length) {
+            body.append(mk('h6', { style: 'font-weight:700;font-size:0.88rem;margin:0 0 6px 0;' }, 'Required Project Input Fields:'));
+            const tbl = mk('table', { class: 'uniselv-field-table' });
+            const thRow = tbl.createTHead().insertRow();
+            ['Field / Key', 'Pre-Filled Account Value', 'Field Description'].forEach(h => thRow.append(mk('th', {}, h)));
+            const tb = tbl.createTBody();
+            fields.forEach(f => {
+                const tr = tb.insertRow();
+                tr.append(
+                    mk('td', { style: 'font-family:monospace;font-weight:600;color:#0369a1;' }, f.key),
+                    mk('td', { style: 'font-family:monospace;font-weight:700;' }, f.value),
+                    mk('td', { style: 'font-size:0.78rem;color:#64748b;' }, f.help)
+                );
+            });
+            body.append(tbl);
+        }
+
+        const envSnippet = srvData.env_snippet;
+        if (envSnippet) {
+            body.append(mk('h6', { style: 'font-weight:700;font-size:0.88rem;margin:12px 0 4px 0;' }, 'Copy to your .env file:'));
+            body.append(this._mkCodeCopyBox(envSnippet, '📋 Copy .env Snippet'));
+        }
+
+        const confSnippet = srvData.conf_snippet || srvData.browsershot_snippet || srvData.supervisor_snippet || srvData.apache_proxy_snippet || srvData.crontab_snippet;
+        if (confSnippet) {
+            body.append(mk('h6', { style: 'font-weight:700;font-size:0.88rem;margin:12px 0 4px 0;' }, 'Code / Config Snippet:'));
+            body.append(this._mkCodeCopyBox(confSnippet, '📋 Copy Snippet'));
+        }
+
+        const cmd = srvData.artisan_cmd || srvData.octane_start_cmd;
+        if (cmd) {
+            body.append(mk('h6', { style: 'font-weight:700;font-size:0.88rem;margin:12px 0 4px 0;' }, 'CLI / Execution Command:'));
+            body.append(this._mkCodeCopyBox(cmd, '📋 Copy Command'));
+        }
+
+        dialog.append(body);
+
+        const footer = mk('div', { class: 'uniselv-modal-footer' });
+        const helpLink = mk('button', { class: 'uniselv-btn btn-outline btn-sm', type: 'button' }, '📖 Open Step-by-Step Guide');
+        helpLink.onclick = () => {
+            modal.remove();
+            this.openHelpTopic(`guide-${serviceKey}`);
+        };
+        const dismissBtn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Done');
+        dismissBtn.onclick = () => modal.remove();
+        footer.append(helpLink, dismissBtn);
+        dialog.append(footer);
+
+        modal.append(dialog);
+        document.body.appendChild(modal);
+        modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    },
+
+    copyUnifiedEnv: function(impl, btnEl) {
+        if (!impl) impl = (this._platformServicesData || {}).implementation_data || {};
+        const rEnv = impl.redis?.env_snippet || '';
+        const revEnv = impl.reverb?.env_snippet || '';
+        const qEnv = impl.queue?.env_snippet || 'QUEUE_CONNECTION=redis';
+        const octEnv = impl.openswoole?.env_snippet || '';
+        const chrEnv = impl.chrome?.env_snippet || '';
+
+        const masterEnv = [
+            `# ========================================================`,
+            `# UNISELV 8-SERVICE MODERN APPLICATION STACK ENVIRONMENT`,
+            `# Account: ${impl.username || 'user'} | Domain: ${impl.domain || 'domain.com'}`,
+            `# ========================================================`,
+            ``,
+            `# --- 1. REDIS CACHING, SESSIONS & HORIZON ---`,
+            rEnv,
+            ``,
+            `# --- 2. LARAVEL QUEUE WORKERS ---`,
+            qEnv,
+            ``,
+            `# --- 3. LARAVEL REVERB WEBSOCKET ---`,
+            revEnv,
+            ``,
+            `# --- 4. CHROME BROWSER ENGINE (HEADLESS) ---`,
+            chrEnv,
+            ``,
+            `# --- 5. OPENSWOOLE & LARAVEL OCTANE ---`,
+            octEnv
+        ].join('\n');
+
+        this.copyToClipboard(masterEnv, btnEl, 'Copied Complete .env! ✓');
+        UniselvNotify.success('Complete unified .env block copied to clipboard!');
+    },
+
     loadEnduserServices: function() {
         const host = document.getElementById('uniselv-enduser-services-body');
         if (!host) return;
@@ -5726,6 +6227,7 @@ const UniselvResMan = {
                 host.textContent = `App services unavailable: ${err || d?.error || 'Check daemon status'}`;
                 return;
             }
+            this._platformServicesData = d;
             const mk = this._mkEl.bind(this);
             const cfg = d.settings || {};
             const lrv = d.laravel || {};
@@ -5734,6 +6236,15 @@ const UniselvResMan = {
             const logsData = d.logs || {};
             const disc = lrv.discovered_apps || [];
             host.replaceChildren();
+
+            // Mount Modern 8-Services Stack Suite at top of App Services & Tools
+            const suiteMount = mk('div', { id: 'uniselv-enduser-services-suite' });
+            host.append(suiteMount);
+            this.renderModernStackSuite(suiteMount, d);
+
+            // Also update dashboard mount if present
+            const dashMount = document.getElementById('uniselv-enduser-dashboard-suite');
+            if (dashMount) this.renderModernStackSuite(dashMount, d);
 
             // 1. Granted Feature Permissions & Scoped Supervisor Access (Zero manual forms / zero .env edits)
             const lrvBox = mk('div', { style: 'background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:16px;' });

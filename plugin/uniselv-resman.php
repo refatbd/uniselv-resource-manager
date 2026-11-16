@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.3.2
+Version: 1.4.0
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -568,13 +568,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.3.2' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.4.0' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.3.2' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.4.0' . '"></script>';
 
     echo '<div class="uniselv-container">';
     
@@ -2332,7 +2332,7 @@ function uniselv_resman_enduser() {
         if (in_array($subact, ['stop_process', 'mark_notification', 'save_laravel_service', 'control_laravel_service',
             'enduser_redis_action', 'truncate_app_log', 'sync_laravel_workers',
             'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes',
-            'enduser_chrome_test', 'enduser_chrome_kill'])) {
+            'enduser_chrome_test', 'enduser_chrome_kill', 'service_test'])) {
             uniselv_verify_csrf($current_user);
         }
 
@@ -2359,11 +2359,12 @@ function uniselv_resman_enduser() {
             'manage_reverb_vhost_proxy' => 'manage_reverb_vhost_proxy',
             'kill_stuck_cli_processes' => 'kill_stuck_cli_processes',
             'enduser_chrome_test' => 'enduser_chrome_test',
-            'enduser_chrome_kill' => 'enduser_chrome_kill'
+            'enduser_chrome_kill' => 'enduser_chrome_kill',
+            'service_test' => 'enduser_service_test'
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes', 'enduser_chrome_test', 'enduser_chrome_kill'];
+            $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes', 'enduser_chrome_test', 'enduser_chrome_kill', 'service_test'];
             $ipc_timeout = in_array($subact, $long_ops) ? 35 : 15;
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, false, $ipc_timeout);
             echo json_encode($resp);
@@ -2405,13 +2406,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.3.2' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.4.0' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.3.2' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.4.0' . '"></script>';
 
     echo '<div class="uniselv-container">';
 
@@ -2749,6 +2750,8 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </div>
         </div>
     </div>';
+
+    echo '<div id="uniselv-enduser-dashboard-suite" class="uniselv-stack-suite-mount" style="margin-top: 24px;"></div>';
 
     // Summary alert if pressure
     if (($cur['cpu_throttled_events'] ?? 0) > 0 || ($cur['oom_kill_events'] ?? 0) > 0) {
