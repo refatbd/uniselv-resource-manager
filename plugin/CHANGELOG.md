@@ -21,10 +21,6 @@
 - **100% Technical English Documentation & Zero-Terminal Help**:
   - Cleaned and expanded `#help` documentation tab to 23,850 characters of pristine technical English (zero Bengali, zero non-English strings).
   - Comprehensive, beginner-friendly yet technically deep developer guide covering copy-paste `.env` configurations, Supervisor daemon program blocks, and client-side setup instructions without requiring terminal or SSH access.
-- **Zero-Touch Standalone Laravel Test Suite (`uniselv-platform-suite.zip`)**:
-  - Complete standalone Laravel 11/12 test application suite with zero-touch first-run auto-bootstrapping.
-  - Automatic key generation, two-way `.env` synchronization, Redis 6+ ACL authentication, and container-safe Supervisor process detection.
-  - Strictly excluded `.env` from packaging to guarantee clean, zero-configuration first runs on any domain or subdomain.
 
 ## 1.3.2 — 2026-11-14
 

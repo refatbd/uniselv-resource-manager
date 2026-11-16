@@ -110,7 +110,7 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
 ### 4. Enterprise Admin Automation & VPS Setup Tools
 - **OS Build Preflight Toolchain:** One-click preflight verification and automated background installer for system build tools (`gcc`, `g++`, `make`, `autoconf`, `curl`, `tar`, `unzip`, `git`, `systemd-run`, `composer`, `supervisord`, `redis-cli`) ensuring effortless onboarding on new VPS servers.
 - **Multi-Tenant Redis ACL & Port Registry:** Dedicated collision-free port blocks (`20000-59990`) and tenant ACL isolation preventing cross-tenant data leaks.
-- **Zero-Touch Standalone Laravel Test Suite (`uniselv-platform-suite.zip`):** Standalone diagnostic application featuring zero-terminal first-run bootstrapping, automatic `.env` creation, dynamic key generation, and two-way settings synchronization.
+- **Zero-Terminal Application Services Matrix:** Manage Supervisor daemons, worker budgets, and scheduled tasks directly from the administrative UI without requiring shell access.
 
 ---
 
