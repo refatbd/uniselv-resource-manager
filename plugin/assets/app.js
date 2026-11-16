@@ -35,6 +35,15 @@ const UniselvNotify = {
     show: function(type, title, message, duration = 4500) {
         this.init();
 
+        const activeTheme = document.querySelector('.uniselv-container')?.getAttribute('data-theme') || 
+                            document.body.getAttribute('data-uniselv-theme') || 
+                            document.documentElement.getAttribute('data-uniselv-theme') || 
+                            localStorage.getItem('uniselv_theme') || 'dark';
+        if (this.container) {
+            this.container.setAttribute('data-theme', activeTheme);
+            this.container.setAttribute('data-uniselv-theme', activeTheme);
+        }
+
         const safe = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         const toast = document.createElement('div');
         toast.className = `uniselv-toast uniselv-toast-${type}`;
@@ -2689,10 +2698,10 @@ const UniselvResMan = {
                 return;
             }
 
-            let html = '<div style="background:#0f172a; color:#f8fafc; padding:14px; border-radius:8px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:0.8rem; max-height:360px; overflow-y:auto; line-height:1.6;">';
+            let html = '<div class="uniselv-code-block" style="max-height:360px; overflow-y:auto; overflow-x:auto; word-break:break-all; white-space:pre-wrap; line-height:1.6; margin:0; padding:14px;">';
             webList.forEach(w => {
                 const rawEsc = this.escapeHtml(w.raw || JSON.stringify(w));
-                html += `<div>${rawEsc}</div>`;
+                html += `<div style="margin-bottom:3px; word-break:break-all; overflow-wrap:anywhere;">${rawEsc}</div>`;
             });
             html += '</div>';
             container.innerHTML = html;
@@ -4470,7 +4479,7 @@ const UniselvResMan = {
             return el;
         };
 
-        const box = mk('div', { style: `border:1px solid ${d.all_passed ? '#86efac' : '#fcd34d'};background:${d.all_passed ? '#f0fdf4' : '#fffbeb'};border-radius:8px;padding:12px;` });
+        const box = mk('div', { class: `uniselv-alert-box ${d.all_passed ? 'alert-success' : 'alert-warning'}` });
         const head = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
         const checkedN = Number(d.checked_at);
         const checkedLabel = Number.isFinite(checkedN) && checkedN > 1000000000 ? new Date(checkedN * 1000).toLocaleString() : (d.checked_at || '');
@@ -4588,7 +4597,7 @@ const UniselvResMan = {
             return el;
         };
 
-        const box = mk('div', { style: `border:1px solid ${d.all_passed ? '#86efac' : '#fca5a5'};background:${d.all_passed ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:12px;` });
+        const box = mk('div', { class: `uniselv-alert-box ${d.all_passed ? 'alert-success' : 'alert-danger'}` });
         const head = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;' });
         head.append(
             mk('strong', { style: 'color: var(--uniselv-text-main);font-size:0.9rem;' }, `Live E2E Self-Test: ${d.username} (UID ${d.uid}, ${d.plan_name}, ${d.php_version}) · ${d.elapsed_ms || 0} ms`),
@@ -5392,7 +5401,7 @@ const UniselvResMan = {
         const mk = this._mkEl.bind(this);
         container.replaceChildren();
         const ok = res.all_passed !== undefined ? res.all_passed : Boolean(res.success);
-        const box = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;` });
+        const box = mk('div', { class: `uniselv-alert-box ${ok ? 'alert-success' : 'alert-danger'}` });
         box.append(mk('div', { style: 'font-weight:700;font-size:0.86rem;margin-bottom:6px;' }, `${title} — ${ok ? 'PASSED' : 'ATTENTION REQUIRED'}`));
         if (Array.isArray(res.steps)) {
             res.steps.forEach(s => {
@@ -6701,7 +6710,7 @@ const UniselvResMan = {
             outBox.replaceChildren();
             const mk = this._mkEl.bind(this);
             const ok = Boolean(d?.success);
-            const card = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;font-size:0.82rem;` });
+            const card = mk('div', { class: `uniselv-alert-box ${ok ? 'alert-success' : 'alert-danger'}` });
             card.append(
                 mk('div', { style: 'font-weight:700;margin-bottom:4px;' }, `Chrome Smoke Test — ${ok ? 'PASSED' : 'FAILED'} (${d?.duration_sec || 0}s)`),
                 mk('pre', { style: 'background:#0f172a;color:#f8fafc;padding:8px;border-radius:6px;font-size:0.75rem;max-height:120px;overflow:auto;margin:0;' }, d?.output_snippet || d?.error || 'No output')
@@ -6767,7 +6776,7 @@ const UniselvResMan = {
             const ok = Boolean(d?.success);
             outBoxes.forEach(outBox => {
                 outBox.replaceChildren();
-                const card = mk('div', { style: `border:1px solid ${ok ? '#86efac' : '#fca5a5'};background:${ok ? '#f0fdf4' : '#fef2f2'};border-radius:8px;padding:10px 12px;font-size:0.82rem;` });
+                const card = mk('div', { class: `uniselv-alert-box ${ok ? 'alert-success' : 'alert-danger'}` });
                 card.append(
                     mk('div', { style: 'font-weight:700;margin-bottom:4px;' }, `Chrome Engine Smoke Test — ${ok ? 'PASSED' : 'FAILED'} (${d?.duration_sec || 0}s)`),
                     mk('pre', { style: 'background:#0f172a;color:#f8fafc;padding:8px;border-radius:6px;font-size:0.75rem;max-height:120px;overflow:auto;margin:0;' }, d?.output_snippet || d?.error || 'No output')

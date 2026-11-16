@@ -191,7 +191,7 @@ SendWelcomeEmail::dispatch($user);</code></pre>
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Laravel Horizon provides a dashboard and code-driven configuration for Redis queues. It offers real-time job throughput metrics, runtime graphs, queue wait times, job failure diagnostics, and auto-balancing worker pools.</p>
 
-                <p style="font-size:0.82rem;color:#b45309;background:#fffbeb;padding:6px 10px;border-radius:6px;border:1px solid #fde68a;"><strong>Prerequisites:</strong> Horizon requires active Redis ACL credentials and at least 512 MiB of account memory allocated on your hosting plan.</p>
+                <p class="uniselv-alert-box alert-warning" style="padding:6px 10px;margin-top:6px;font-size:0.82rem;"><strong>Prerequisites:</strong> Horizon requires active Redis ACL credentials and at least 512 MiB of account memory allocated on your hosting plan.</p>
 
                 <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Installation &amp; <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>composer require laravel/horizon
@@ -305,7 +305,7 @@ Schedule::call(function () {
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Headless Chrome is utilized on the server for rendering pixel-perfect PDF invoices, taking automated webpage screenshots, generating social share cards, and running headless browser automations via Spatie Browsershot or Puppeteer.</p>
 
-                <p style="font-size:0.82rem;color:#92400e;background:#fffbeb;padding:6px 10px;border-radius:6px;border:1px solid #fde68a;"><strong>Mandatory Sandbox Flags:</strong> Running Chrome within user containment slices requires <code>--no-sandbox</code>, <code>--disable-setuid-sandbox</code>, and <code>--disable-dev-shm-usage</code> flags to ensure safe execution.</p>
+                <p class="uniselv-alert-box alert-warning" style="padding:6px 10px;margin-top:6px;font-size:0.82rem;"><strong>Mandatory Sandbox Flags:</strong> Running Chrome within user containment slices requires <code>--no-sandbox</code>, <code>--disable-setuid-sandbox</code>, and <code>--disable-dev-shm-usage</code> flags to ensure safe execution.</p>
 
                 <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. System Binary &amp; <code>.env</code> Fields:</h5>
                 <table class="uniselv-field-table">
@@ -345,7 +345,7 @@ return response($pdfData)->header('Content-Type', 'application/pdf');</code></pr
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> In standard PHP-FPM, the entire Laravel framework bootstraps on every single request. OpenSwoole and Laravel Octane keep the application booted in memory, serving incoming requests via high-concurrency event loops, achieving up to 10x throughput and sub-10ms response times.</p>
 
-                <p style="font-size:0.82rem;color:#047857;background:#ecfdf5;padding:6px 10px;border-radius:6px;border:1px solid #a7f3d0;"><strong>Pre-Compiled Extensions:</strong> OpenSwoole is pre-compiled across PHP 7.4, 8.1, 8.2, and 8.4 on the UNISELV server. A dedicated port is reserved specifically for your account's Octane server.</p>
+                <p class="uniselv-alert-box alert-success" style="padding:6px 10px;margin-top:6px;font-size:0.82rem;"><strong>Pre-Compiled Extensions:</strong> OpenSwoole is pre-compiled across PHP 7.4, 8.1, 8.2, and 8.4 on the UNISELV server. A dedicated port is reserved specifically for your account's Octane server.</p>
 
                 <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Installation &amp; <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>composer require laravel/octane

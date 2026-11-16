@@ -1464,7 +1464,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
         <div class="uniselv-card mb-3">
             <h5 style="font-weight: 700; margin-bottom: 10px;">Enforcement Coverage & Escaped Process Audit</h5>';
     if (!empty($outside)) {
-        echo '<div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 14px; margin-bottom: 14px; color: #991b1b; font-size: 0.88rem;">
+        echo '<div class="uniselv-alert-box alert-danger">
             <strong>Warning: ' . count($outside) . ' customer process(es) detected running outside golden.slice!</strong> Workloads must run strictly inside their assigned boundaries.
         </div>
         <div class="uniselv-table-wrap">
@@ -1484,7 +1484,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             </table>
         </div>';
     } else {
-        echo '<div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px; color: #166534; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;">
+        echo '<div class="uniselv-alert-box alert-success" style="display: flex; align-items: center; gap: 8px;">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             <span><strong>Observed Process Coverage.</strong> ' . ($g_state === 'active' ? 'No escaped customer process was observed in the latest scan. This is a point-in-time check; use Run Verification to check effective limits and services.' : 'Containment is not verified while the governor is inactive, degraded, or unavailable. Use Run Verification and inspect the reported status.') . '</span>
         </div>';
@@ -1781,55 +1781,61 @@ Do not use the customer port (2003). An unattended external provider route has n
                     </div>
                 </div>
 
-                <!-- Subcard 4: Role & Account Feature Permissions Governance (B04) -->
-                <div style="margin-top: 24px; border-top: 1px solid var(--uniselv-border); padding-top: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
-                            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #6366f1;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                            Role & Account Feature Permissions Governance (B04)
-                        </h6>
-                        <button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.loadPermissions()">
-                            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Permissions
-                        </button>
+            </div>
+        </div>
+
+        <!-- Subcard 4: Role & Account Feature Permissions Governance (B04) - FULL WIDTH DEDICATED CARD -->
+        <div class="uniselv-card" style="margin-top: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                <h5 style="font-weight: 700; color: var(--uniselv-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #6366f1;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    Role & Account Feature Permissions Governance (B04)
+                </h5>
+                <button class="uniselv-btn btn-outline btn-sm" onclick="UniselvResMan.loadPermissions()">
+                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Refresh Permissions
+                </button>
+            </div>
+            <p style="font-size: 0.84rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Configure role baselines and per-account granular overrides for enduser process termination, telemetry exports, and historical queries.</p>
+
+            <div class="uniselv-grid" style="grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 20px;">
+                <!-- Role Baselines -->
+                <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
+                    <h6 style="font-size: 0.88rem; font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px;">Role-Level Baselines</h6>
+                    <div class="uniselv-table-wrap" style="box-shadow: none; margin-bottom: 0;">
+                        <table class="uniselv-table" style="font-size: 0.82rem;">
+                            <thead><tr><th style="min-width: 80px;">Role</th><th style="min-width: 180px;">Permission</th><th style="min-width: 90px;">Granted</th><th style="min-width: 80px; text-align: right;">Action</th></tr></thead>
+                            <tbody id="role-permissions-body"><tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">Loading...</td></tr></tbody>
+                        </table>
                     </div>
-                    <p style="font-size: 0.84rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">Configure role baselines and per-account granular overrides for enduser process termination, telemetry exports, and historical queries.</p>
+                </div>
 
-                    <div class="uniselv-grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <!-- Role Baselines -->
-                        <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
-                            <h6 style="font-size: 0.88rem; font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px;">Role-Level Baselines</h6>
-                            <table class="uniselv-table" style="font-size: 0.82rem;">
-                                <thead><tr><th>Role</th><th>Permission</th><th>Granted</th><th>Action</th></tr></thead>
-                                <tbody id="role-permissions-body"><tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">Loading...</td></tr></tbody>
-                            </table>
-                        </div>
-
-                        <!-- Account Granular Overrides -->
-                        <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
-                            <h6 style="font-size: 0.88rem; font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px;">Granular Account Overrides</h6>
-                            <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-                                <input type="text" id="perm-user-input" class="uniselv-form-input" placeholder="Username (e.g. ub1)" style="flex: 1; min-width: 120px; font-size: 0.82rem;">
-                                <select id="perm-key-select" class="uniselv-form-input" style="flex: 1; min-width: 160px; font-size: 0.82rem;">
-                                    <option value="can_stop_processes">can_stop_processes</option>
-                                    <option value="can_export_diagnostics">can_export_diagnostics</option>
-                                    <option value="can_view_history">can_view_history</option>
-                                    <option value="platform_laravel_queue">platform_laravel_queue</option>
-                                    <option value="platform_laravel_horizon">platform_laravel_horizon</option>
-                                    <option value="platform_laravel_reverb">platform_laravel_reverb</option>
-                                    <option value="platform_laravel_scheduler">platform_laravel_scheduler</option>
-                                    <option value="platform_supervisor">platform_supervisor</option>
-                                </select>
-                                <select id="perm-grant-select" class="uniselv-form-input" style="width: 100px; font-size: 0.82rem;">
-                                    <option value="1">Allow</option>
-                                    <option value="0">Deny</option>
-                                </select>
-                                <button class="uniselv-btn btn-primary btn-sm" onclick="UniselvResMan.saveAccountPermission()">Apply Override</button>
-                            </div>
-                            <table class="uniselv-table" style="font-size: 0.82rem;">
-                                <thead><tr><th>Account</th><th>Permission</th><th>Status</th><th>Updated By</th></tr></thead>
-                                <tbody id="account-permissions-body"><tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">No overrides configured.</td></tr></tbody>
-                            </table>
-                        </div>
+                <!-- Account Granular Overrides -->
+                <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 8px; padding: 16px;">
+                    <h6 style="font-size: 0.88rem; font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px;">Granular Account Overrides</h6>
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                        <input type="text" id="perm-user-input" class="uniselv-form-input" placeholder="Username (e.g. ub1)" style="flex: 1; min-width: 120px; font-size: 0.82rem;">
+                        <select id="perm-key-select" class="uniselv-form-input" style="flex: 1; min-width: 160px; font-size: 0.82rem;">
+                            <option value="can_stop_processes">can_stop_processes</option>
+                            <option value="can_export_diagnostics">can_export_diagnostics</option>
+                            <option value="can_view_history">can_view_history</option>
+                            <option value="platform_laravel_queue">platform_laravel_queue</option>
+                            <option value="platform_laravel_horizon">platform_laravel_horizon</option>
+                            <option value="platform_laravel_reverb">platform_laravel_reverb</option>
+                            <option value="platform_laravel_scheduler">platform_laravel_scheduler</option>
+                            <option value="platform_supervisor">platform_supervisor</option>
+                            <option value="platform_chrome">platform_chrome</option>
+                        </select>
+                        <select id="perm-grant-select" class="uniselv-form-input" style="width: 100px; font-size: 0.82rem;">
+                            <option value="1">Allow</option>
+                            <option value="0">Deny</option>
+                        </select>
+                        <button class="uniselv-btn btn-primary btn-sm" onclick="UniselvResMan.saveAccountPermission()">Apply Override</button>
+                    </div>
+                    <div class="uniselv-table-wrap" style="box-shadow: none; margin-bottom: 0;">
+                        <table class="uniselv-table" style="font-size: 0.82rem;">
+                            <thead><tr><th style="min-width: 80px;">Account</th><th style="min-width: 180px;">Permission</th><th style="min-width: 90px;">Status</th><th style="min-width: 80px; text-align: right;">Action</th></tr></thead>
+                            <tbody id="account-permissions-body"><tr><td colspan="4" style="text-align:center; color: var(--uniselv-text-muted); padding:10px;">No overrides configured.</td></tr></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -3015,7 +3021,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <h5 style="margin:0; font-weight:700; font-size:1.05rem; color: var(--uniselv-text-main);">Active Processes</h5>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <button class="uniselv-cpanel-btn" onclick="UniselvResMan.loadLiveProcesses()" title="Refresh Processes">Refresh Processes</button>
-                    <button class="uniselv-cpanel-btn" style="background:#fef2f2;color:#991b1b;border-color:#fca5a5;" onclick="UniselvResMan.killStuckCliTasks()" title="Safely terminate hanging CLI/queue processes without affecting web traffic">⚡ Kill Stuck CLI Tasks</button>
+                    <button class="uniselv-cpanel-btn uniselv-btn-danger-cpanel" onclick="UniselvResMan.killStuckCliTasks()" title="Safely terminate hanging CLI/queue processes without affecting web traffic">⚡ Kill Stuck CLI Tasks</button>
                 </div>
             </div>
             <div class="uniselv-table-wrap">
