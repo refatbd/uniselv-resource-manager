@@ -1,3 +1,31 @@
+## 1.4.0 — 2026-11-16
+
+- **Modern 8-Services Diagnostic Suite & Enduser Dashboard**:
+  - **Comprehensive 8-Services Telemetry & Testing Grid**: Dedicated real-time diagnostic cards, status pills, and interactive test triggers for all 8 modern application services:
+    - **Redis 6+**: High-performance multi-tenant in-memory cache and session store with Redis ACL isolation and custom port/password testing.
+    - **Supervisor Process Manager**: Process supervision daemon detection, world-readable `/var/run/supervisord.pid` inspection bypassing `/proc` `hidepid=invisible` tenant boundaries, and daemon health tracking.
+    - **Laravel Queue Workers**: Asynchronous jobs & high-throughput worker orchestration with cgroup isolation.
+    - **Laravel Horizon**: Redis queue monitoring dashboard, metrics, and balancing daemon.
+    - **Laravel Reverb / WebSockets**: Real-time bidirectional event broadcasting server.
+    - **Laravel Task Scheduler**: Native recurring crontab and command dispatcher.
+    - **Chrome Browser Engine (Headless)**: Google Chrome PDF/image rendering engine with dedicated `uniselv-chrome` (0750) group governance.
+    - **OpenSwoole / RoadRunner**: Coroutine-based asynchronous PHP HTTP runtime engine.
+  - **1-Click "Test All 8 Services" Execution**: Simultaneous diagnostic ping delivering sub-second feedback and clear visual state transitions (`VERIFIED ACTIVE ✓`).
+  - **Container-Safe Multi-Tenant Isolation**: Hardened `/proc` scanner and PID file lookup guaranteeing non-root users (`uniselvin`) can verify daemon status without privilege escalation.
+  - **Native Redis 6+ Multi-Tenant ACL Support**: Full support for `AUTH <username> <password>` commands adhering to Webuzo prefix enforcement (`u_<username>`) and preventing default passwordless access.
+- **Enterprise Webuzo Admin Automation & Governance**:
+  - **OS Build Preflight Toolchain & One-Click VPS Installer**: Full toolchain health checks (`gcc`, `g++`, `make`, `autoconf`, `curl`, `tar`, `unzip`, `git`, `systemd-run`, `composer`, `supervisord`, `redis-cli`) with automated background installation buttons (`One-Click Install OS Build Deps`, `Reinstall/Verify Composer`, `Install Full Toolchain + Composer`) ensuring zero-friction setup for new VPS owners.
+  - **Chrome Browser Engine Governance**: Google Chrome `157.0.8103.78`, Group `uniselv-chrome` (0750 mode). Global master switch, multi-tenant permission matrix with 1-click Grant/Revoke access control.
+  - **Laravel Stack & Supervisor Matrix**: Supervisor daemon, queue workers, Horizon, Reverb WebSocket, and Scheduler lifecycle management (Install, Activate/Deactivate, Restart, Test) with global policy checkboxes and per-user permission dropdowns.
+  - **Redis ACL Tenant Isolation & Port Registry**: Multi-tenant ACL isolation with dedicated prefix enforcement (`u_<username>` with prefix `<username>:*`), passwordless protection, and automated port allocation registry across `20000-59990`.
+- **100% Technical English Documentation & Zero-Terminal Help**:
+  - Cleaned and expanded `#help` documentation tab to 23,850 characters of pristine technical English (zero Bengali, zero non-English strings).
+  - Comprehensive, beginner-friendly yet technically deep developer guide covering copy-paste `.env` configurations, Supervisor daemon program blocks, and client-side setup instructions without requiring terminal or SSH access.
+- **Zero-Touch Standalone Laravel Test Suite (`uniselv-platform-suite.zip`)**:
+  - Complete standalone Laravel 11/12 test application suite with zero-touch first-run auto-bootstrapping.
+  - Automatic key generation, two-way `.env` synchronization, Redis 6+ ACL authentication, and container-safe Supervisor process detection.
+  - Strictly excluded `.env` from packaging to guarantee clean, zero-configuration first runs on any domain or subdomain.
+
 ## 1.3.2 — 2026-11-14
 
 - **High-Performance Daemon & CPU Overhead Reduction**:

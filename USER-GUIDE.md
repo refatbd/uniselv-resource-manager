@@ -136,3 +136,13 @@ The **Help & About** tab provides an integrated guide directly within the Enduse
 - **Category Filter Pills:** Switch between *Getting Started*, *Features & Tools*, *Understanding Metrics*, *Practical Guides*, *FAQ & Diagnostics*, and *About*.
 - **Direct Contextual Links:** Click the **Help Guide** pill in the top header to jump straight to practical guides and instructions on interpreting your real-time meters.
 
+---
+
+## 8. Modern 8-Services Testing & Zero-Terminal Laravel Deployment
+
+The **App Services & Tools** tab gives endusers an interactive control and testing hub for 8 modern backend services:
+1. **Interactive 8-Services Grid:** Real-time diagnostic cards for Redis 6+, Supervisor, Laravel Queue Workers, Laravel Horizon, Laravel Reverb (WebSockets), Laravel Task Scheduler, Chrome Headless Engine, and OpenSwoole/RoadRunner.
+2. **1-Click "Test All 8 Services":** Click the test button to run concurrent diagnostics across all services with instant `VERIFIED ACTIVE ✓` visual state transitions.
+3. **Copy-Ready Configuration & Developer Guides:** The `#help` tab contains 100% technical English documentation with copy-paste `.env` settings, Supervisor daemon definitions, and step-by-step guidance.
+4. **Zero-Terminal Laravel Suite:** Upload and unzip `uniselv-platform-suite.zip` directly to any web root. The application automatically bootstraps `.env` and `APP_KEY` on first web visit, requiring zero SSH access or terminal commands.
+

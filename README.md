@@ -1,10 +1,9 @@
-Current runtime release: **1.2.8**. Enterprise Chrome Browser Engine governance and headless PDF/rendering isolation suite across Admin (**Platform & Laravel** tab) and Enduser (**App Services & Tools** tab), featuring one-click install/uninstall of Google Chrome, master kill-switch toggle, Linux group security (`uniselv-chrome` 0750 mode), per-tenant permission matrix, headless smoke test diagnostics, zombie process killer, and full integration with Spatie Browsershot / Puppeteer, alongside the full Platform Operations suite and OpenSwoole multi-PHP governance console. See [changelog](CHANGELOG.md).
+Current runtime release: **1.4.0**. Enterprise 8-Services Diagnostic Suite, Zero-Terminal Laravel Platform Operations, and Automated Webuzo Admin Governance across Admin (`act=uniselv-resman`) and Enduser (`act=uniselv-resman`), featuring instant 1-click diagnostic testing for Redis 6+, Supervisor, Laravel Queue Workers, Laravel Horizon, Laravel Reverb (WebSockets), Laravel Task Scheduler, Chrome Headless Engine, and OpenSwoole/RoadRunner, OS build preflight toolchain installers, multi-tenant Redis ACL isolation, group-governed headless rendering, and 100% technical English developer documentation. See [changelog](CHANGELOG.md).
 
-> Previous release **1.2.7**, 2026-11-13. Full Platform Operations & Zero-Terminal App Services suite.
-
-> Previous release **1.1.36**, 2026-11-04. Plan-proportional PHP worker ceiling calculation and dynamic CPUWeight.
-> Previous release **1.1.35**, 2026-11-01. PAM Session Guard cron fast-path bypass and slice reuse.
-> Historical release **1.1.34**, 2026-10-30. Self-healing staging cleanup and atomic try/finally unlinking.
+> Previous release **1.3.2**, 2026-11-14. High-performance daemon & CPU overhead reduction (single-pass `/proc` scan, TTL caching, throttled policy cadences).
+> Previous release **1.3.1**, 2026-11-14. Chrome & automation telemetry hub with visual telemetry grid and isolated smoke test profiling.
+> Previous release **1.2.8**, 2026-11-13. Enterprise Chrome Browser Engine governance and headless PDF/rendering isolation suite.
+> Previous release **1.2.0**, 2026-11-12. Full Platform Operations & Zero-Terminal App Services suite.
 
 # UNISELV Resource Manager for Webuzo
 
@@ -95,6 +94,24 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
   - On-Demand Optimization: One-click "Prune & Optimize Database Now" action triggering WAL checkpoint truncation and filesystem VACUUM.
   - Continuous tracking of daemon RSS memory (bounded by `MemoryMax=128M`).
 
+### 3. Modern 8-Services Diagnostic Suite (`act=uniselv-resman`)
+- **Real-Time Interactive Service Matrix:** Instant health status, port binding, and operational diagnostics for 8 modern services:
+  - **Redis 6+ In-Memory Store:** Full Redis ACL authentication (`AUTH <username> <password>`) adhering to Webuzo prefix rules (`u_<user>`), eliminating dangerous passwordless exposures.
+  - **Supervisor Process Manager:** Resilient process supervision with container-hardened `/var/run/supervisord.pid` inspection bypassing `/proc` `hidepid=invisible` tenant restrictions.
+  - **Laravel Queue Workers:** Managed asynchronous worker pools isolated inside tenant cgroups (`golden-<uid>.slice`).
+  - **Laravel Horizon:** Redis queue metrics dashboard and worker balance controller.
+  - **Laravel Reverb:** Real-time WebSocket broadcasting server with dedicated port allocations.
+  - **Laravel Task Scheduler:** Automated recurrence dispatcher eliminating manual crontab drift.
+  - **Chrome Browser Engine (Headless):** Google Chrome rendering engine secured under Unix group `uniselv-chrome` (`0750`).
+  - **OpenSwoole / RoadRunner:** High-concurrency coroutine HTTP execution runtime with multi-PHP branch discovery.
+- **1-Click "Test All 8 Services":** Parallel diagnostic suite delivering sub-second execution with visual status pill indicators (`VERIFIED ACTIVE ✓`).
+- **100% Technical English Help & Developer Guide:** Comprehensive developer manual covering exact copy-paste `.env` values, Supervisor program blocks, and zero-terminal deployment instructions.
+
+### 4. Enterprise Admin Automation & VPS Setup Tools
+- **OS Build Preflight Toolchain:** One-click preflight verification and automated background installer for system build tools (`gcc`, `g++`, `make`, `autoconf`, `curl`, `tar`, `unzip`, `git`, `systemd-run`, `composer`, `supervisord`, `redis-cli`) ensuring effortless onboarding on new VPS servers.
+- **Multi-Tenant Redis ACL & Port Registry:** Dedicated collision-free port blocks (`20000-59990`) and tenant ACL isolation preventing cross-tenant data leaks.
+- **Zero-Touch Standalone Laravel Test Suite (`uniselv-platform-suite.zip`):** Standalone diagnostic application featuring zero-terminal first-run bootstrapping, automatic `.env` creation, dynamic key generation, and two-way settings synchronization.
+
 ---
 
 ## Directory Structure
@@ -122,6 +139,7 @@ uniselv-resource-manager/
 │   │   └── app.js                  # Frontend controllers & SVG chart renderers
 │   └── images/
 │       └── logo.png                # Plugin brand asset
+├── uniselv-resman-1.4.0.zip        # Release archive for v1.4.0
 ├── uniselv-resman.zip              # Packaged deployable archive
 ├── uniselv-resman.zip.sha256       # Cryptographic checksum
 ├── IMPLEMENTATION-MATRIX.md        # Technical feature & constraint matrix

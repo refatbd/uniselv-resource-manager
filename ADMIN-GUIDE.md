@@ -223,4 +223,14 @@ The **Help & About** tab provides an integrated administrative runbook accessibl
 - **One-Click Command Copy:** All terminal verification commands (`systemctl status`, `journalctl`, `golden-shield.py check`, `cgroup cat`) include one-click **Copy** buttons with visual confirmation.
 - **Contextual Help:** Header pills on tabs (such as the *Documentation* pill next to Bulk Sync) link directly to relevant topics in the Help section.
 
+---
+
+## 14. Modern 8-Services Governance & Platform Operations (Platform & Laravel Tab)
+
+The **Platform & Laravel** tab centralizes multi-tenant governance across all modern backend services:
+1. **OS Build Preflight Toolchain:** 1-Click health verification and background package installation for `gcc`, `g++`, `make`, `autoconf`, `curl`, `tar`, `unzip`, `git`, `systemd-run`, `composer`, `supervisord`, and `redis-cli`, allowing administrators to bootstrap any fresh Ubuntu VPS without manual SSH commands.
+2. **Chrome Browser Engine Governance:** Full lifecycle control of headless Google Chrome rendering, enforced by the `uniselv-chrome` (0750) Unix group and granular per-tenant grant/revoke toggles.
+3. **Laravel Stack & Supervisor Lifecycle:** Capability management covering Supervisor daemons, Queue Workers (`queue:work`), Laravel Horizon, Laravel Reverb (WebSockets), and Laravel Scheduler with tenant-level process isolation inside `golden-<uid>.slice`.
+4. **Redis ACL Tenant Isolation & Port Registry:** Multi-tenant namespace enforcement (`u_<username>` prefix locked to `<username>:*`), eliminating unauthorized cross-tenant key access while automatically assigning non-colliding port allocations across `20000-59990`.
+
 
