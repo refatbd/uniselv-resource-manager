@@ -960,6 +960,9 @@ def scan_openswoole_processes(users: Dict[str, Dict[str, Any]]) -> List[Dict[str
     confirmed_pids = set()
     candidates: List[Dict[str, Any]] = []
 
+    if not os.path.isdir('/proc'):
+        return []
+
     for entry in os.listdir('/proc'):
         if not entry.isdigit():
             continue

@@ -347,29 +347,29 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
             <span class="uniselv-help-badge badge-cat-about">About</span>
             <h4 class="uniselv-help-card-title">About UNISELV Resource Manager & System Compatibility</h4>
             <div class="uniselv-help-card-desc">
-                <table style="width:100%; border-collapse:collapse; font-size:0.88rem; color: var(--uniselv-text-main);">
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong> — OpenSwoole Runtime Governance &amp; Managed Laravel Platform Edition.</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td><?php echo $uniselvHelpEscape($uniselvHelpOs['PRETTY_NAME'] ?? 'Unavailable'); ?></td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td><?php echo $uniselvHelpEscape(php_uname('r') . ' (' . php_uname('m') . ')'); ?></td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo <?php echo $uniselvHelpEscape($uniselvHelpPanel); ?></td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Detected PHP Stack:</td><td><?php echo $uniselvHelpEscape($uniselvPhpBranches ? implode(', ', $uniselvPhpBranches) : 'None detected'); ?></td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Platform Tooling:</td><td>Composer: <code><?php echo $uniselvHelpEscape($uniselvComposerPath); ?></code> &bull; Transient Sandbox: <code><?php echo $uniselvSystemdRunOk ? 'systemd-run OK' : 'Unavailable'; ?></code></td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Cgroups Implementation:</td><td>Cgroups v2 Unified Hierarchy (<code>/sys/fs/cgroup</code>)</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Process identity checks with <code>pidfd</code> where supported; strict account slice containment.</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Ownership Manifest:</td><td><code>/var/lib/uniselv-resource-manager/ownership_manifest.json</code></td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:6px 0; font-weight:600;">Source Repository:</td><td><a href="https://github.com/refatbd/uniselv-resource-manager" target="_blank" rel="noopener noreferrer" style="color:var(--uniselv-primary); text-decoration:none; font-weight:600;">github.com/refatbd/uniselv-resource-manager</a></td></tr>
+                <table class="uniselv-table" style="width:100%; border-collapse:collapse; font-size:0.88rem; color: var(--uniselv-text-main);">
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong> — OpenSwoole Runtime Governance &amp; Managed Laravel Platform Edition.</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td><?php echo $uniselvHelpEscape($uniselvHelpOs['PRETTY_NAME'] ?? 'Unavailable'); ?></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td><?php echo $uniselvHelpEscape(php_uname('r') . ' (' . php_uname('m') . ')'); ?></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo <?php echo $uniselvHelpEscape($uniselvHelpPanel); ?></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Detected PHP Stack:</td><td><?php echo $uniselvHelpEscape($uniselvPhpBranches ? implode(', ', $uniselvPhpBranches) : 'None detected'); ?></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Platform Tooling:</td><td>Composer: <code><?php echo $uniselvHelpEscape($uniselvComposerPath); ?></code> &bull; Transient Sandbox: <code><?php echo $uniselvSystemdRunOk ? 'systemd-run OK' : 'Unavailable'; ?></code></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Cgroups Implementation:</td><td>Cgroups v2 Unified Hierarchy (<code>/sys/fs/cgroup</code>)</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Process identity checks with <code>pidfd</code> where supported; strict account slice containment.</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Ownership Manifest:</td><td><code>/var/lib/uniselv-resource-manager/ownership_manifest.json</code></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Source Repository:</td><td><a href="https://github.com/refatbd/uniselv-resource-manager" target="_blank" rel="noopener noreferrer" style="color:var(--uniselv-primary); text-decoration:none; font-weight:600;">github.com/refatbd/uniselv-resource-manager</a></td></tr>
                     <tr><td style="padding:6px 0; font-weight:600;">Developer:</td><td><strong>Refat Rahman</strong> (<a href="https://refat.ovh" target="_blank" style="color:var(--uniselv-primary); text-decoration:none; font-weight:600;">refat.ovh</a>)</td></tr>
                 </table>
             </div>
         </div>
 
         <!-- 11. DEVELOPER PROFILE -->
-        <div class="uniselv-help-card" data-cat="about" id="help-topic-developer" style="border-top: 3px solid #2563eb;">
+        <div class="uniselv-help-card" data-cat="about" id="help-topic-developer" style="border-top: 3px solid var(--uniselv-primary);">
             <span class="uniselv-help-badge badge-cat-about">Developer Info</span>
             <h4 class="uniselv-help-card-title">Lead Developer & Systems Architect</h4>
             <div class="uniselv-help-card-desc">
                 <div style="display: flex; gap: 16px; align-items: flex-start; margin-bottom: 14px;">
-                    <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 4px 6px rgba(37,99,235,0.25);">RR</div>
+                    <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--uniselv-primary), var(--uniselv-primary-hover)); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.2rem; flex-shrink: 0; box-shadow: 0 4px 6px rgba(23,107,91,0.25);">RR</div>
                     <div>
                         <h5 style="margin: 0 0 4px 0; font-weight: 700; color: var(--uniselv-text-main); font-size: 1.05rem;">Refat Rahman</h5>
                         <p style="margin: 0; font-size: 0.85rem; color: var(--uniselv-text-muted);">Full-Stack Engineer, Linux Systems Specialist & Extension Developer</p>
@@ -379,11 +379,11 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                     Specialized in enterprise web hosting automation, Linux kernel containerization (cgroups v2), high-concurrency microservices, and Webuzo ecosystem integration.
                 </p>
                 <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.88rem;">
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--uniselv-border); padding-bottom: 6px;">
                         <span style="font-weight: 600; color: var(--uniselv-text-muted);">Website:</span>
-                        <a href="https://refat.ovh" target="_blank" style="color: #2563eb; font-weight: 600; text-decoration: none;">refat.ovh</a>
+                        <a href="https://refat.ovh" target="_blank" style="color: var(--uniselv-primary); font-weight: 600; text-decoration: none;">refat.ovh</a>
                     </div>
-                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 1px solid var(--uniselv-border); padding-bottom: 6px;">
                         <span style="font-weight: 600; color: var(--uniselv-text-muted);">GitHub:</span>
                         <a href="https://github.com/refatbd" target="_blank" style="color: var(--uniselv-text-main); font-weight: 600; text-decoration: none;">github.com/refatbd</a>
                     </div>

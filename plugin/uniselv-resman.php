@@ -726,15 +726,15 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
                     <defs>
                         <linearGradient id="gauge-grad-admin-hw" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#3b82f6"/>
-                            <stop offset="100%" stop-color="#60a5fa"/>
+                            <stop offset="0%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#059669"/>
                         </linearGradient>
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
                     <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-admin-hw" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" transform="rotate(-90 100 100)" />
                     <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-admin-hw" style="opacity:0; transform: rotate(0deg);">
-                        <circle cx="100" cy="24" r="5" fill="#3b82f6"/>
+                        <circle cx="100" cy="24" r="5" fill="#10b981"/>
                     </g>
                 </svg>
                 <div class="uniselv-particles"><span class="particle p-1"></span><span class="particle p-2"></span><span class="particle p-3"></span></div>
@@ -752,9 +752,9 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div class="uniselv-card-footer">
                 <div class="uniselv-sparkline-wrap" id="admin-sparkline-hw" aria-hidden="true" title="Live host CPU utilization history">
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
-                        <defs><linearGradient id="spark-grad-admin-hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/><stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/></linearGradient></defs>
+                        <defs><linearGradient id="spark-grad-admin-hw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/></linearGradient></defs>
                         <path d="M0,25 Q25,12 50,22 T100,16 L100,40 L0,40 Z" fill="url(#spark-grad-admin-hw)"/>
-                        <path d="M0,25 Q25,12 50,22 T100,16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M0,25 Q25,12 50,22 T100,16" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
                 <div class="uniselv-card-sub" id="admin-card-hw-ram"><span id="admin-card-hw-cpu">' . (is_numeric($cpu_cores) ? $cpu_cores . ' vCPUs' : 'vCPU count unavailable') . '</span><br>Physical RAM: <strong id="admin-host-ram-value">' . $total_ram . '</strong><br><span class="sub-muted">Kernel: ' . php_uname('r') . '</span></div>
@@ -1595,7 +1595,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <!-- Observed Decoupled Peaks Card (Finding 8 / A11) -->
                 <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
                     <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #2563eb;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
                         Observed 24-Hour Concurrent Demand Peaks (Independent Historical Maxima)
                     </h6>
                     <p style="font-size: 0.85rem; color: var(--uniselv-text-muted); margin-bottom: 16px;">True independent telemetry maxima: CPU and Memory peaks are evaluated separately with independent timestamp tracking to reflect realistic cluster pressure.</p>
@@ -1642,7 +1642,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
             <div style="background: var(--uniselv-bg-subtle); border: 1px solid var(--uniselv-border); border-radius: 12px; padding: 18px; margin-bottom: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
                     <h6 style="font-weight: 700; color: var(--uniselv-text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
-                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: #2563eb;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color: var(--uniselv-primary);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         ' . __u('schedule_automation', $locale) . '
                     </h6>
                     <span id="report-schedule-status-badge" class="uniselv-badge badge-normal">Schedule: Daily Active</span>
@@ -2550,18 +2550,18 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                 <svg class="uniselv-gauge-svg" viewBox="0 0 200 200">
                     <defs>
                         <linearGradient id="gauge-grad-cpu" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#3b82f6"/>
-                            <stop offset="100%" stop-color="#60a5fa"/>
+                            <stop offset="0%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#059669"/>
                         </linearGradient>
                         <filter id="glow-cpu" x="-20%" y="-20%" width="140%" height="140%">
-                            <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#3b82f6" flood-opacity="0.6"/>
+                            <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#10b981" flood-opacity="0.6"/>
                         </filter>
                     </defs>
                     <circle class="uniselv-gauge-ticks" fill="none" cx="100" cy="100" r="86" />
                     <circle class="uniselv-gauge-track" fill="none" cx="100" cy="100" r="76" />
                     <circle class="uniselv-gauge-arc arc-cpu" id="uniselv-arc-cpu" fill="none" cx="100" cy="100" r="76" pathLength="100" stroke-dasharray="100" stroke-dashoffset="' . (100 * (1 - min(100, max(0, $cpu_allowance)) / 100)) . '" transform="rotate(-90 100 100)" />
                     <g class="uniselv-gauge-thumb-rot" id="uniselv-thumb-rot-cpu" style="transform: rotate(' . (min(100, max(0, $cpu_allowance)) * 3.6) . 'deg);">
-                        <circle cx="100" cy="24" r="5" fill="#3b82f6" filter="url(#glow-cpu)"/>
+                        <circle cx="100" cy="24" r="5" fill="#10b981" filter="url(#glow-cpu)"/>
                     </g>
                 </svg>
                 <div class="uniselv-particles">
@@ -2586,12 +2586,12 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <svg class="uniselv-sparkline-svg" viewBox="0 0 100 40">
                         <defs>
                             <linearGradient id="cpu-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.35"/>
-                                <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+                                <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+                                <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
                             </linearGradient>
                         </defs>
                         <path d="M0,25 Q25,10 50,22 T100,16 L100,40 L0,40 Z" fill="url(#cpu-grad)"/>
-                        <path d="M0,25 Q25,10 50,22 T100,16" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/>
+                        <path d="M0,25 Q25,10 50,22 T100,16" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round"/>
                     </svg>
                 </div>
                 <div class="uniselv-card-sub" id="uniselv-sub-cpu">Allowance: <strong>' . $cpu_allowance . '%</strong> used of ' . $cpu_quota . '% limit<br><span class="sub-muted">(100% = 1 CPU Core)</span></div>

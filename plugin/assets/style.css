@@ -396,7 +396,7 @@
 }
 
 /* Card Icon Themes */
-.icon-cpu { background: var(--uniselv-primary-soft); color: #2563eb; }
+.icon-cpu { background: var(--uniselv-primary-soft); color: var(--uniselv-primary); }
 .icon-mem { background: #f5f3ff; color: #7c3aed; }
 .icon-io { background: #ecfdf5; color: #059669; }
 .icon-tasks { background: #fffbeb; color: var(--uniselv-warning); }
@@ -526,7 +526,7 @@
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s ease;
 }
 
-.bar-cpu { background: linear-gradient(90deg, #3b82f6, #2563eb); }
+.bar-cpu { background: linear-gradient(90deg, var(--uniselv-primary), var(--uniselv-primary-hover)); }
 .bar-mem { background: linear-gradient(90deg, #a855f7, #7c3aed); }
 .bar-io { background: linear-gradient(90deg, #10b981, #059669); }
 .bar-tasks { background: linear-gradient(90deg, #f59e0b, #d97706); }
@@ -783,7 +783,7 @@
 .uniselv-toast-success .uniselv-toast-icon { background: #ecfdf5; color: #059669; }
 .uniselv-toast-error .uniselv-toast-icon { background: #fef2f2; color: #dc2626; }
 .uniselv-toast-warning .uniselv-toast-icon { background: #fffbeb; color: var(--uniselv-warning); }
-.uniselv-toast-info .uniselv-toast-icon { background: var(--uniselv-primary-soft); color: #2563eb; }
+.uniselv-toast-info .uniselv-toast-icon { background: var(--uniselv-primary-soft); color: var(--uniselv-primary); }
 
 .uniselv-toast-body {
     flex: 1;
@@ -840,7 +840,7 @@
 .uniselv-toast-success .uniselv-toast-progress-fill { background: #10b981; }
 .uniselv-toast-error .uniselv-toast-progress-fill { background: #ef4444; }
 .uniselv-toast-warning .uniselv-toast-progress-fill { background: #f59e0b; }
-.uniselv-toast-info .uniselv-toast-progress-fill { background: #3b82f6; }
+.uniselv-toast-info .uniselv-toast-progress-fill { background: var(--uniselv-primary); }
 
 @keyframes toastTimer {
     from { transform: scaleX(1); }
@@ -901,7 +901,7 @@
 
 .icon-modal-warning { background: #fffbeb; color: var(--uniselv-warning); }
 .icon-modal-danger { background: #fef2f2; color: #dc2626; }
-.icon-modal-info { background: var(--uniselv-primary-soft); color: #2563eb; }
+.icon-modal-info { background: var(--uniselv-primary-soft); color: var(--uniselv-primary); }
 
 .uniselv-modal-title {
     font-size: 1.25rem;
@@ -1157,7 +1157,7 @@
     letter-spacing: 0.5px;
     margin-bottom: 8px;
 }
-.badge-cat-quickstart { background: var(--uniselv-primary-soft); color: #1d4ed8; }
+.badge-cat-quickstart { background: var(--uniselv-primary-soft); color: var(--uniselv-primary); }
 .badge-cat-features { background: #f0fdf4; color: #15803d; }
 .badge-cat-metrics { background: #fefce8; color: #a16207; }
 .badge-cat-golden { background: #fdf4ff; color: #86198f; }
@@ -1967,9 +1967,9 @@
     margin-top: 2px;
 }
 
-/* Theme Colors: CPU (Royal Blue) */
-.theme-cpu .uniselv-card-icon { background: var(--uniselv-primary-soft); color: #3b82f6; }
-.theme-cpu .particle { background: #3b82f6; }
+/* Theme Colors: CPU (Brand Primary) */
+.theme-cpu .uniselv-card-icon { background: var(--uniselv-primary-soft); color: var(--uniselv-primary); }
+.theme-cpu .particle { background: var(--uniselv-primary); }
 .theme-cpu .wave-front { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,35 C150,70 350,0 500,35 C650,70 750,15 800,35 L800,80 L0,80 Z' fill='%233b82f6' fill-opacity='0.45'/%3E%3C/svg%3E"); }
 .theme-cpu .wave-back { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 80' preserveAspectRatio='none'%3E%3Cpath d='M0,45 C200,10 300,60 500,30 C700,0 750,50 800,45 L800,80 L0,80 Z' fill='%2360a5fa' fill-opacity='0.3'/%3E%3C/svg%3E"); }
 
@@ -1997,8 +1997,8 @@
 /* Vibrant Perimeter Progress Arc Colors & Glowing Thumbs */
 .arc-cpu,
 .theme-cpu .uniselv-gauge-arc {
-    stroke: #3b82f6 !important;
-    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.45));
+    stroke: var(--uniselv-primary) !important;
+    filter: drop-shadow(0 0 4px var(--uniselv-primary-soft));
 }
 .arc-mem,
 .theme-mem .uniselv-gauge-arc {
@@ -2020,7 +2020,7 @@
     filter: drop-shadow(0 0 6px currentColor);
 }
 .theme-cpu .uniselv-gauge-thumb-rot circle {
-    fill: #3b82f6;
+    fill: var(--uniselv-primary);
 }
 .theme-mem .uniselv-gauge-thumb-rot circle {
     fill: #8b5cf6;
@@ -2033,7 +2033,7 @@
 }
 
 /* Dynamic Liquid Wave Heights & Full 100% Fill */
-.theme-cpu .uniselv-wave-container { background: rgba(59, 130, 246, 0.22); }
+.theme-cpu .uniselv-wave-container { background: var(--uniselv-primary-soft); }
 .theme-mem .uniselv-wave-container { background: rgba(139, 92, 246, 0.22); }
 .theme-io .uniselv-wave-container { background: rgba(16, 185, 129, 0.22); }
 .theme-tasks .uniselv-wave-container { background: rgba(245, 158, 11, 0.22); }
@@ -2145,7 +2145,7 @@
 
 /* Liquid level represents the actual percentage; waves decorate only its surface. */
 .uniselv-wave-container .uniselv-wave{top:0;bottom:auto;height:10px}
-.theme-cpu .uniselv-wave-container{background:rgba(59,130,246,.18)}
+.theme-cpu .uniselv-wave-container{background:var(--uniselv-primary-soft)}
 .theme-mem .uniselv-wave-container{background:rgba(139,92,246,.18)}
 .theme-io .uniselv-wave-container{background:rgba(16,185,129,.18)}
 .theme-tasks .uniselv-wave-container{background:rgba(245,158,11,.18)}
@@ -2362,8 +2362,8 @@
 .status-pill-active { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
 .status-pill-active .uniselv-status-dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
 
-.status-pill-ready { background: var(--uniselv-primary-soft); color: #1d4ed8; border: 1px solid #bfdbfe; }
-.status-pill-ready .uniselv-status-dot { background: #3b82f6; }
+.status-pill-ready { background: var(--uniselv-primary-soft); color: var(--uniselv-primary); border: 1px solid var(--uniselv-border); }
+.status-pill-ready .uniselv-status-dot { background: var(--uniselv-primary); }
 
 .status-pill-idle { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 .status-pill-idle .uniselv-status-dot { background: #94a3b8; }
@@ -2581,7 +2581,7 @@
 }
 
 /* Dark Mode Gauge Liquid Wave Glow */
-.uniselv-container[data-theme="dark"] .theme-cpu .uniselv-wave-container { background: rgba(59, 130, 246, 0.18); }
+.uniselv-container[data-theme="dark"] .theme-cpu .uniselv-wave-container { background: var(--uniselv-primary-soft); }
 .uniselv-container[data-theme="dark"] .theme-mem .uniselv-wave-container { background: rgba(139, 92, 246, 0.18); }
 .uniselv-container[data-theme="dark"] .theme-io .uniselv-wave-container { background: rgba(16, 185, 129, 0.18); }
 .uniselv-container[data-theme="dark"] .theme-tasks .uniselv-wave-container { background: rgba(245, 158, 11, 0.18); }
@@ -3632,7 +3632,9 @@
 
 /* ==================== UNIVERSAL TABLE WORD-WRAP & CELL ALIGNMENT ==================== */
 .uniselv-table th,
-.uniselv-table td {
+.uniselv-table td,
+.uniselv-field-table th,
+.uniselv-field-table td {
     overflow-wrap: normal !important;
     word-break: normal !important;
     vertical-align: middle;
@@ -3642,6 +3644,8 @@
 .uniselv-table strong,
 .uniselv-table span,
 .uniselv-table .uniselv-cmd-text,
+.uniselv-field-table code,
+.uniselv-field-table strong,
 .uniselv-perm-code {
     overflow-wrap: normal !important;
     word-break: normal !important;

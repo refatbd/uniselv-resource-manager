@@ -146,8 +146,8 @@ stdout_logfile_backups=2</code></pre>
         </div>
 
         <!-- 3. LARAVEL QUEUE WORKERS GUIDE -->
-        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-queue" style="border-top: 3px solid #3b82f6;">
-            <span class="uniselv-help-badge" style="background:#eff6ff;color:#2563eb;border:1px solid #dbeafe;">Stack Guide 3 / 8</span>
+        <div class="uniselv-help-card" data-cat="stack-suite laravel" id="help-topic-guide-queue" style="border-top: 3px solid var(--uniselv-primary);">
+            <span class="uniselv-help-badge badge-normal">Stack Guide 3 / 8</span>
             <h4 class="uniselv-help-card-title">3. Laravel Queue Workers Implementation Guide</h4>
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Long-running tasks such as sending emails, dispatching push notifications, PDF rendering, and processing webhooks should never block HTTP web requests. Queue workers offload these jobs to the background, allowing web requests to complete in sub-50ms latency while background tasks are handled asynchronously.</p>
@@ -225,7 +225,7 @@ command=/usr/local/apps/php84/bin/php /home/username/public_html/artisan horizon
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> Laravel Reverb is a high-speed, first-party WebSocket server designed for seamless integration with Laravel. It powers real-time chat, live notifications, live order tracking, and dynamic UI updates without page refreshes, eliminating third-party subscription costs (such as Pusher).</p>
 
-                <p style="font-size:0.82rem;color:#1d4ed8;background:#eff6ff;padding:6px 10px;border-radius:6px;border:1px solid #bfdbfe;"><strong>Dedicated Port &amp; SSL Reverse Proxy:</strong> UNISELV assigns an exclusive private port (e.g., 22241) to your account. Browsers connect via standard <code>wss://yourdomain.com/app</code> through an Apache SSL reverse proxy configured with 1-click in the dashboard.</p>
+                <p class="uniselv-alert-box alert-info" style="font-size:0.84rem;padding:10px 14px;border-radius:8px;margin:10px 0;"><strong>Dedicated Port &amp; SSL Reverse Proxy:</strong> UNISELV assigns an exclusive private port (e.g., 22241) to your account. Browsers connect via standard <code>wss://yourdomain.com/app</code> through an Apache SSL reverse proxy configured with 1-click in the dashboard.</p>
 
                 <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Required <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>BROADCAST_CONNECTION=reverb
@@ -576,26 +576,26 @@ stdout_logfile_backups=2</code></pre>
             <span class="uniselv-help-badge badge-cat-about">About</span>
             <h4 class="uniselv-help-card-title">About Your Hosting Environment</h4>
             <div class="uniselv-help-card-desc">
-                <table style="width:100%; border-collapse:collapse; font-size:0.86rem; color: var(--uniselv-text-main); margin-bottom:10px;">
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600; width:190px;">Resource Manager Version:</td><td><strong>v<?php echo $uniselvEuVersion; ?></strong> (OpenSwoole &amp; Managed Laravel Platform)</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600;">Kernel Isolation:</td><td>Linux <strong>Cgroups v2</strong> per-account resource slice</td></tr>
-                    <tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:5px 0; font-weight:600;">Available PHP Runtimes:</td><td><?php echo htmlspecialchars($uniselvEuPhp ? implode(', ', $uniselvEuPhp) : 'Standard Webuzo PHP', ENT_QUOTES, 'UTF-8'); ?></td></tr>
-                    <tr><td style="padding:5px 0; font-weight:600;">Managed App Features:</td><td>One-Click Laravel Queue / Horizon / Reverb / Scheduler, Isolated Redis ACL &amp; Dedicated Port Registry</td></tr>
+                <table class="uniselv-table" style="width:100%; border-collapse:collapse; font-size:0.86rem; color: var(--uniselv-text-main); margin-bottom:10px;">
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600; width:190px;">Resource Manager Version:</td><td><strong>v<?php echo $uniselvEuVersion; ?></strong> (OpenSwoole &amp; Managed Laravel Platform)</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Kernel Isolation:</td><td>Linux <strong>Cgroups v2</strong> per-account resource slice</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Available PHP Runtimes:</td><td><?php echo htmlspecialchars($uniselvEuPhp ? implode(', ', $uniselvEuPhp) : 'Standard Webuzo PHP', ENT_QUOTES, 'UTF-8'); ?></td></tr>
+                    <tr><td style="padding:6px 0; font-weight:600;">Managed App Features:</td><td>One-Click Laravel Queue / Horizon / Reverb / Scheduler, Isolated Redis ACL &amp; Dedicated Port Registry</td></tr>
                 </table>
                 Account limits and the shared hosting pool reduce resource contention. Shared database, storage and host pressure can still affect site performance; this is not complete container or filesystem isolation. For questions regarding your plan allocation or upgrading your limits, contact your hosting provider.
             </div>
         </div>
 
         <!-- 7. DEVELOPER INFORMATION -->
-        <div class="uniselv-help-card" data-cat="about" id="help-topic-developer" style="border-top: 3px solid #2563eb;">
+        <div class="uniselv-help-card" data-cat="about" id="help-topic-developer" style="border-top: 3px solid var(--uniselv-primary);">
             <span class="uniselv-help-badge badge-cat-about">Developer Info</span>
             <h4 class="uniselv-help-card-title">Developer & Technology Partner</h4>
             <div class="uniselv-help-card-desc">
                 <div style="display: flex; gap: 14px; align-items: center; margin-bottom: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #1d4ed8); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.1rem; flex-shrink: 0;">RR</div>
+                    <div style="width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, var(--uniselv-primary), var(--uniselv-primary-hover)); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 1.1rem; flex-shrink: 0; box-shadow: 0 2px 6px rgba(23,107,91,0.25);">RR</div>
                     <div>
                         <h5 style="margin: 0 0 2px 0; font-weight: 700; color: var(--uniselv-text-main);">Refat Rahman</h5>
-                        <p style="margin: 0; font-size: 0.82rem; color: var(--uniselv-text-muted);">Systems Architect • <a href="https://refat.ovh" target="_blank" style="color: #2563eb; text-decoration: none; font-weight: 600;">refat.ovh</a></p>
+                        <p style="margin: 0; font-size: 0.82rem; color: var(--uniselv-text-muted);">Systems Architect • <a href="https://refat.ovh" target="_blank" style="color: var(--uniselv-primary); text-decoration: none; font-weight: 600;">refat.ovh</a></p>
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">

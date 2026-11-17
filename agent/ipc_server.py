@@ -2520,6 +2520,9 @@ class IpcRequestHandler:
         uid_to_user = {udata['uid']: uname for uname, udata in users.items()}
         out_of_bounds = []
 
+        if not os.path.isdir('/proc'):
+            return {'processes': [], 'total': 0}
+
         for entry in os.listdir('/proc'):
             if entry.isdigit():
                 pid = int(entry)
