@@ -1,3 +1,26 @@
+## 1.5.0 — 2026-11-17
+
+- **Precision Operations Console, Universal Theme Parity & Linux Containerization Hardening Edition**:
+  - **Universal Table Cell Text-Wrap & Layout Overflow Defense**:
+    - Introduced `.uniselv-perm-code` with strict `white-space: nowrap !important; word-break: normal !important; overflow-wrap: normal !important;` across all table codes, eliminating mid-word hyphenation/breaking on identifier strings (e.g., `can_export_diagnostics`, `can_stop_processes`, `platform_laravel_horizon`, `platform_laravel_scheduler`, `platform_supervisor`).
+    - Expanded responsive grid minimum width from `minmax(460px, 1fr)` to `minmax(580px, 1fr)` on Role & Account Permissions Governance (`#tab-integrations`), ensuring two-column grids stack gracefully on standard viewports without squeezing columns out of view.
+    - Standardized vertical center alignment (`vertical-align: middle;`) and horizontal scrolling protection (`overflow-x: auto !important; -webkit-overflow-scrolling: touch;`) on all `.uniselv-table` and `.uniselv-field-table` containers.
+  - **Total Eradication of Rogue Blue Colors & Focus Ring Hardening**:
+    - Eliminated intrusive 3px solid royal blue outlines (`#2563eb`) on `:focus` and `:focus-visible` elements, replacing them with theme-compliant primary accents (`var(--uniselv-primary)`) and subtle brand glows (`box-shadow: 0 0 0 2px var(--uniselv-primary-soft)`).
+    - Purged hardcoded `#2563eb`, `#3b82f6`, and `#1d4ed8` across all components: developer credits, OpenSwoole/Platform background job status indicators, CPU gauges, liquid circular progress waves, sparkline SVGs, toast info icons, modal icons, and quickstart badges.
+    - Updated default brand primary color fallback in PHP and JavaScript from `#2563eb` to dark teal `#176B5B`.
+  - **Systemic Margin & Responsive 24px Container Padding Alignment**:
+    - Restored full 24px horizontal breathing room (`padding: 16px 24px 76px 24px`) on `.uniselv-container` (with 14px mobile fallback), permanently resolving 0px edge-bleeding on `#tab-processes`, `#tab-history`, `#tab-accounts`, and `#tab-analytics`.
+    - Wrapped naked toolbar controls, range presets, and table sections in semantic `.uniselv-card` elements for unified elevation and spacing.
+  - **High-Contrast Dark Mode Alert & Status Box Parity**:
+    - Bound `.uniselv-alert-box.alert-success`, `.alert-warning`, `.alert-danger`, and `.alert-info` to deep dark slate surfaces (`#13271f`, `#2a2211`, `#2d1618`, `#102336`) with matching high-contrast borders and text in Dark Mode, eliminating washed-out mint/white backgrounds.
+    - Updated documentation table borders in `admin_help.php` and `enduser_help.php` from `#f1f5f9` to `var(--uniselv-border)`.
+  - **Linux `/proc` Containerization & Automated Test Safety Guards**:
+    - Added defensive directory inspection guards (`os.path.isdir('/proc')`) in `openswoole_manager.py` (`scan_openswoole_processes`) and `ipc_server.py` (`action_admin_out_of_boundary`), ensuring graceful execution and preventing unhandled `FileNotFoundError` on non-Linux or mock test environments.
+    - Verified all 50 automated tests across `test_platform_manager.py`, `test_openswoole_governance.py`, `test_telemetry_history.py`, and `test_native_reload.py` pass with 100% success rate (0 failures, 0 errors).
+  - **Exhaustive 19-Tab Programmatic Live Audit**:
+    - Audited 100% of all 12 Admin tabs and 7 Enduser tabs in both Light and Dark modes via Chrome DevTools MCP computed style assertions on live production server `51.79.144.93`. Verified zero rogue blues, zero wrapping codes, and zero unhandled overflows.
+
 ## 1.4.0 — 2026-11-16
 
 - **Modern 8-Services Diagnostic Suite & Enduser Dashboard**:
