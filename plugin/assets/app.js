@@ -3746,7 +3746,7 @@ const UniselvResMan = {
     saveBrandingSettings: function() {
         const name = (document.getElementById('brand-name-input') || {}).value || 'UNISELV Resource Manager';
         const logo = (document.getElementById('brand-logo-input') || {}).value || '';
-        const color = (document.getElementById('brand-color-input') || {}).value || '#2563eb';
+        const color = (document.getElementById('brand-color-input') || {}).value || '#176B5B';
         const support = (document.getElementById('brand-support-input') || {}).value || '';
         const docs = (document.getElementById('brand-docs-input') || {}).value || '';
         const locale = (document.getElementById('brand-locale-select') || {}).value || 'en';
@@ -3927,10 +3927,10 @@ const UniselvResMan = {
                     const btnLabel = isGranted ? 'Deny' : 'Allow';
                     const btnClass = isGranted ? 'btn-danger' : 'btn-primary';
                     html += `<tr>
-                        <td><strong>${r.role}</strong></td>
-                        <td><code>${r.permission}</code></td>
-                        <td>${badge}</td>
-                        <td>
+                        <td style="vertical-align: middle;"><strong>${r.role}</strong></td>
+                        <td style="vertical-align: middle;"><code class="uniselv-perm-code">${r.permission}</code></td>
+                        <td style="text-align: center; vertical-align: middle;">${badge}</td>
+                        <td style="text-align: right; vertical-align: middle;">
                             <button class="uniselv-btn ${btnClass} btn-sm" onclick="UniselvResMan.saveRolePermission('${r.role}', '${r.permission}', ${toggleAction})">${btnLabel}</button>
                         </td>
                     </tr>`;
@@ -3947,10 +3947,10 @@ const UniselvResMan = {
                     const isGranted = Boolean(a.granted);
                     const badge = isGranted ? '<span class="uniselv-badge badge-normal">Allowed</span>' : '<span class="uniselv-badge badge-critical">Denied</span>';
                     html += `<tr>
-                        <td><strong>${a.username}</strong></td>
-                        <td><code>${a.permission}</code></td>
-                        <td>${badge}</td>
-                        <td style="font-size:0.75rem; color: var(--uniselv-text-muted);">${a.updated_by || 'admin'}</td>
+                        <td style="vertical-align: middle;"><strong>${a.username}</strong></td>
+                        <td style="vertical-align: middle;"><code class="uniselv-perm-code">${a.permission}</code></td>
+                        <td style="text-align: center; vertical-align: middle;">${badge}</td>
+                        <td style="text-align: right; vertical-align: middle; font-size:0.78rem; color: var(--uniselv-text-muted);">${a.updated_by || 'admin'}</td>
                     </tr>`;
                 });
                 aBody.innerHTML = html;
