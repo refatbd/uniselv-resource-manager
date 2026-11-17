@@ -1,5 +1,6 @@
-Current runtime release: **1.4.0**. Enterprise 8-Services Diagnostic Suite, Zero-Terminal Laravel Platform Operations, and Automated Webuzo Admin Governance across Admin (`act=uniselv-resman`) and Enduser (`act=uniselv-resman`), featuring instant 1-click diagnostic testing for Redis 6+, Supervisor, Laravel Queue Workers, Laravel Horizon, Laravel Reverb (WebSockets), Laravel Task Scheduler, Chrome Headless Engine, and OpenSwoole/RoadRunner, OS build preflight toolchain installers, multi-tenant Redis ACL isolation, group-governed headless rendering, and 100% technical English developer documentation. See [changelog](CHANGELOG.md).
+Current runtime release: **1.5.0**. Precision Operations Console, Universal Light & Dark Mode Governance, Table Text Wrap & Layout Protection, Zero-Terminal Laravel Platform Operations, and Automated Webuzo Admin Governance across Admin (`act=uniselv-resman`) and Enduser (`act=uniselv-resman`), featuring instant 1-click diagnostic testing for Redis 6+, Supervisor, Laravel Queue Workers, Laravel Horizon, Laravel Reverb (WebSockets), Laravel Task Scheduler, Chrome Headless Engine, and OpenSwoole/RoadRunner, OS build preflight toolchain installers, multi-tenant Redis ACL isolation, group-governed headless rendering, and 100% technical English developer documentation. See [changelog](CHANGELOG.md).
 
+> Previous release **1.4.0**, 2026-11-16. Enterprise 8-Services Diagnostic Suite, Zero-Terminal Laravel Platform Operations, and Automated Webuzo Admin Governance.
 > Previous release **1.3.2**, 2026-11-14. High-performance daemon & CPU overhead reduction (single-pass `/proc` scan, TTL caching, throttled policy cadences).
 > Previous release **1.3.1**, 2026-11-14. Chrome & automation telemetry hub with visual telemetry grid and isolated smoke test profiling.
 > Previous release **1.2.8**, 2026-11-13. Enterprise Chrome Browser Engine governance and headless PDF/rendering isolation suite.
@@ -139,7 +140,7 @@ uniselv-resource-manager/
 │   │   └── app.js                  # Frontend controllers & SVG chart renderers
 │   └── images/
 │       └── logo.png                # Plugin brand asset
-├── uniselv-resman-1.4.0.zip        # Release archive for v1.4.0
+├── uniselv-resman-1.5.0.zip        # Release archive for v1.5.0
 ├── uniselv-resman.zip              # Packaged deployable archive
 ├── uniselv-resman.zip.sha256       # Cryptographic checksum
 ├── IMPLEMENTATION-MATRIX.md        # Technical feature & constraint matrix
