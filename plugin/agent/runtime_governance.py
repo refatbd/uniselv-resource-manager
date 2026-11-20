@@ -88,8 +88,7 @@ def registry():
 def installed():
     return sorted(p.name for p in APPS.glob('php*') if VERSION.fullmatch(p.name) and
                   not p.is_symlink() and (p / 'bin/php').is_file() and
-                  (p / 'sbin/php-fpm').is_file() and (p / 'etc/php-fpm.conf').is_file() and
-                  (p / 'bin/fpmctl').is_file())
+                  (p / 'sbin/php-fpm').is_file() and (p / 'etc/php-fpm.conf').is_file())
 
 
 def module(name, path):
@@ -334,8 +333,12 @@ def reconcile(automatic=True):
             entry['pendingBinaryChange'] = binary_changed
             mismatches = [r for r in report['drift'] if r['version'] == version]
             try:
+                ctl = APPS / version / 'bin/fpmctl'
+                try:
+                    launcher_ok = not ctl.is_symlink() and ctl.is_file() and ctl.read_text() == runtime.wrapper(version)
+                except (OSError, UnicodeDecodeError):
+                    launcher_ok = False
                 parsed_pools = runtime.parse_pools((APPS/version/'etc/php-fpm.conf').read_text(), version, False)
-                launcher_ok = (APPS/version/'bin/fpmctl').read_text() == runtime.wrapper(version)
                 _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])
                 _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])
                 _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])
@@ -343,27 +346,32 @@ def reconcile(automatic=True):
                 needs = binary_changed or version not in managed or not launcher_ok or mgr != 'active' or health != 'active' or native_bridge != 'active'
                 if pending['pending']:
                     entry.update(state='blocked', reason='Pending lifecycle recovery requires review.')
+                elif needs:
+                    if not automatic or not stable:
+                        entry.update(state='waiting', reason='Waiting for a stable installation across two scans or administrator reconciliation.')
+                    elif entry['attempts'] >= 3 and time.time()-entry['lastAttempt'] < SCAN_SECONDS*5:
+                        entry.update(state='blocked', reason='Automatic retry cooldown/limit reached. Review failure and use Reconcile after resolving it.')
+                    else:
+                        if not fpm_preflight(version, bool(parsed_pools)): raise RuntimeError('Native FPM syntax preflight failed; installation left unchanged.')
+                        entry['attempts'] += 1; entry['lastAttempt'] = int(time.time())
+                        rc, _ = command(['python3', CONTROL, 'onboard', version], timeout=180)
+                        entry['action'] = 'onboard_or_repair'
+                        # Do not publish raw subprocess output (could include pool credentials).
+                        if rc:
+                            raise RuntimeError('Transactional onboarding failed; review lifecycle recovery and server journal.')
+                        _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])
+                        _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])
+                        _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])
+                        try:
+                            launcher_ok = not ctl.is_symlink() and ctl.is_file() and ctl.read_text() == runtime.wrapper(version)
+                        except (OSError, UnicodeDecodeError):
+                            launcher_ok = False
+                        if version not in registry() or not launcher_ok or mgr != 'active' or health != 'active' or native_bridge != 'active':
+                            raise RuntimeError('Post-operation service verification failed')
+                        entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health, nativeBridge=native_bridge,
+                                     fingerprint=fingerprint(version), launcherMatches=True, reason='Transactional onboarding/repair and service checks passed.')
                 elif not profile or report['errors'] or mismatches:
                     entry.update(state='blocked', reason='Reviewed global settings missing, unreadable or different. Apply generator values globally for this PHP version; no per-user tuning is created.')
-                elif needs and (not automatic or not stable):
-                    entry.update(state='waiting', reason='Waiting for a stable installation across two scans or administrator reconciliation.')
-                elif needs and (entry['attempts'] >= 3 or time.time()-entry['lastAttempt'] < SCAN_SECONDS*5):
-                    entry.update(state='blocked', reason='Automatic retry cooldown/limit reached. Review failure and use Reconcile after resolving it.')
-                elif needs:
-                    if not fpm_preflight(version, bool(parsed_pools)): raise RuntimeError('Native FPM syntax preflight failed; installation left unchanged.')
-                    entry['attempts'] += 1; entry['lastAttempt'] = int(time.time())
-                    rc, _ = command(['python3', CONTROL, 'onboard', version], timeout=180)
-                    entry['action'] = 'onboard_or_repair'
-                    # Do not publish raw subprocess output (could include pool credentials).
-                    if rc:
-                        raise RuntimeError('Transactional onboarding failed; review lifecycle recovery and server journal.')
-                    _, mgr = command(['systemctl', 'is-active', 'wpiso-manager-'+version+'.service'])
-                    _, health = command(['systemctl', 'is-active', 'wpiso-health-'+version+'.service'])
-                    _, native_bridge = command(['systemctl', 'is-active', 'php-fpm'+version[3:]+'.service'])
-                    if version not in registry() or (APPS/version/'bin/fpmctl').read_text() != runtime.wrapper(version) or mgr != 'active' or health != 'active' or native_bridge != 'active':
-                        raise RuntimeError('Post-operation service verification failed')
-                    entry.update(state='healthy', pendingBinaryChange=False, managed=True, coordinator=mgr, healthMaster=health, nativeBridge=native_bridge,
-                                 fingerprint=fingerprint(version), launcherMatches=True, reason='Transactional onboarding/repair and service checks passed.')
                 else:
                     entry.update(state='healthy', reason='Global settings, launcher and services match.')
             except Exception as error:

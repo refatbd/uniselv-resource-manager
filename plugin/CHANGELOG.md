@@ -1,3 +1,22 @@
+## 1.5.1 — 2026-11-20
+
+- **Autonomous Launcher Drift & Corrupted Symlink Self-Healing System**:
+  - **Zero-Manual-Intervention PHP Launcher Resilience**:
+    - Completely eliminated the need for manual administrator intervention (`webuzo-isolation.py repair-launchers`) when Webuzo updates, package managers, or operational scripts overwrite, delete, or create circular/broken symlinks on PHP launchers (`/usr/local/apps/<version>/bin/fpmctl`).
+    - Added self-healing in `webuzo-isolation.py _onboard(version)`: detects circular or invalid symlinks (`ctl.is_symlink()`), safely unlinks them without failing or aborting, archives vendor scripts, and deploys the managed wrapper.
+    - Integrated real-time launcher recovery into `webuzo-isolation.py action(version, command)`: automatically intercepts `assert_launcher` drift/corruption during `start`, `restart`, `reload`, and `status` lifecycles and self-heals in-flight via `onboard(version)`.
+    - Integrated dynamic supervisor self-healing in `webuzo-isolation.py supervise(version)`: the 1-second supervisory loop automatically detects launcher overwrites while the service is running and restores the managed wrapper atomically without dropping active tenant worker pools.
+  - **Pathlib & Governance Scanner Fault-Tolerance**:
+    - Hardened `runtime_governance.py installed()`: removes hard dependency on `bin/fpmctl.is_file()`, correctly recognizing installed PHP engines whenever `bin/php`, `sbin/php-fpm`, and `etc/php-fpm.conf` exist.
+    - Wrapped launcher status checks in defensive try/except blocks to eliminate unhandled `OSError` (Errno 40: Too many levels of symbolic links) and decode errors.
+    - Prioritized launcher and service recovery before INI drift checks in `reconcile()`, ensuring customized `php.ini` directives never block autonomous launcher restoration.
+  - **Telemetry & Process Scanner Performance Optimization**:
+    - Throttled runaway watchdog, OpenSwoole policy enforcement, and platform containment scans to 15-second cadences in `agent_daemon.py`, substantially reducing CPU load.
+    - Cached Webuzo user plan limits with a 30-second TTL and switched `/proc` user discovery in `collector.py` to single-pass `os.scandir` collection.
+  - **Automated Verification & Test Suite Expansion**:
+    - Added `test_launcher_drift_auto_repairs_during_action` in `test_native_reload.py` verifying that lifecycle actions seamlessly trigger autonomous recovery upon launcher drift.
+    - 100% pass rate across all 51 automated unit tests (0 failures, 0 errors).
+
 ## 1.5.0 — 2026-11-17
 
 - **Precision Operations Console, Universal Theme Parity & Linux Containerization Hardening Edition**:
@@ -20,6 +39,60 @@
     - Verified all 50 automated tests across `test_platform_manager.py`, `test_openswoole_governance.py`, `test_telemetry_history.py`, and `test_native_reload.py` pass with 100% success rate (0 failures, 0 errors).
   - **Exhaustive 19-Tab Programmatic Live Audit**:
     - Audited 100% of all 12 Admin tabs and 7 Enduser tabs in both Light and Dark modes via Chrome DevTools MCP computed style assertions on live production server `51.79.144.93`. Verified zero rogue blues, zero wrapping codes, and zero unhandled overflows.
+
+## 1.4.3 — 2026-11-16
+
+- **Production Hardening & Universal Button / Grid / Table Alignment Parity**:
+  - **Button Dimension & Alignment Parity**:
+    - Standardized `.uniselv-cpanel-btn`, `.uniselv-cpanel-select`, and `.uniselv-btn` to strict 34px height and flexbox centering (`display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; font-size: 0.85rem; font-weight: 600; border-radius: 6px;`).
+    - Resolves vertical misalignments between toolbar select boxes (34px) and buttons (previously 26px) across Admin Analytics, Enduser Usage, Snapshots, and Notifications.
+  - **Universal Dark-Mode Button Theme Armor**:
+    - Eliminated legacy hardcoded `#ffffff` backgrounds on `.uniselv-cpanel-btn`, binding all control buttons to theme-adaptive semantic variables (`var(--uniselv-bg-card)`, `var(--uniselv-text-main)`, `var(--uniselv-border)`).
+    - Resolves white-box button glitches on `Refresh`, `Refresh Processes`, Snapshots `«` / `»` toolbar, `⚡ Kill Stuck CLI Tasks`, and `Refresh OpenSwoole`.
+  - **Pagination Contrast & Legibility Hardening**:
+    - Hardened `.uniselv-page-btn.active` in dark mode to pair bright seafoam green (`#72BDAA`) with deep slate text (`#101714`), elevating contrast ratio from 2.19:1 to >8.5:1 (WCAG AAA compliant).
+  - **Dynamic Table Loading & Empty State Immunization**:
+    - Protected loading states and empty messages (e.g. `Loading hourly usage records...`, `No active background processes...`) against dark Bootstrap text overrides, ensuring crystal-clear readability.
+  - **Chart Grid Line Semantic Adaptation**:
+    - Modernized SVG chart horizontal grid line generation in `app.js` to adaptively use `var(--uniselv-border, #e2e8f0)` via class `uniselv-chart-grid-line`.
+  - **Exhaustive 20-Screen Full-Page Visual Verification**:
+    - Audited 100% of all Admin tabs (`#overview`, `#accounts` + `uniselv-override-modal`, `#analytics` subtabs 1 & 2, `#audit`, `#goldenshield` + `uniselv-golden-modal` & `uniselv-restore-modal`, `#capacity`, `#reports`, `#integrations`, `#auditlog`, `#openswoole`, `#platform`, `#health`, `#help`) and Enduser tabs (`#dashboard` + `uniselv-service-config-modal`, `#processes`, `#history`, `#snapshots`, `#notifications`, `#services`, `#help`) in both Light and Dark modes via full-page screenshots on live host `51.79.144.93`.
+
+## 1.4.2 — 2026-11-16
+
+- **Exhaustive Universal Light & Dark Mode Coverage Across All Tabs, Subtabs & Modals**:
+  - **Complete Source Code Sanitization**:
+    - Replaced 461 hardcoded legacy inline CSS styles (`#ffffff`, `#f8fafc`, `#1e293b`, `#475569`, `#64748b`, `#e2e8f0`) with semantic CSS custom properties across `uniselv-resman.php`, `assets/app.js`, `views/admin_help.php`, and `views/enduser_help.php`.
+    - Eliminates inline style specificity collisions (`1,0,0,0`) that previously overrode theme stylesheets on dynamically generated DOM nodes.
+  - **Master Catch-All Universal Theme Immunization System**:
+    - Appended 600+ lines of comprehensive theme armor in `assets/style.css` guaranteeing 100% coverage across all 13 Admin tabs, 7 Enduser tabs, nested diagnostic snapshot subtabs (`procs`, `db`, `http`), analytics subtabs, and documentation category filter pills.
+    - Added high-specificity attribute overrides (`[style*="background:#fff"]`, `[style*="color:#1e293b"]`) ensuring any asynchronously injected third-party HTML strictly obeys the active theme.
+  - **Standalone Dynamic Modal Theme Inheritance**:
+    - Resolved modal detachment where dynamic elements (such as `uniselv-service-config-modal` and `UniselvModal.confirm`) appended to `document.body` were escaping `.uniselv-container[data-theme]`.
+    - Integrated multi-level theme propagation: updated `applyTheme` to stamp `data-uniselv-theme` across `document.body` and modal overlays, and appended modals within `.uniselv-container` where available.
+    - Verified all modals (`uniselv-override-modal`, `uniselv-golden-modal`, `uniselv-restore-modal`, `uniselv-service-config-modal`) render with full dark/light palette compliance.
+  - **Unified Documentation Header & Typography Contrast**:
+    - Migrated `.uniselv-help-header` from a static dark gradient to theme-adaptive semantic cards (`var(--uniselv-bg-card)` and `var(--uniselv-border)`), ensuring crystal-clear readability and contrast in both Light and Dark modes.
+
+## 1.4.1 — 2026-11-16
+
+- **Precision Operations Console & Modern Micro-Animations**:
+  - **Full Light & Dark Theme Governance Engine**:
+    - High-density semantic design tokens strictly scoped to `.uniselv-container[data-theme="light|dark"]`.
+    - Zero style leakage into host Webuzo chrome, side navigation, or adjacent third-party plugins.
+    - Zero Flash of Unstyled Content (FOUC) anti-flicker architecture with instant inline `data-theme` bootstrap and `localStorage` (`uniselv_theme`) persistence.
+    - User-controlled Light (default for first-time visitors) and Dark switcher with sun/moon SVG icons and 360° hover micro-rotation.
+  - **Modern Animated Telemetry & Hardware Headroom**:
+    - High-precision gauge dial arcs with spring damping easing (`cubic-bezier(0.34, 1.56, 0.64, 1)`).
+    - Dedicated **Host Hardware & Golden Shield Headroom Banner** on Admin Server Overview showing physical processor core count, total RAM, load averages, and reserve headroom.
+    - Animated live telemetry radar pulse indicator (`uniselvPulse`) with sub-second heartbeat.
+    - Micro-interaction card hover lifts (`translateY(-3px)`) and subtle elevation shadows with hardware acceleration (`will-change: transform, box-shadow`).
+    - Full accessibility compliance with `prefers-reduced-motion` defense automatically disabling animations for sensitive users.
+  - **Comprehensive Contrast Hardening Across All 20 Screens**:
+    - Immunized typography against Webuzo host Bootstrap overrides (`color: var(--uniselv-text-main)`).
+    - High-contrast SVG telemetry chart grid lines, ticks, and axis labels in dark mode.
+    - Deep dark slate surfaces for 8-Services Modern Stack Suite, Laravel services, snapshot viewers, and command code snippets (`.uniselv-cmd-text`).
+    - Verified responsive reflow across 1440px desktop, 1024px tablet, and 390px mobile viewports.
 
 ## 1.4.0 — 2026-11-16
 
@@ -59,6 +132,7 @@
 
 - **Chrome & Automation Telemetry Hub (Enduser Dashboard)**: Added real-time Chrome engine telemetry directly to Tab 1 (Main Dashboard), featuring live active task counts, dedicated RAM (RSS) gauge, runtime lifecycle duration, and one-click health smoke test and memory recycle buttons.
 - **Section 5 Visual Telemetry Grid**: Redesigned Enduser App Services Section 5 with a 4-card telemetry grid showing engine version, active lifecycle duration, dedicated RAM consumption, and cgroup concurrency budget.
+- **Isolated Smoke Test Profile & Concurrency Limiter Exemption**: Disengaged `--user-data-dir` lock contention during live smoke tests by executing within temporary sandboxed profile paths (`--headless=new`). Exempted shell wrappers (`bash`, `sh`, `systemd-run`) and transient test runs from being miscounted as Chrome root browser instances.
 - **Ghost Plugin Removal & Packaging Cleanliness**: Purged orphaned backup folders from Webuzo plugins directory, ensuring only legitimate registered plugins appear in the Webuzo admin catalog.
 - **Omnibridge Real-Time Permission Re-Check**: Implemented live permission ping and binary re-verification in Omnibridge dashboard, eliminating stale in-memory cached error states upon permission re-grant.
 

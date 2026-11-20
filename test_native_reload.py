@@ -36,6 +36,14 @@ class NativeReloadTests(unittest.TestCase):
   self.ns['reconcile']=invalid
   with self.assertRaises(ValueError):self.ns['action']('php84','reload')
   self.assertEqual(self.signals,[])
+ def test_launcher_drift_auto_repairs_during_action(self):
+  onboards=[]
+  self.ns['onboard']=lambda v:onboards.append(v)
+  def faulty_assert(v):
+   if not onboards: raise RuntimeError('drift')
+  self.ns['assert_launcher']=faulty_assert
+  self.ns['action']('php84','start')
+  self.assertEqual(onboards,['php84'])
 
 class ReloadControlTests(unittest.TestCase):
  def setUp(self):

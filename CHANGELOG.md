@@ -1,3 +1,22 @@
+## 1.5.1 — 2026-11-20
+
+- **Autonomous Launcher Drift & Corrupted Symlink Self-Healing System**:
+  - **Zero-Manual-Intervention PHP Launcher Resilience**:
+    - Completely eliminated the need for manual administrator intervention (`webuzo-isolation.py repair-launchers`) when Webuzo updates, package managers, or operational scripts overwrite, delete, or create circular/broken symlinks on PHP launchers (`/usr/local/apps/<version>/bin/fpmctl`).
+    - Added self-healing in `webuzo-isolation.py _onboard(version)`: detects circular or invalid symlinks (`ctl.is_symlink()`), safely unlinks them without failing or aborting, archives vendor scripts, and deploys the managed wrapper.
+    - Integrated real-time launcher recovery into `webuzo-isolation.py action(version, command)`: automatically intercepts `assert_launcher` drift/corruption during `start`, `restart`, `reload`, and `status` lifecycles and self-heals in-flight via `onboard(version)`.
+    - Integrated dynamic supervisor self-healing in `webuzo-isolation.py supervise(version)`: the 1-second supervisory loop automatically detects launcher overwrites while the service is running and restores the managed wrapper atomically without dropping active tenant worker pools.
+  - **Pathlib & Governance Scanner Fault-Tolerance**:
+    - Hardened `runtime_governance.py installed()`: removes hard dependency on `bin/fpmctl.is_file()`, correctly recognizing installed PHP engines whenever `bin/php`, `sbin/php-fpm`, and `etc/php-fpm.conf` exist.
+    - Wrapped launcher status checks in defensive try/except blocks to eliminate unhandled `OSError` (Errno 40: Too many levels of symbolic links) and decode errors.
+    - Prioritized launcher and service recovery before INI drift checks in `reconcile()`, ensuring customized `php.ini` directives never block autonomous launcher restoration.
+  - **Telemetry & Process Scanner Performance Optimization**:
+    - Throttled runaway watchdog, OpenSwoole policy enforcement, and platform containment scans to 15-second cadences in `agent_daemon.py`, substantially reducing CPU load.
+    - Cached Webuzo user plan limits with a 30-second TTL and switched `/proc` user discovery in `collector.py` to single-pass `os.scandir` collection.
+  - **Automated Verification & Test Suite Expansion**:
+    - Added `test_launcher_drift_auto_repairs_during_action` in `test_native_reload.py` verifying that lifecycle actions seamlessly trigger autonomous recovery upon launcher drift.
+    - 100% pass rate across all 51 automated unit tests (0 failures, 0 errors).
+
 ## 1.5.0 — 2026-11-17
 
 - **Precision Operations Console, Universal Theme Parity & Linux Containerization Hardening Edition**:

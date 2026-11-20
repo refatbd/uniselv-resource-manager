@@ -136,6 +136,7 @@ class AgentDaemon:
         last_drift_check = 0
         last_report_check = 0
         last_log_scan = 0
+        last_policy_enforcement = 0
         self.ensure_startup_enforcement_boundaries()
 
         while self.running:
@@ -146,16 +147,25 @@ class AgentDaemon:
                 # 2. Collect telemetry only if not in maintenance mode
                 if not self.handler.maintenance_mode:
                     self.collector.collect_step()
-                    self.collector.check_runaway_watchdog()
                     self.collector.check_overload_circuit_breaker()
-                    try:
-                        openswoole_manager.enforce_runtime_policies(self.collector, self.db_path)
-                    except Exception as osw_err:
-                        print(f"[Agent OpenSwoole Enforcement Error] {osw_err}", file=sys.stderr)
-                    try:
-                        platform_manager.enforce_platform_tick(self.collector, self.db_path)
-                    except Exception as plat_err:
-                        print(f"[Agent Platform Containment Error] {plat_err}", file=sys.stderr)
+
+                    # Heavy /proc process scans, watchdog, & policy enforcement throttled to 15s cadence
+                    now_enf = time.time()
+                    if now_enf - last_policy_enforcement >= 15:
+                        try:
+                            self.collector.check_runaway_watchdog()
+                        except Exception as wdog_err:
+                            print(f"[Agent Watchdog Error] {wdog_err}", file=sys.stderr)
+                        try:
+                            openswoole_manager.enforce_runtime_policies(self.collector, self.db_path)
+                        except Exception as osw_err:
+                            print(f"[Agent OpenSwoole Enforcement Error] {osw_err}", file=sys.stderr)
+                        try:
+                            platform_manager.enforce_platform_tick(self.collector, self.db_path)
+                        except Exception as plat_err:
+                            print(f"[Agent Platform Containment Error] {plat_err}", file=sys.stderr)
+                        last_policy_enforcement = now_enf
+
                     if time.time() - last_log_scan > 600:
                         try:
                             platform_manager.scan_app_logs_and_inodes(self.collector, self.db_path)

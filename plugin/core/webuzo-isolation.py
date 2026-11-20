@@ -855,7 +855,16 @@ def supervise(version):
         while alive:
             time.sleep(1)
             try:
-                assert_launcher(version);digest=hashlib.sha256((paths(version)/'etc/php-fpm.conf').read_bytes()).hexdigest()
+                try:
+                    assert_launcher(version)
+                except Exception:
+                    ctl = paths(version)/'bin/fpmctl'
+                    if ctl.is_symlink():
+                        try: ctl.unlink()
+                        except OSError: pass
+                    atomic(ctl, wrapper(version), 0o755)
+                    assert_launcher(version)
+                digest=hashlib.sha256((paths(version)/'etc/php-fpm.conf').read_bytes()).hexdigest()
                 limits_changed=False if digest!=last else any(pwd.getpwnam(r['user']).pw_uid!=r['uid'] or not (UNITS/(str(r['uid'])+'.slice')).exists() or not (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').exists() or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').read_text().split()[0]=='max' or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'memory.max').read_text().strip()=='max' for r in manifest(version)['pools'])
                 if limits_changed:
                     for row in manifest(version)['pools']:stop_pool(version,row)
@@ -1428,32 +1437,39 @@ def retire(version):
 def _onboard(version):
     if not re.fullmatch(r'php\d{2,3}', version): raise ValueError('Invalid PHP version: ' + str(version))
     p = paths(version)
-    if not (p/'sbin/php-fpm').is_file() or not (p/'etc/php-fpm.conf').is_file() or not (p/'bin/fpmctl').is_file():
+    if not (p/'sbin/php-fpm').is_file() or not (p/'etc/php-fpm.conf').is_file():
         raise RuntimeError('PHP installation incomplete or missing files: ' + version)
+    ctl = p/'bin/fpmctl'
     if is_managed(version):
-        ctl = p/'bin/fpmctl'
-        if not ctl.is_file() or ctl.is_symlink():
-            raise RuntimeError('Unexpected launcher symlink ' + version)
-        if ctl.read_text() != wrapper(version):
-            backups = STATE/'original-launchers'
-            backups.mkdir(mode=0o700, exist_ok=True)
-            archive = STATE/('backup-vendor-regen-' + str(time.time_ns()))
-            archive.mkdir(mode=0o700, exist_ok=True)
-            shutil.copy2(ctl, archive/version)
-            shutil.copy2(ctl, backups/version) # Rebase restoration onto the current vendor launcher; transaction archives the prior baseline.
-            execute([str(ctl), 'stop'], False, timeout=45)
-            deadline = time.monotonic() + 15
-            while True:
-                remaining = []
-                for d in pathlib.Path('/proc').iterdir():
-                    if not d.name.isdigit(): continue
-                    try:
-                        if os.readlink(d/'exe') == str(p/'sbin/php-fpm') and b'master process' in (d/'cmdline').read_bytes():
-                            remaining.append(d.name)
-                    except (FileNotFoundError, ProcessLookupError, PermissionError): pass
-                if not remaining: break
-                if time.monotonic() > deadline: raise RuntimeError('Native master did not stop gracefully; no forced kill: '+version)
-                time.sleep(.1)
+        # Auto-heal broken, self-referential, or rogue symlinks left by vendor/installer updates
+        if ctl.is_symlink():
+            try: ctl.unlink()
+            except OSError: pass
+        backups = STATE/'original-launchers'
+        backups.mkdir(mode=0o700, exist_ok=True)
+        # If fpmctl was deleted, or is not the managed wrapper (e.g. Webuzo vendor script overwrote it)
+        if not ctl.is_file() or ctl.read_text() != wrapper(version):
+            if ctl.is_file():
+                archive = STATE/('backup-vendor-regen-' + str(time.time_ns()))
+                archive.mkdir(mode=0o700, exist_ok=True)
+                shutil.copy2(ctl, archive/version)
+                shutil.copy2(ctl, backups/version) # Rebase restoration onto the current vendor launcher; transaction archives the prior baseline.
+                execute([str(ctl), 'stop'], False, timeout=45)
+                deadline = time.monotonic() + 15
+                while True:
+                    remaining = []
+                    for d in pathlib.Path('/proc').iterdir():
+                        if not d.name.isdigit(): continue
+                        try:
+                            if os.readlink(d/'exe') == str(p/'sbin/php-fpm') and b'master process' in (d/'cmdline').read_bytes():
+                                remaining.append(d.name)
+                        except (FileNotFoundError, ProcessLookupError, PermissionError): pass
+                    if not remaining: break
+                    if time.monotonic() > deadline: raise RuntimeError('Native master did not stop gracefully; no forced kill: '+version)
+                    time.sleep(.1)
+            elif (p/'bin/fpmctl'+version[3:]).is_file():
+                vendor_cand = p/'bin/fpmctl'+version[3:]
+                shutil.copy2(vendor_cand, backups/version)
             atomic(ctl, wrapper(version), 0o755)
             print(version + ': repaired vendor-regenerated launcher')
         assert_launcher(version)
@@ -1473,26 +1489,30 @@ def _onboard(version):
     backups.mkdir(mode=0o700, exist_ok=True)
     archive = STATE/('backup-onboard-' + str(time.time_ns()))
     archive.mkdir(mode=0o700, exist_ok=True)
-    ctl = p/'bin/fpmctl'
-    if ctl.is_symlink(): raise RuntimeError('Unexpected launcher symlink ' + version)
-    ctl_text = ctl.read_text()
-    if MARKER in ctl_text: raise RuntimeError('Unregistered managed launcher; recover the lifecycle journal before onboarding: '+version)
-    if MARKER not in ctl_text:
-        shutil.copy2(ctl, archive/version)
-        shutil.copy2(ctl, backups/version) # Current native baseline; historical snapshot is retained by transaction.
-        execute([str(ctl), 'stop'], False, timeout=45)
-        deadline = time.monotonic() + 15
-        while True:
-            remaining = []
-            for d in pathlib.Path('/proc').iterdir():
-                if not d.name.isdigit(): continue
-                try:
-                    if os.readlink(d/'exe') == str(p/'sbin/php-fpm') and b'master process' in (d/'cmdline').read_bytes():
-                        remaining.append(d.name)
-                except (FileNotFoundError, ProcessLookupError, PermissionError): pass
-            if not remaining: break
-            if time.monotonic() > deadline: raise RuntimeError('Native FPM master remains; complete maintenance stop first: ' + version)
-            time.sleep(.1)
+    if ctl.is_symlink():
+        try: ctl.unlink()
+        except OSError: pass
+    ctl_text = ctl.read_text() if ctl.is_file() else ''
+    if ctl_text and MARKER in ctl_text: raise RuntimeError('Unregistered managed launcher; recover the lifecycle journal before onboarding: '+version)
+    if not ctl_text or MARKER not in ctl_text:
+        if ctl_text:
+            shutil.copy2(ctl, archive/version)
+            shutil.copy2(ctl, backups/version) # Current native baseline; historical snapshot is retained by transaction.
+            execute([str(ctl), 'stop'], False, timeout=45)
+            deadline = time.monotonic() + 15
+            while True:
+                remaining = []
+                for d in pathlib.Path('/proc').iterdir():
+                    if not d.name.isdigit(): continue
+                    try:
+                        if os.readlink(d/'exe') == str(p/'sbin/php-fpm') and b'master process' in (d/'cmdline').read_bytes():
+                            remaining.append(d.name)
+                    except (FileNotFoundError, ProcessLookupError, PermissionError): pass
+                    if not remaining: break
+                    if time.monotonic() > deadline: raise RuntimeError('Native FPM master remains; complete maintenance stop first: ' + version)
+                    time.sleep(.1)
+        elif (p/'bin/fpmctl'+version[3:]).is_file():
+            shutil.copy2(p/'bin/fpmctl'+version[3:], backups/version)
         atomic(ctl, wrapper(version), 0o755)
     # Register in installed.json before starting services so action() recognizes it as managed
     data = json.loads((STATE/'installed.json').read_text()) if (STATE/'installed.json').exists() else {'versions': []}
@@ -1589,7 +1609,20 @@ def action(version,command):
     unit='wpiso-manager-'+version+'.service'
     if not is_managed(version):
         raise RuntimeError('PHP version ' + version + ' is not onboarded in isolation. Run webuzo-isolation.py onboard ' + version + ' first.')
-    assert_launcher(version)
+    try:
+        assert_launcher(version)
+    except Exception as e:
+        if command in ['start','restart','reload','status']:
+            err_out = getattr(sys, 'stderr', None)
+            if err_out:
+                print(f"{version}: launcher drift/corruption detected ({e}); auto-repairing in action handler", file=err_out)
+            else:
+                print(f"{version}: launcher drift/corruption detected ({e}); auto-repairing in action handler")
+            onboard_fn = globals().get('onboard')
+            if callable(onboard_fn):
+                onboard_fn(version)
+        else:
+            raise
     if command in ['start','restart','reload']:
         if execute(['systemctl','is-active',unit],False).returncode==0:
             if command=='reload':graceful_reload(version)
