@@ -312,18 +312,27 @@ def heal_runtime_environment(version):
             modified = False
             for line in lines:
                 s = line.strip()
-                if s.startswith('extension=') or s.startswith('zend_extension='):
-                    if osw_ini.is_file() and s == 'extension=openswoole.so':
-                        modified = True
+                if osw_ini.is_file() and 'openswoole' in line:
+                    modified = True
+                    if s == 'extension=openswoole.so':
                         continue
+                    line = re.sub(r'extension\s*=\s*openswoole(?:\.so)?', '', line)
+                    s = line.strip()
+                    if not s or s == ';':
+                        continue
+                if s.startswith('extension=') or s.startswith('zend_extension='):
                     if s in seen_exts:
                         modified = True
                         continue
                     seen_exts.add(s)
-                new_lines.append(line)
-            if modified:
+                new_lines.append(line.rstrip('\r\n') + '\n')
+            if modified or (text and not text.endswith('\n')):
                 extra_ini.write_text("".join(new_lines), encoding='utf-8')
                 os.chmod(extra_ini, 0o644)
+            else:
+                st = extra_ini.stat()
+                if (st.st_mode & 0o444) != 0o444:
+                    os.chmod(extra_ini, 0o644)
         except OSError:
             pass
     ext_dir = p / 'ext'

@@ -362,16 +362,21 @@ def sync_ini_for_active_versions(settings: Dict[str, str], apps_dir: pathlib.Pat
                     changed = False
                     for line in lines:
                         s = line.strip()
-                        if s.startswith('extension=') or s.startswith('zend_extension='):
+                        if 'openswoole' in line:
+                            changed = True
                             if s == 'extension=openswoole.so':
-                                changed = True
                                 continue
+                            line = re.sub(r'extension\s*=\s*openswoole(?:\.so)?', '', line)
+                            s = line.strip()
+                            if not s or s == ';':
+                                continue
+                        if s.startswith('extension=') or s.startswith('zend_extension='):
                             if s in seen:
                                 changed = True
                                 continue
                             seen.add(s)
-                        clean.append(line)
-                    if changed:
+                        clean.append(line.rstrip('\r\n') + '\n')
+                    if changed or (raw and not raw.endswith('\n')):
                         atomic_write_text(extra_path, "".join(clean), mode=0o644)
                     else:
                         st = extra_path.stat()
