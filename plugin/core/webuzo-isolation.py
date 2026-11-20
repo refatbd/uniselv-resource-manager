@@ -1743,10 +1743,21 @@ def action(version,command):
         else:
             raise
     if command in ['start','restart','reload']:
-        if execute(['systemctl','is-active',unit],False).returncode==0:
+        res = execute(['systemctl','is-active',unit],False)
+        if res.returncode == 0 or res.stdout.strip() == 'active':
             if command=='reload':graceful_reload(version)
             else:reconcile(version,command=='restart')
-        else:execute(['systemctl','start',unit])
+        elif res.stdout.strip() == 'activating':
+            deadline = time.time() + 45
+            while time.time() < deadline:
+                time.sleep(0.5)
+                check = execute(['systemctl','is-active',unit],False)
+                if check.returncode == 0 or check.stdout.strip() == 'active':
+                    break
+            if command=='reload':graceful_reload(version)
+            else:reconcile(version,command=='restart')
+        else:
+            execute(['systemctl','start',unit])
         print(version+': isolated socket routing active')
     elif command=='bridge-stop':execute(['systemctl','--no-block','stop',unit]);print(version+': isolated stop scheduled')
     elif command in ['stop','force-quit']:execute(['systemctl','stop',unit]);print(version+': isolated routing stopped')
