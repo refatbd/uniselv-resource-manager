@@ -858,11 +858,15 @@ def supervise(version):
                 try:
                     assert_launcher(version)
                 except Exception:
-                    ctl = paths(version)/'bin/fpmctl'
-                    if ctl.is_symlink():
-                        try: ctl.unlink()
-                        except OSError: pass
-                    atomic(ctl, wrapper(version), 0o755)
+                    heal_fn = globals().get('heal_environment')
+                    if callable(heal_fn):
+                        heal_fn(version)
+                    else:
+                        ctl = paths(version)/'bin/fpmctl'
+                        if ctl.is_symlink():
+                            try: ctl.unlink()
+                            except OSError: pass
+                        atomic(ctl, wrapper(version), 0o755)
                     assert_launcher(version)
                 digest=hashlib.sha256((paths(version)/'etc/php-fpm.conf').read_bytes()).hexdigest()
                 limits_changed=False if digest!=last else any(pwd.getpwnam(r['user']).pw_uid!=r['uid'] or not (UNITS/(str(r['uid'])+'.slice')).exists() or not (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').exists() or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'cpu.max').read_text().split()[0]=='max' or (pathlib.Path('/sys/fs/cgroup')/(str(r['uid'])+'.slice')/'memory.max').read_text().strip()=='max' for r in manifest(version)['pools'])
@@ -1620,7 +1624,7 @@ def heal_launcher(version):
         try: ctl.unlink()
         except OSError: pass
     backups = STATE / 'original-launchers'
-    backups.mkdir(mode=0o700, exist_ok=True)
+    backups.mkdir(parents=True, mode=0o700, exist_ok=True)
     vendor_cand = p / ('bin/fpmctl' + version[3:])
     if not (backups / version).is_file() and vendor_cand.is_file():
         try: shutil.copy2(vendor_cand, backups / version)
@@ -1628,10 +1632,91 @@ def heal_launcher(version):
     atomic(ctl, wrapper(version), 0o755)
 
 
+def heal_environment(version):
+    """Auto-heal launcher, ini permissions, extension directories, and resolve duplicate ini directives."""
+    heal_launcher(version)
+    p = paths(version)
+    etc = p / 'etc'
+    php_d = etc / 'php.d'
+    php_ini = etc / 'php.ini'
+    if php_ini.is_file():
+        try:
+            st = php_ini.stat()
+            if (st.st_mode & 0o444) != 0o444:
+                os.chmod(php_ini, 0o644)
+        except OSError:
+            pass
+    if php_d.is_dir():
+        try:
+            for ini in php_d.glob('*.ini'):
+                if ini.is_file():
+                    try:
+                        st = ini.stat()
+                        if (st.st_mode & 0o444) != 0o444:
+                            os.chmod(ini, 0o644)
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+    extra_ini = php_d / 'extra.ini'
+    osw_ini = php_d / 'openswoole.ini'
+    if extra_ini.is_file():
+        try:
+            text = extra_ini.read_text(encoding='utf-8', errors='replace')
+            lines = text.splitlines(keepends=True)
+            seen_exts = set()
+            new_lines = []
+            modified = False
+            for line in lines:
+                s = line.strip()
+                if s.startswith('extension=') or s.startswith('zend_extension='):
+                    if osw_ini.is_file() and s == 'extension=openswoole.so':
+                        modified = True
+                        continue
+                    if s in seen_exts:
+                        modified = True
+                        continue
+                    seen_exts.add(s)
+                new_lines.append(line)
+            if modified:
+                atomic(extra_ini, "".join(new_lines), 0o644)
+        except OSError:
+            pass
+    ext_dir = p / 'ext'
+    lib_dir = p / 'lib'
+    if ext_dir.is_dir():
+        try:
+            lib_ext = lib_dir / 'extensions'
+            lib_ext.mkdir(parents=True, exist_ok=True)
+            for s in lib_ext.iterdir():
+                if s.is_dir() and not s.is_symlink() and not any(s.iterdir()):
+                    try:
+                        s.rmdir()
+                        s.symlink_to(ext_dir)
+                    except OSError:
+                        pass
+            php_cfg = p / 'bin/php-config'
+            if php_cfg.is_file() and os.access(php_cfg, os.X_OK):
+                try:
+                    res = subprocess.run([str(php_cfg), '--extension-dir'], capture_output=True, text=True, timeout=5)
+                    if res.returncode == 0 and res.stdout.strip():
+                        target_dir = pathlib.Path(res.stdout.strip())
+                        if not target_dir.exists() and str(target_dir).startswith(str(lib_ext)):
+                            target_dir.symlink_to(ext_dir)
+                except Exception:
+                    pass
+        except OSError:
+            pass
+
+
 def action(version,command):
     unit='wpiso-manager-'+version+'.service'
     if not is_managed(version):
         raise RuntimeError('PHP version ' + version + ' is not onboarded in isolation. Run webuzo-isolation.py onboard ' + version + ' first.')
+    heal_fn = globals().get('heal_environment')
+    if callable(heal_fn):
+        try: heal_fn(version)
+        except Exception: pass
     try:
         assert_launcher(version)
     except Exception as e:
@@ -1808,7 +1893,11 @@ def main():
         for version in json.loads((STATE/'installed.json').read_text())['versions']:reconcile(version,True)
     elif ns.command=='repair-launchers':
         data=json.loads((STATE/'installed.json').read_text()) if (STATE/'installed.json').exists() else {'versions':[]}
-        for v in data.get('versions',[]):onboard(v)
+        for v in data.get('versions',[]):
+            heal_fn = globals().get('heal_environment')
+            if callable(heal_fn):
+                heal_fn(v)
+            onboard(v)
     elif ns.command=='recover-lifecycle':recover_lifecycle()
     elif ns.command=='onboard':onboard(ns.args[0])
     elif ns.command=='retire':retire(ns.args[0])

@@ -276,6 +276,73 @@ def fingerprint(version):
     return hashlib.sha256(json.dumps(items).encode()).hexdigest()
 
 
+def heal_runtime_environment(version):
+    """Ensure PHP configuration, ini files, and extension directories are readable and conflict-free."""
+    p = APPS / version
+    etc = p / 'etc'
+    php_d = etc / 'php.d'
+    php_ini = etc / 'php.ini'
+    if php_ini.is_file():
+        try:
+            st = php_ini.stat()
+            if (st.st_mode & 0o444) != 0o444:
+                os.chmod(php_ini, 0o644)
+        except OSError:
+            pass
+    if php_d.is_dir():
+        try:
+            for ini in php_d.glob('*.ini'):
+                if ini.is_file():
+                    try:
+                        st = ini.stat()
+                        if (st.st_mode & 0o444) != 0o444:
+                            os.chmod(ini, 0o644)
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+    extra_ini = php_d / 'extra.ini'
+    osw_ini = php_d / 'openswoole.ini'
+    if extra_ini.is_file():
+        try:
+            text = extra_ini.read_text(encoding='utf-8', errors='replace')
+            lines = text.splitlines(keepends=True)
+            seen_exts = set()
+            new_lines = []
+            modified = False
+            for line in lines:
+                s = line.strip()
+                if s.startswith('extension=') or s.startswith('zend_extension='):
+                    if osw_ini.is_file() and s == 'extension=openswoole.so':
+                        modified = True
+                        continue
+                    if s in seen_exts:
+                        modified = True
+                        continue
+                    seen_exts.add(s)
+                new_lines.append(line)
+            if modified:
+                extra_ini.write_text("".join(new_lines), encoding='utf-8')
+                os.chmod(extra_ini, 0o644)
+        except OSError:
+            pass
+    ext_dir = p / 'ext'
+    lib_dir = p / 'lib'
+    if ext_dir.is_dir():
+        try:
+            lib_ext = lib_dir / 'extensions'
+            lib_ext.mkdir(parents=True, exist_ok=True)
+            for s in lib_ext.iterdir():
+                if s.is_dir() and not s.is_symlink() and not any(s.iterdir()):
+                    try:
+                        s.rmdir()
+                        s.symlink_to(ext_dir)
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+
+
 def reconcile(automatic=True):
     STORE.mkdir(parents=True, mode=0o700, exist_ok=True)
     with open(STORE/'operation.lock', 'a') as stream:
@@ -319,6 +386,12 @@ def reconcile(automatic=True):
             if version not in versions:
                 entry.update(state='blocked', reason='Managed installation missing. Restore installation files for recovery or retire before vendor uninstall. No blind registry deletion.')
                 continue
+            heal_runtime_environment(version)
+            if hasattr(runtime, 'heal_environment'):
+                try:
+                    runtime.heal_environment(version)
+                except Exception:
+                    pass
             fp = fingerprint(version); entry['fingerprint'] = fp
             if version in retired:
                 entry.update(state='retired', reason='Intentionally retired. Safe to uninstall after moving sites; use Enable Runtime to register again.')

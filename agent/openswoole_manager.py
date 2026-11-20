@@ -181,6 +181,30 @@ def discover_php_versions(apps_dir: pathlib.Path = APPS_DIR, disabled_versions: 
         if not php_bin.is_file() or not os.access(str(php_bin), os.X_OK):
             continue
 
+        # Proactively ensure php.ini and php.d/*.ini are readable (0644) so probe and unprivileged commands do not fail
+        etc_dir = entry / 'etc'
+        php_ini = etc_dir / 'php.ini'
+        if php_ini.is_file():
+            try:
+                st = php_ini.stat()
+                if (st.st_mode & 0o444) != 0o444:
+                    os.chmod(php_ini, 0o644)
+            except OSError:
+                pass
+        php_d = etc_dir / 'php.d'
+        if php_d.is_dir():
+            try:
+                for inifile in php_d.glob('*.ini'):
+                    if inifile.is_file():
+                        try:
+                            st = inifile.stat()
+                            if (st.st_mode & 0o444) != 0o444:
+                                os.chmod(inifile, 0o644)
+                        except OSError:
+                            pass
+            except OSError:
+                pass
+
         info: Dict[str, Any] = {
             'version': ver,
             'prefix': str(entry),
@@ -327,6 +351,34 @@ def sync_ini_for_active_versions(settings: Dict[str, str], apps_dir: pathlib.Pat
                 atomic_write_text(ini_path, desired, mode=0o644)
                 reload_php_runtime(ver)
                 updated.append(ver)
+            # Ensure extra.ini does not redundantly or conflictingly load openswoole.so
+            extra_path = ini_path.parent / 'extra.ini'
+            if extra_path.is_file():
+                try:
+                    raw = extra_path.read_text(encoding='utf-8', errors='replace')
+                    lines = raw.splitlines(keepends=True)
+                    seen = set()
+                    clean = []
+                    changed = False
+                    for line in lines:
+                        s = line.strip()
+                        if s.startswith('extension=') or s.startswith('zend_extension='):
+                            if s == 'extension=openswoole.so':
+                                changed = True
+                                continue
+                            if s in seen:
+                                changed = True
+                                continue
+                            seen.add(s)
+                        clean.append(line)
+                    if changed:
+                        atomic_write_text(extra_path, "".join(clean), mode=0o644)
+                    else:
+                        st = extra_path.stat()
+                        if (st.st_mode & 0o444) != 0o444:
+                            os.chmod(extra_path, 0o644)
+                except Exception:
+                    pass
         except Exception as exc:
             errors.append(f'{ver}: {exc}')
 

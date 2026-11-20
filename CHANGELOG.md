@@ -1,3 +1,19 @@
+## 1.5.2 — 2026-11-20
+
+- **Autonomous Environment Healing, Strict INI Permission Defense & Duplicate Extension Sanitization**:
+  - **Zero-Manual-Intervention INI Permission Self-Healing**:
+    - Webuzo panel and system scripts execute CLI checks (`php -r "echo phpversion();"`) under the unprivileged `webuzo` user (`uid=999`). When package updates or file edits set `/usr/local/apps/<version>/etc/php.ini` or `/usr/local/apps/<version>/etc/php.d/*.ini` to restrictive permissions (`0750 root:root`), the unprivileged user is blocked from reading the main `php.ini` or module prerequisites (such as `curl.so` and `sockets.so`), causing fatal startup warnings like `PHP Startup: Unable to load dynamic library 'openswoole.so' ... undefined symbol: curl_ce`.
+    - Implemented continuous autonomous INI permission defense in `core/webuzo-isolation.py` (`heal_environment`), `agent/runtime_governance.py` (`heal_runtime_environment`), and `agent/openswoole_manager.py` (`discover_php_versions` & `sync_ini_for_active_versions`). Restrictive permissions are automatically healed to `0644` without requiring any manual terminal or root commands.
+  - **Duplicate Extension Conflict Resolution in `extra.ini`**:
+    - Webuzo's native extension manager appends `extension=openswoole.so` and other module directives directly into `/usr/local/apps/<version>/etc/php.d/extra.ini`. When `openswoole.ini` also exists or when Webuzo re-adds already loaded modules, PHP emits `Module already loaded` or ordering conflict warnings.
+    - Added automated sanitization in `heal_environment`, `heal_runtime_environment`, and `sync_ini_for_active_versions`: cleanly strips duplicate `extension=openswoole.so` from `extra.ini` whenever `openswoole.ini` is present and deduplicates any repeated extension directives (e.g. `igbinary.so`).
+  - **Compiled Extension Directory Symlink Resilience**:
+    - Handled cases where Webuzo's compiled extension path (`lib/extensions/no-debug-non-zts-*`) becomes an empty folder instead of pointing to `ext/`, auto-creating the required directory symlink so modules load properly regardless of how Webuzo configures paths.
+  - **Periodic Background Daemon Integration & Action Interception**:
+    - Wired `heal_runtime_environment` and `heal_environment` into `agent/runtime_governance.py`'s periodic `reconcile()` loop, `agent_daemon.py`, and `core/webuzo-isolation.py`'s `action()` and `supervise()` handlers, ensuring the server environment self-heals continuously.
+  - **Automated Test Suite Expansion**:
+    - Added comprehensive unit test coverage in `test_autonomous_environment_healing.py`. All 54 tests pass cleanly.
+
 ## 1.5.1 — 2026-11-20
 
 - **Autonomous Launcher Drift & Corrupted Symlink Self-Healing System**:
