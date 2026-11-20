@@ -1613,6 +1613,21 @@ def graceful_reload(version):
     return count
 
 
+def heal_launcher(version):
+    p = paths(version)
+    ctl = p / 'bin/fpmctl'
+    if ctl.is_symlink():
+        try: ctl.unlink()
+        except OSError: pass
+    backups = STATE / 'original-launchers'
+    backups.mkdir(mode=0o700, exist_ok=True)
+    vendor_cand = p / ('bin/fpmctl' + version[3:])
+    if not (backups / version).is_file() and vendor_cand.is_file():
+        try: shutil.copy2(vendor_cand, backups / version)
+        except OSError: pass
+    atomic(ctl, wrapper(version), 0o755)
+
+
 def action(version,command):
     unit='wpiso-manager-'+version+'.service'
     if not is_managed(version):
@@ -1626,9 +1641,11 @@ def action(version,command):
                 print(f"{version}: launcher drift/corruption detected ({e}); auto-repairing in action handler", file=err_out)
             else:
                 print(f"{version}: launcher drift/corruption detected ({e}); auto-repairing in action handler")
-            onboard_fn = globals().get('onboard')
-            if callable(onboard_fn):
-                onboard_fn(version)
+            heal_fn = globals().get('heal_launcher')
+            if callable(heal_fn):
+                heal_fn(version)
+            else:
+                heal_launcher(version)
         else:
             raise
     if command in ['start','restart','reload']:

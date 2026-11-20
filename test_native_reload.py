@@ -6,7 +6,7 @@ class NativeReloadTests(unittest.TestCase):
   self.calls=[];self.reconciles=[];self.signals=[];self.active={'wpiso-manager-php84.service','wpiso-fpm-php84-alice.service','wpiso-health-php84.service'};self.signal_failure=False
   tree=ast.parse((pathlib.Path(__file__).parent/'core/webuzo-isolation.py').read_text(encoding='utf-8'))
   self.ns={'sys':types.SimpleNamespace(exit=lambda c:None),'is_managed':lambda v:True,'assert_launcher':lambda v:None,'reconcile':lambda v,restart:self.reconciles.append((v,restart))or 2,'execute':self.execute,'manifest':lambda v:{'pools':[{'user':'alice'},{'user':'idle'}]},'names':lambda v,u:('wpiso-fpm-'+v+'-'+u+'.service','proxy','socket'),'lock':lambda v:contextlib.nullcontext()}
-  exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name in['action','graceful_reload']],type_ignores=[]),'shipping-runtime','exec'),self.ns)
+  exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name in['action','graceful_reload','heal_launcher']],type_ignores=[]),'shipping-runtime','exec'),self.ns)
  def execute(self,args,check=True,**kw):
   self.calls.append(args)
   if args[:2]==['systemctl','is-active']:return types.SimpleNamespace(returncode=0 if args[2]in self.active else 3,stdout='')
@@ -37,13 +37,13 @@ class NativeReloadTests(unittest.TestCase):
   with self.assertRaises(ValueError):self.ns['action']('php84','reload')
   self.assertEqual(self.signals,[])
  def test_launcher_drift_auto_repairs_during_action(self):
-  onboards=[]
-  self.ns['onboard']=lambda v:onboards.append(v)
+  heals=[]
+  self.ns['heal_launcher']=lambda v:heals.append(v)
   def faulty_assert(v):
-   if not onboards: raise RuntimeError('drift')
+   if not heals: raise RuntimeError('drift')
   self.ns['assert_launcher']=faulty_assert
   self.ns['action']('php84','start')
-  self.assertEqual(onboards,['php84'])
+  self.assertEqual(heals,['php84'])
 
 class ReloadControlTests(unittest.TestCase):
  def setUp(self):
