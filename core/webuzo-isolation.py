@@ -1388,7 +1388,15 @@ def lifecycle_transaction(version,operation):
                 atomic(STATE/('lifecycle-recovered-'+str(time.time_ns())+'.json'),json.dumps(previous))
             pending.unlink()
         ctl=paths(version)/'bin/fpmctl'
-        if ctl.is_symlink() or (STATE/'original-launchers'/version).is_symlink():raise RuntimeError('Refusing launcher/backup symlink: '+version)
+        if (STATE/'original-launchers'/version).is_symlink():
+            try: (STATE/'original-launchers'/version).unlink()
+            except OSError: pass
+        if ctl.is_symlink():
+            if is_managed(version):
+                try: ctl.unlink()
+                except OSError: pass
+            else:
+                raise RuntimeError('Refusing launcher symlink on unmanaged installation: '+version)
         # Validate pools on both first onboarding and managed repair, before stopping anything.
         config=paths(version)/'etc/php-fpm.conf'
         if not config.is_file():raise RuntimeError('Native PHP config missing: '+version)
