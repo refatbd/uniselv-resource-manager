@@ -1632,8 +1632,131 @@ def heal_launcher(version):
     atomic(ctl, wrapper(version), 0o755)
 
 
+APPS = pathlib.Path('/usr/local/apps')
+UNIVERSAL_PHP = pathlib.Path('/usr/local/webuzo/universal.php')
+OS_BIN_DIRS = [pathlib.Path('/usr/local/bin'), pathlib.Path('/usr/bin')]
+SYNC_BINARIES = ('php', 'php-cgi', 'phar', 'phar.phar', 'phpize', 'php-config')
+
+
+def detect_webuzo_default_php(universal_path=UNIVERSAL_PHP, apps_dir=APPS):
+    """Detect the active Webuzo Default PHP version from universal.php or fallback to highest installed."""
+    u_path = pathlib.Path(universal_path)
+    if u_path.is_file():
+        try:
+            text = u_path.read_text(encoding='utf-8', errors='replace')
+            m = re.search(r"\$globals\['WU_DEFAULT_PHP'\]\s*=\s*['\"](php\d{2,3})['\"];", text)
+            if m:
+                cand = m.group(1).strip()
+                cand_bin = pathlib.Path(apps_dir) / cand / 'bin/php'
+                if cand_bin.is_file() and (os.name == 'nt' or os.access(str(cand_bin), os.X_OK)):
+                    return cand
+        except OSError:
+            pass
+
+    installed_versions = sorted(
+        [p.name for p in pathlib.Path(apps_dir).glob('php*') if re.fullmatch(r'php\d{2,3}', p.name) and
+         not p.is_symlink() and (p / 'bin/php').is_file() and (os.name == 'nt' or os.access(str(p / 'bin/php'), os.X_OK))],
+        reverse=True
+    )
+    return installed_versions[0] if installed_versions else None
+
+
+def sync_default_php_symlinks(default_version=None, universal_path=UNIVERSAL_PHP, apps_dir=APPS, bin_dirs=None):
+    """Synchronize OS CLI symlinks in /usr/local/bin and /usr/bin to match the Webuzo Default PHP version."""
+    if bin_dirs is None:
+        bin_dirs = OS_BIN_DIRS
+    else:
+        bin_dirs = [pathlib.Path(d) for d in bin_dirs]
+    apps_p = pathlib.Path(apps_dir)
+    if not default_version:
+        default_version = detect_webuzo_default_php(universal_path, apps_p)
+    if not default_version or not re.fullmatch(r'php\d{2,3}', default_version):
+        return {'success': False, 'error': 'No valid Webuzo default PHP version detected', 'synced': [], 'drifts': []}
+
+    target_app_bin = apps_p / default_version / 'bin'
+    if not target_app_bin.is_dir():
+        return {'success': False, 'error': f'Target PHP bin directory missing: {target_app_bin}', 'synced': [], 'drifts': []}
+
+    synced = []
+    drifts = []
+    errors = []
+
+    for binary_name in SYNC_BINARIES:
+        source_bin = target_app_bin / binary_name
+        if not source_bin.is_file() or (os.name != 'nt' and not os.access(str(source_bin), os.X_OK)):
+            continue
+
+        for dest_dir in bin_dirs:
+            link_path = dest_dir / binary_name
+            try:
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                already_correct = False
+                if link_path.is_symlink():
+                    try:
+                        current_target = os.readlink(str(link_path))
+                        if current_target == str(source_bin) or link_path.resolve() == source_bin.resolve():
+                            already_correct = True
+                        else:
+                            drifts.append({
+                                'link': str(link_path),
+                                'previous': current_target,
+                                'expected': str(source_bin)
+                            })
+                    except OSError:
+                        drifts.append({
+                            'link': str(link_path),
+                            'previous': 'broken_symlink',
+                            'expected': str(source_bin)
+                        })
+                elif link_path.exists():
+                    drifts.append({
+                        'link': str(link_path),
+                        'previous': 'regular_file',
+                        'expected': str(source_bin)
+                    })
+                else:
+                    drifts.append({
+                        'link': str(link_path),
+                        'previous': 'missing',
+                        'expected': str(source_bin)
+                    })
+
+                if already_correct:
+                    synced.append(str(link_path))
+                    continue
+
+                tmp_link = dest_dir / f"{binary_name}.uniselv-tmp.{os.getpid()}"
+                try:
+                    if tmp_link.is_symlink() or tmp_link.exists():
+                        tmp_link.unlink(missing_ok=True)
+                    tmp_link.symlink_to(source_bin)
+                    os.replace(tmp_link, link_path)
+                    synced.append(str(link_path))
+                except OSError:
+                    if tmp_link.is_symlink() or tmp_link.exists():
+                        tmp_link.unlink(missing_ok=True)
+                    if link_path.is_symlink() or link_path.exists():
+                        link_path.unlink(missing_ok=True)
+                    link_path.symlink_to(source_bin)
+                    synced.append(str(link_path))
+            except Exception as err:
+                errors.append(f"Failed linking {link_path} -> {source_bin}: {err}")
+
+    return {
+        'success': len(errors) == 0,
+        'defaultVersion': default_version,
+        'synced': synced,
+        'drifts': drifts,
+        'errors': errors
+    }
+
+
 def heal_environment(version):
-    """Auto-heal launcher, ini permissions, extension directories, and resolve duplicate ini directives."""
+    """Auto-heal launcher, ini permissions, extension directories, default PHP symlinks, and duplicate inis."""
+    try:
+        sync_default_php_symlinks()
+    except Exception:
+        pass
     heal_launcher(version)
     p = paths(version)
     etc = p / 'etc'
@@ -1919,6 +2042,7 @@ def main():
                 heal_fn(v)
             onboard(v)
     elif ns.command=='recover-lifecycle':recover_lifecycle()
+    elif ns.command=='sync-default-php':print(json.dumps(sync_default_php_symlinks()))
     elif ns.command=='onboard':onboard(ns.args[0])
     elif ns.command=='retire':retire(ns.args[0])
     elif ns.command=='wait-socket':

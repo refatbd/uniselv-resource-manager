@@ -19,6 +19,7 @@ test_*
 !/test_platform_manager.py
 !/test_openswoole_governance.py
 !/test_native_reload.py
+!/test_default_php_symlink_governance.py
 load_stress.php
 cgroup_*.php
 run_*.py

@@ -582,6 +582,12 @@ uniselv_checked_command('/usr/bin/python3 ' . escapeshellarg($agent_dir . '/core
 uniselv_checked_command('systemctl restart uniselv-resman-agent.service');
 uniselv_checked_command('systemctl is-active --quiet uniselv-resman-agent.service');
 
+// Synchronize OS CLI symlinks (/usr/local/bin/php, /usr/bin/php) to match Webuzo Default PHP
+uniselv_checked_command('/usr/bin/python3 ' . escapeshellarg($agent_dir . '/core/webuzo-isolation.py') . ' sync-default-php');
+if (function_exists('uniselv_sync_default_php_symlinks')) {
+    uniselv_sync_default_php_symlinks();
+}
+
 if ($taskID && function_exists('task_update')) {
     task_update($taskID, 'Configuring Webuzo Nginx integration', 75);
 }

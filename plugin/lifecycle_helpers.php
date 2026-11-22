@@ -51,3 +51,65 @@ function uniselv_remove_web_integration($base, $admin, $enduser, $source) {
     uniselv_remove_owned_link($source . '/assets', $assets . '/assets');
     if (is_dir($assets) && !@rmdir($assets)) uniselv_lifecycle_fail('Unexpected files remain in plugin web folder; preserved for review');
 }
+
+function uniselv_sync_default_php_symlinks(): array {
+    global $globals;
+    $default_ver = null;
+    if (!empty($globals['WU_DEFAULT_PHP']) && preg_match('/^php\d{2,3}$/', $globals['WU_DEFAULT_PHP'])) {
+        $default_ver = $globals['WU_DEFAULT_PHP'];
+    }
+    if (!$default_ver && file_exists('/usr/local/webuzo/universal.php')) {
+        $c = @file_get_contents('/usr/local/webuzo/universal.php');
+        if ($c && preg_match("/\\\$globals\['WU_DEFAULT_PHP'\]\s*=\s*['\"](php\d{2,3})['\"];/", $c, $m)) {
+            $default_ver = $m[1];
+        }
+    }
+    if (!$default_ver) {
+        $installed = glob('/usr/local/apps/php*/bin/php') ?: [];
+        rsort($installed);
+        if (!empty($installed) && preg_match('#/usr/local/apps/(php\d{2,3})/bin/php#', $installed[0], $m)) {
+            $default_ver = $m[1];
+        }
+    }
+    if (!$default_ver) {
+        return ['success' => false, 'error' => 'No default PHP version found'];
+    }
+
+    $source_dir = "/usr/local/apps/{$default_ver}/bin";
+    $bin_dirs = ['/usr/local/bin', '/usr/bin'];
+    $binaries = ['php', 'php-cgi', 'phar', 'phar.phar', 'phpize', 'php-config'];
+    $synced = [];
+
+    foreach ($binaries as $bin) {
+        $source_file = "{$source_dir}/{$bin}";
+        if (!is_file($source_file) || !is_executable($source_file)) {
+            continue;
+        }
+        foreach ($bin_dirs as $dest_dir) {
+            if (!is_dir($dest_dir)) {
+                @mkdir($dest_dir, 0755, true);
+            }
+            $dest_file = "{$dest_dir}/{$bin}";
+            if (is_link($dest_file) && @readlink($dest_file) === $source_file) {
+                $synced[] = $dest_file;
+                continue;
+            }
+            $tmp = "{$dest_dir}/{$bin}.uniselv-tmp." . getmypid();
+            @unlink($tmp);
+            if (@symlink($source_file, $tmp)) {
+                if (!@rename($tmp, $dest_file)) {
+                    @unlink($dest_file);
+                    @symlink($source_file, $dest_file);
+                }
+                @unlink($tmp);
+                $synced[] = $dest_file;
+            } else {
+                @unlink($dest_file);
+                if (@symlink($source_file, $dest_file)) {
+                    $synced[] = $dest_file;
+                }
+            }
+        }
+    }
+    return ['success' => true, 'version' => $default_ver, 'synced' => $synced];
+}

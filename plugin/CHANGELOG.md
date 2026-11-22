@@ -1,3 +1,20 @@
+## 1.5.3 — 2026-11-22
+
+- **Autonomous Webuzo Default PHP OS Symlink Governance & Zero-Drift CLI Alignment**:
+  - **Dynamic OS Symlink Synchronization**:
+    - Webuzo MultiPHP and Service Manager configure the default web handler (`$globals['WU_DEFAULT_PHP']` in `/usr/local/webuzo/universal.php`), but native control panel updates leave operating system CLI paths (`/usr/local/bin/php`, `/usr/bin/php`, `php-cgi`, `phar`, `phar.phar`, `phpize`, `php-config`) pointing to older legacy default engines (e.g. PHP 8.2). This caused backend Composer checks, Artisan commands, and crons to crash with version mismatches (`Your Composer dependencies require a PHP version ">= 8.4.1". You are running 8.2.36.`).
+    - Implemented autonomous OS symlink governance in `agent/runtime_governance.py` (`detect_webuzo_default_php` & `sync_default_php_symlinks`), `core/webuzo-isolation.py`, and `plugin/lifecycle_helpers.php` (`uniselv_sync_default_php_symlinks`).
+    - Whenever the Webuzo Default PHP version is selected or modified (e.g., switched from 8.2 to 8.4 or 8.4 to 8.3), the agent autonomously detects the configuration change and harmonizes all OS CLI binaries in `/usr/local/bin` and `/usr/bin` to match.
+  - **Atomic POSIX Symlink Replacement & Drift Healing**:
+    - Employs atomic staging via process-isolated temporary symlinks (`<binary>.uniselv-tmp.<pid>`) and POSIX `os.replace`, entirely eliminating race conditions, broken symlinks, or service interruptions during active cron jobs or web updates.
+    - Autonomously detects and heals dangling, circular, or missing symlinks, and safely resolves drift without unnecessary filesystem writes when symlinks already match the target binary.
+  - **Multi-Layer Lifecycle & Daemon Integration**:
+    - Integrated into `runtime_governance.py`'s 60-second periodic `reconcile()` loop, populating `report['defaultPhp']` in the governance snapshot.
+    - Integrated into `agent_daemon.py`'s startup enforcement boundaries (`ensure_startup_enforcement_boundaries`) for immediate alignment on system boot.
+    - Integrated into `core/webuzo-isolation.py` (`heal_environment` and CLI `sync-default-php`) and `plugin/install.php` for seamless deployment during plugin activation/upgrades.
+  - **Automated Verification & Unit Test Suite**:
+    - Added comprehensive automated test suite `test_default_php_symlink_governance.py` covering detection from `universal.php`, installed engine fallback, missing symlink creation, drifted symlink healing, dangling link recovery, idempotency, and dynamic version switching. All 58 tests in the repository pass with 100% success.
+
 ## 1.5.2 — 2026-11-20
 
 - **Autonomous Environment Healing, Strict INI Permission Defense & Duplicate Extension Sanitization**:

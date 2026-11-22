@@ -19,6 +19,7 @@ from ipc_server import IpcRequestHandler
 from golden_shield_manager import GoldenShieldManager
 import openswoole_manager
 import platform_manager
+import runtime_governance
 
 SOCKET_PATH = '/run/uniselv-resman/agent.sock'
 TOKEN_PATH = '/run/uniselv-resman/broker.token'
@@ -92,6 +93,13 @@ class AgentDaemon:
             self.golden_shield.reconcile_hardware_changes()
         except Exception as e:
             print(f"[Agent Hardware Init Error] {e}", file=sys.stderr)
+
+        try:
+            sync_res = runtime_governance.sync_default_php_symlinks()
+            if sync_res and sync_res.get('drifts'):
+                print(f"[Agent Default PHP Init] Healed {len(sync_res['drifts'])} CLI symlink drift(s) to {sync_res['defaultVersion']}", file=sys.stderr)
+        except Exception as e:
+            print(f"[Agent Default PHP Init Error] {e}", file=sys.stderr)
 
         try:
             if getattr(self.collector, 'circuit_breaker_active', False):

@@ -322,6 +322,18 @@ def serve():
 # Shared Redis integration is optional, aggregate-bounded, and never creates per-user settings.
 REDIS_CONFIG=pathlib.Path('/usr/local/apps/redis/redis.conf')
 REDIS_DROPIN=UNITS/'redis.service.d/90-golden-shared.conf'
+REDIS_ADMIN_FILE=pathlib.Path('/etc/uniselv-resman/redis-admin.json')
+
+def redis_cli_cmd(extra_args):
+ cmd=['redis-cli']
+ if REDIS_ADMIN_FILE.is_file():
+  try:
+   creds=json.loads(REDIS_ADMIN_FILE.read_text())
+   if creds.get('username') and creds.get('password'):
+    cmd.extend(['--user',creds['username'],'-a',creds['password']])
+  except Exception:pass
+ cmd.extend(extra_args)
+ return cmd
 
 def shared_redis_model(profile,cpus,total):
  config=profile.get('configuration',profile);hardware=config['globalInputs']['hardware'];m=config['sections']['redis']['model']
@@ -353,7 +365,7 @@ def apply_shared_redis(profile_file=None,cache_only=False):
  if model.get('hostCpuCount')!=cpus or model.get('measuredRamMiB')!=total or model.get('cacheOnly') is not True:raise RuntimeError('Shared Redis policy requires new hardware/application review')
  if not all(type(model.get(k)) is int and model[k]>0 for k in ['datasetMiB','memoryMiB','maxclients']) or model['memoryMiB']!=model['datasetMiB']*4 or model['memoryMiB']>policy()['hostingMemoryMaxMiB']:raise RuntimeError('Invalid shared Redis safety budget')
  if not REDIS_CONFIG.is_file() or REDIS_CONFIG.is_symlink() or REDIS_CONFIG.stat().st_uid not in (0,pwd.getpwnam('redis').pw_uid) or REDIS_CONFIG.stat().st_mode&0o022 or REDIS_CONFIG.parent.stat().st_uid!=0 or REDIS_CONFIG.parent.stat().st_mode&0o022:raise RuntimeError('Unsafe native shared Redis configuration')
- current=json.loads(command(['redis-cli','--json','CONFIG','GET','bind','port','protected-mode']).stdout)
+ current=json.loads(command(redis_cli_cmd(['--json','CONFIG','GET','bind','port','protected-mode'])).stdout)
  if current.get('port')!='6379' or current.get('protected-mode')!='yes' or not current.get('bind') or any(x not in ['127.0.0.1','::1','-::1'] for x in current['bind'].split()):raise RuntimeError('Expected existing loopback-only Shared Redis service; mode/auth changes require review')
  snapshots={p:(p.read_text(),p.stat().st_mode&0o777,p.stat().st_uid,p.stat().st_gid) if p.exists() and not p.is_symlink() else None for p in [REDIS_CONFIG,REDIS_DROPIN,saved]}
  if REDIS_DROPIN.is_symlink() or saved.is_symlink():raise RuntimeError('Refusing shared Redis managed-path symlink')
@@ -364,7 +376,7 @@ def apply_shared_redis(profile_file=None,cache_only=False):
   atomic(saved,json.dumps(model,indent=2));command(['systemctl','daemon-reload']);command(['systemctl','restart','redis.service'])
   deadline=time.monotonic()+30
   while True:
-   result=command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode'],False)
+   result=command(redis_cli_cmd(['--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode']),False)
    try:actual=json.loads(result.stdout) if result.returncode==0 else {}
    except ValueError:actual={}
    unit=properties('redis.service',['ControlGroup','MemoryMax','MemorySwapMax','ActiveState'])
@@ -476,7 +488,7 @@ def check():
  if (RUN/'pressure.json').exists():report['pressure']=json.loads((RUN/'pressure.json').read_text())
  if (BASE/'shared-redis-policy.json').exists():
   try:
-   cache=json.loads((BASE/'shared-redis-policy.json').read_text());row=properties('redis.service',['ActiveState','ControlGroup','MemoryMax','MemorySwapMax']);values=json.loads(command(['redis-cli','--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode']).stdout)
+   cache=json.loads((BASE/'shared-redis-policy.json').read_text());row=properties('redis.service',['ActiveState','ControlGroup','MemoryMax','MemorySwapMax']);values=json.loads(command(redis_cli_cmd(['--json','CONFIG','GET','maxmemory','maxmemory-policy','maxclients','protected-mode'])).stdout)
    ok=row.get('ActiveState')=='active' and row.get('ControlGroup','').startswith('/golden.slice/') and row.get('MemoryMax')==str(cache['memoryMiB']*1048576) and row.get('MemorySwapMax')=='0' and values.get('maxmemory')==str(cache['datasetMiB']*1048576) and values.get('maxmemory-policy')=='allkeys-lru' and values.get('maxclients')==str(cache['maxclients']) and str(REDIS_CONFIG) in files()
    report['sharedRedis']={'passed':ok,'service':row,'settings':values};report['checksPass'] &= ok
   except Exception:
