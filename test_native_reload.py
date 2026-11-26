@@ -61,4 +61,76 @@ class ReloadControlTests(unittest.TestCase):
   with self.assertRaises(ValueError):self.apply('process_control_timeout = invalid\n',120)
  def test_unbounded_request_timeout_refused(self):
   with self.assertRaises(ValueError):self.apply('',0)
+
+class ScopeLeakAndUpgradeResilienceTests(unittest.TestCase):
+ def test_transient_scopes_use_collect_mode_inactive_or_failed(self):
+  iso_src=(pathlib.Path(__file__).parent/'core/webuzo-isolation.py').read_text(encoding='utf-8')
+  ses_src=(pathlib.Path(__file__).parent/'core/webuzo-session-guard.py').read_text(encoding='utf-8')
+  tree=ast.parse(iso_src)
+  calls=[]
+  ns={'pathlib':types.SimpleNamespace(Path=lambda p:types.SimpleNamespace(exists=lambda:True)),'account_slice':lambda uid:'golden-1001.slice','time':types.SimpleNamespace(time_ns=lambda:123),'execute':lambda args,check=True,**kw:calls.append(args)or types.SimpleNamespace(returncode=0,stdout='')}
+  exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name in['place_native_process','cleanup_failed_transient_scopes']],type_ignores=[]),'iso-scope','exec'),ns)
+  ns['place_native_process'](1001,4242,pathlib.Path('/sys/fs/cgroup/golden.slice/golden-1001.slice'))
+  self.assertEqual(len(calls),1)
+  self.assertIn('CollectMode',calls[0])
+  self.assertIn('inactive-or-failed',calls[0])
+  self.assertEqual(calls[0][-1],'0')
+  self.assertLess(calls[0].index('CollectMode'),len(calls[0])-1)
+  idx=calls[0].index('fail')
+  self.assertEqual(calls[0][idx+1],'4')
+  self.assertIn("'CollectMode','s','inactive-or-failed','0'",ses_src)
+  self.assertIn("'fail','4','Slice'",ses_src)
+
+ def test_golden_shield_redis_conf_aclfile_reconcile_and_upgrade_healing(self):
+  import hashlib,json,tempfile
+  gs_path=pathlib.Path(__file__).parent/'core/golden-shield.py'
+  tree=ast.parse(gs_path.read_text(encoding='utf-8'))
+  with tempfile.TemporaryDirectory() as td:
+   base=pathlib.Path(td);state=base/'state';units=base/'units';state.mkdir();units.mkdir()
+   (state/'backups').mkdir();(base/'etc').mkdir()
+   redis_conf=base/'redis.conf';apachectl=base/'apachectl'
+   orig_conf='bind 127.0.0.1\nport 6379\n# BEGIN Webuzo Planner Shared Redis\nmaxmemory 128mb\nmaxmemory-policy allkeys-lru\nmaxclients 128\nprotected-mode yes\n# END Webuzo Planner Shared Redis\n'
+   redis_conf.write_bytes((orig_conf+'aclfile /usr/local/apps/redis/users.acl\n').encode('utf-8'))
+   orig_hash=hashlib.sha256(orig_conf.encode()).hexdigest()
+   wrapper='#!/bin/sh\n# Golden Shield shared Apache launcher\n'
+   apachectl.write_bytes(wrapper.encode('utf-8'))
+   shared_files={
+    str(redis_conf):{'backup':str(state/'backups/r'),'mode':0o644,'uid':0,'gid':0,'hash':orig_hash},
+    str(apachectl):{'backup':str(state/'apachectl.original'),'mode':0o755,'uid':0,'gid':0,'hash':hashlib.sha256(wrapper.encode()).hexdigest()},
+   }
+   (state/'shared-files.json').write_bytes(json.dumps(shared_files).encode('utf-8'))
+   (state/'installed.json').write_bytes(json.dumps({'version':2}).encode('utf-8'))
+   (base/'etc/shared-redis-policy.json').write_bytes(json.dumps({'datasetMiB':128,'memoryMiB':512,'maxclients':128}).encode('utf-8'))
+   cmds=[]
+   ns={'re':re,'json':json,'hashlib':hashlib,'pathlib':pathlib,'shlex':__import__('shlex'),'time':__import__('time'),'os':__import__('os'),
+       'fcntl':types.SimpleNamespace(flock=lambda *a:None,LOCK_EX=2),
+       'BASE':base/'etc','STATE':state,'UNITS':units,'REDIS_CONFIG':redis_conf,'APACHE':apachectl,'INIT':base/'init_httpd',
+       'command':lambda args,check=True:cmds.append(args)or types.SimpleNamespace(returncode=0,stdout='',stderr=''),
+       'properties':lambda u,k:{'ActiveState':'inactive','ControlGroup':''}}
+   fn_names=['files','atomic','managed','shared_redis_config','apache_launcher','reconcile_redis_conf_registry','heal_managed_upgrades']
+   exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n,ast.FunctionDef)and n.name in fn_names],type_ignores=[]),'gs-resilience','exec'),ns)
+   reconciled,unresolved=ns['reconcile_redis_conf_registry']()
+   self.assertEqual((reconciled,unresolved),(1,0))
+   updated=json.loads((state/'shared-files.json').read_text())
+   self.assertEqual(updated[str(redis_conf)]['hash'],hashlib.sha256(redis_conf.read_bytes()).hexdigest())
+   # Simulate Webuzo upgrading apachectl (native httpd -k wrapper) and overwriting redis.conf
+   apachectl.write_bytes(b'#!/bin/sh\nARGV="$@"\nexec /usr/local/apps/apache2/bin/httpd -k $ARGV\n')
+   redis_conf.write_bytes(b'bind 127.0.0.1\nport 6379\naclfile /usr/local/apps/redis/users.acl\n')
+   healed=ns['heal_managed_upgrades']()
+   self.assertTrue(healed['apachectl_repaired'])
+   self.assertTrue(healed['redis_conf_repaired'])
+   self.assertIn('# Golden Shield shared Apache launcher',apachectl.read_text())
+   self.assertIn('# BEGIN Webuzo Planner Shared Redis',redis_conf.read_text())
+
+ def test_root_and_plugin_mirrored_files_are_identical(self):
+  root=pathlib.Path(__file__).parent
+  pairs=[]
+  for folder in('agent','core'):
+   for p in sorted((root/folder).glob('*')):
+    if p.is_file() and p.suffix in('.py','.php','.service','.html'):
+     pairs.append((p,root/'plugin'/folder/p.name))
+  pairs.append((root/'CHANGELOG.md',root/'plugin'/'CHANGELOG.md'))
+  for src,dst in pairs:
+   self.assertTrue(dst.exists(),msg=f'Missing plugin mirror: {dst}')
+   self.assertEqual(src.read_bytes().replace(b'\r\n',b'\n'),dst.read_bytes().replace(b'\r\n',b'\n'),msg=f'Parity mismatch: {src.relative_to(root)} vs {dst.relative_to(root)}')
 if __name__=='__main__':unittest.main()

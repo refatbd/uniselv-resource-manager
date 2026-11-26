@@ -263,6 +263,8 @@
 
 /* ==================== TABS NAVIGATION WITH ICONS ==================== */
 .uniselv-tabs {
+    scroll-margin-top: 84px;
+    scroll-margin-bottom: 84px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -277,6 +279,8 @@
 }
 
 .uniselv-tab-btn {
+    scroll-margin-top: 84px;
+    scroll-margin-bottom: 84px;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -342,6 +346,8 @@
 }
 
 .uniselv-card {
+    scroll-margin-top: 84px;
+    scroll-margin-bottom: 84px;
     background: var(--uniselv-bg-card);
     border: 1px solid var(--uniselv-border);
     border-radius: var(--uniselv-radius-card);
@@ -681,6 +687,11 @@
 
 .uniselv-table tr:hover td {
     background: #f8fafc;
+}
+
+.uniselv-account-row {
+    scroll-margin-top: 84px;
+    scroll-margin-bottom: 84px;
 }
 
 /* ==================== STORAGE & RETENTION SECTION ==================== */

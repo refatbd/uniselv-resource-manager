@@ -19,6 +19,22 @@ foreach ((array)@glob('/usr/local/apps/php*/bin/php') as $_uPhpBin) {
 sort($uniselvPhpBranches);
 $uniselvComposerPath = @is_executable('/usr/local/bin/composer') ? '/usr/local/bin/composer' : (@is_executable('/usr/bin/composer') ? '/usr/bin/composer' : 'Not installed globally');
 $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable('/bin/systemd-run');
+$uniselvAgentMemoryCap = 'MemoryHigh=192M / MemoryMax=256M';
+$_uSvcFile = '/etc/systemd/system/uniselv-resman-agent.service';
+if (@is_file($_uSvcFile) && @is_readable($_uSvcFile)) {
+    $_uSvcTxt = (string)@file_get_contents($_uSvcFile);
+    if (preg_match('/^MemoryHigh=([^\r\n]+)/m', $_uSvcTxt, $_uMh) && preg_match('/^MemoryMax=([^\r\n]+)/m', $_uSvcTxt, $_uMm)) {
+        $uniselvAgentMemoryCap = 'MemoryHigh=' . trim($_uMh[1]) . ' / MemoryMax=' . trim($_uMm[1]);
+    }
+}
+$uniselvReadOptionalDoc = static function(string $relPath): string {
+    $fullPath = __DIR__ . '/../' . ltrim($relPath, '/');
+    if (!@is_file($fullPath) || !@is_readable($fullPath)) {
+        return 'Reference document (' . basename($relPath) . ') is excluded from minimal release ZIP packages; see docs/ in the source repository.';
+    }
+    $content = @file_get_contents($fullPath);
+    return is_string($content) && $content !== '' ? $content : 'Reference document unavailable.';
+};
 ?>
 <div id="tab-help" class="uniselv-tab-content">
     <!-- Help Header & Real-time Search -->
@@ -53,34 +69,49 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
 
     <!-- Documentation Articles Grid -->
     <div class="uniselv-help-grid">
-        <!-- OPENSWOOLE GOVERNANCE (v1.2.0) -->
+        <!-- OPENSWOOLE GOVERNANCE & PHP RUNTIME SELF-HEALING -->
         <div class="uniselv-help-card" data-cat="platform" id="help-topic-openswoole">
-            <span class="uniselv-help-badge badge-cat-features">OpenSwoole Governance</span>
-            <h4 class="uniselv-help-card-title">Multi-PHP OpenSwoole Installer &amp; Plan-Proportional Runtime Governance</h4>
+            <span class="uniselv-help-badge badge-cat-features">OpenSwoole &amp; PHP Hygiene</span>
+            <h4 class="uniselv-help-card-title">Multi-PHP OpenSwoole Installer, Symlink Sync &amp; INI Self-Healing</h4>
             <div class="uniselv-help-card-desc">
-                <strong>Menu:</strong> <em>OpenSwoole</em> tab.<br>
-                <strong>What it does:</strong> Automates OpenSwoole extension provisioning across all Webuzo PHP branches (<code>php74</code>–<code>php84+</code>) and enforces account resource fairness on long-lived coroutine/Octane servers so one tenant cannot bypass cgroups or exhaust host RAM.
+                <strong>Menu:</strong> <em>OpenSwoole</em> &amp; <em>System &amp; Agent Health</em> tabs.<br>
+                <strong>What it does:</strong> Automates OpenSwoole extension provisioning across all installed Webuzo PHP branches (<code>php74</code>–<code>php84+</code>), enforces account resource fairness on long-lived coroutine/Octane servers, and continuously heals PHP CLI/INI drift caused by panel updates.
                 <ol style="margin: 6px 0 10px 20px; padding: 0; line-height: 1.6;">
-                    <li><strong>One-Click Build &amp; Extension Wiring:</strong> Installs version-compatible OpenSwoole builds, wires <code>ext/openswoole.so</code> + <code>php.d/openswoole.ini</code> automatically, and automatically provisions newly installed Webuzo PHP branches.</li>
-                    <li><strong>Plan-Proportional Limits:</strong> Derives <code>max_workers</code>, <code>max_task_workers</code>, memory caps, and idle timeouts strictly from each plan's assigned vCPU &amp; RAM budget (plus optional per-plan overrides).</li>
-                    <li><strong>Process Containment &amp; Self-Test:</strong> Keeps OpenSwoole masters and workers confined inside <code>golden-&lt;uid&gt;.slice</code> without misclassifying ordinary PHP CLI crons, provides live <strong>Admin OpenSwoole Governance Self-Test</strong>, and logs all actions in <em>Audit Events</em>.</li>
+                    <li><strong>One-Click Build &amp; Extension Wiring:</strong> Installs version-compatible OpenSwoole builds, wires <code>ext/openswoole.so</code> + <code>php.d/openswoole.ini</code> automatically, and strips duplicate <code>extension=openswoole.so</code> entries from <code>extra.ini</code>.</li>
+                    <li><strong>Autonomous CLI Symlink &amp; INI Self-Healing (v1.5.1–v1.5.3):</strong> Synchronizes <code>/usr/local/bin/php</code> and <code>/usr/bin/php</code> atomically to match Webuzo's configured Default PHP (<code>$globals['WU_DEFAULT_PHP']</code>), restores restrictive <code>0750 root:root</code> PHP INI permissions back to <code>0644</code> for unprivileged <code>webuzo</code> checks, and repairs corrupted launchers.</li>
+                    <li><strong>Plan-Proportional Limits &amp; Containment:</strong> Derives <code>max_workers</code>, <code>max_task_workers</code>, memory caps, and idle timeouts strictly from each plan's vCPU &amp; RAM budget, keeping masters/workers inside <code>golden-&lt;uid&gt;.slice</code> with live self-tests and <em>Audit Events</em>.</li>
                 </ol>
             </div>
         </div>
 
-        <!-- PLATFORM OPERATIONS & LARAVEL (v1.2.0) -->
+        <!-- PLATFORM OPERATIONS & LARAVEL (v1.6.0) -->
         <div class="uniselv-help-card" data-cat="platform" id="help-topic-platform">
             <span class="uniselv-help-badge badge-cat-features">Platform &amp; Laravel</span>
-            <h4 class="uniselv-help-card-title">OS Preflight, Managed Laravel Services, Redis ACL, Ports &amp; Policy Migration</h4>
+            <h4 class="uniselv-help-card-title">OS Preflight, Managed Laravel Services, Redis ACL Recovery &amp; Ports</h4>
             <div class="uniselv-help-card-desc">
                 <strong>Menu:</strong> <em>Platform &amp; Laravel</em> tab (Admin) &amp; <em>App Services &amp; Tools</em> tab (Enduser).
                 <ol style="margin: 6px 0 10px 20px; padding: 0; line-height: 1.6;">
                     <li><strong>1-Click OS Preflight &amp; Verified Composer:</strong> Audits C/C++ build headers (<code>libssl-dev</code>, <code>libcurl4-openssl-dev</code>, <code>zlib1g-dev</code>, compilers) and Composer. Missing dependencies install asynchronously via isolated transient <code>systemd-run</code> units (<code>MemoryMax=1G</code>, APT post-hooks bypassed) without straining the agent daemon.</li>
-                    <li><strong>Managed Laravel Services (Global Policy + Fleet Monitor):</strong> Use <strong>Global Feature Policy</strong> checkboxes to enable/disable Managed Laravel Services and restrict allowed service types (<strong>Queue Workers</strong>, <strong>Laravel Horizon</strong>, <strong>Laravel Reverb</strong>, <strong>Scheduler</strong>) plus the global worker cap. Monitor every customer's units across the server and run 3-step self-tests; customers configure their own project paths directly inside <em>Enduser &rarr; App Services &amp; Tools</em> (with an optional collapsed Admin Support Override accordion for hands-on troubleshooting).</li>
-                    <li><strong>Redis ACL Tenant Isolation:</strong> Toggle enduser self-service Redis ACL creation globally, enforce optional <code>default</code> user lockdown, audit all provisioned ACL users in the fleet table with inline <strong>Test ACL</strong> / <strong>Revoke</strong> actions, and keep secrets masked in logs/exports.</li>
+                    <li><strong>Managed Laravel Services (Global Policy + Fleet Monitor):</strong> Use <strong>Global Feature Policy</strong> checkboxes to enable/disable Managed Laravel Services and restrict allowed service types (<strong>Queue Workers</strong>, <strong>Laravel Horizon</strong>, <strong>Laravel Reverb</strong>, <strong>Scheduler</strong>) plus the global worker cap. Monitor every customer's units across the server and run 3-step self-tests; customers configure paths in <em>Enduser &rarr; App Services &amp; Tools</em>.</li>
+                    <li><strong>Redis ACL Isolation &amp; Upgrade Self-Healing (v1.6.0):</strong> Enforces per-tenant prefix ACLs and optional <code>default</code> user lockdown. Tenant secrets are stored as SHA-256 hashes (UI shows plaintext only once at generation/rotation and <code>SHA-256 Hash Stored</code> afterward). Every 60s and at startup, <code>reconcile_redis_health()</code> backs up validated <code>users.acl</code> and <code>redis.conf</code> to root-only <code>/var/lib/uniselv-resource-manager/backups/redis/</code>, automatically restores or synthesizes missing <code>users.acl</code> after Webuzo Redis package upgrades with <code>0640 redis:redis</code> ownership, and surfaces <code>REDIS SERVICE STOPPED</code> if Redis goes offline while respecting intentional administrator <code>systemctl stop redis</code>.</li>
                     <li><strong>Dedicated Port Registry &amp; Socket Dir:</strong> Assigns persistent conflict-free ports per account for Octane (<code>--port</code>), Reverb, Horizon, Node, and Python alongside <code>/run/uniselv-apps/&lt;account&gt;</code>.</li>
-                    <li><strong>Heavy Runtime Containment &amp; Log/Inode Watchdog:</strong> Confines or terminates out-of-slice heavy runtimes, toggles whether customers can run self-trim inside <em>Enduser &rarr; App Services &amp; Tools</em>, flags bloated <code>laravel.log</code> / debug logs, and truncates safely while keeping the newest 1,000 lines (rejecting symlinks).</li>
+                    <li><strong>Heavy Runtime Containment &amp; Log Watchdog:</strong> Confines or terminates out-of-slice heavy runtimes, flags bloated <code>laravel.log</code> / debug logs, and truncates safely while keeping the newest 1,000 lines (rejecting symlinks).</li>
                     <li><strong>Cluster Policy JSON Migration:</strong> Exports plans, overrides, and platform settings (with all ACL secrets stripped) and supports <strong>Dry-Run Preview</strong> before importing on another server.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- HEADLESS CHROME BROWSER ENGINE GOVERNANCE -->
+        <div class="uniselv-help-card" data-cat="platform" id="help-topic-chrome">
+            <span class="uniselv-help-badge badge-cat-features">Headless Chrome Engine</span>
+            <h4 class="uniselv-help-card-title">Headless Chrome Governance, POSIX ACL Isolation &amp; Upgrade Self-Heal</h4>
+            <div class="uniselv-help-card-desc">
+                <strong>Menu:</strong> <em>Platform &amp; Laravel &rarr; Chrome Engine</em> (Admin) &amp; <em>Dashboard / App Services &amp; Tools</em> (Enduser).<br>
+                <strong>What it does:</strong> Provisions shared Google Chrome headless rendering for Browsershot/Puppeteer PDF &amp; screenshot workflows without exposing the binary globally.
+                <ol style="margin: 6px 0 10px 20px; padding: 0; line-height: 1.6;">
+                    <li><strong>Group &amp; POSIX ACL Lockdown:</strong> Locks <code>/opt/google/chrome/chrome</code> and <code>google-chrome</code> to <code>0750 root:uniselv-chrome</code> plus per-account <code>setfacl</code> permissions so only globally and individually authorized tenants can execute headless Chrome inside <code>golden-&lt;uid&gt;.slice</code>.</li>
+                    <li><strong>Autonomous <code>apt</code>-Upgrade Self-Healing (v1.6.0):</strong> Unattended system Chrome package updates reset binary permissions to <code>0755 root:root</code>. On startup and every 5 minutes, <code>reconcile_chrome_permissions()</code> detects permission drift and automatically restores <code>0750 root:uniselv-chrome</code> and active tenant POSIX ACLs.</li>
+                    <li><strong>Admin &amp; Customer Smoke Tests:</strong> Verify binary hardening, group/ACL membership, and isolated headless DOM execution via <code>systemd-run --quiet</code> directly from the UI.</li>
                 </ol>
             </div>
         </div>
@@ -105,9 +136,9 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
             <span class="uniselv-help-badge">Baseline Reference</span>
             <h4 class="uniselv-help-card-title">Native PHP-FPM Baseline Architecture &amp; Historical Specs (v1.1.33)</h4>
             <div class="uniselv-help-card-desc">Active Plugin Release: <strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong>. The collapsible notes below preserve the reviewed v1.1.33 native PHP-FPM relay &amp; cgroup baseline for architectural reference (already applied; not manual install steps).</div>
-            <details><summary>Operations, expected profile and verification scope</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/release-1.1.33.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
-            <details><summary>Exact source replacement and insertion guide</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/source-changes-1.1.33.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
-            <details><summary>Measured resource allocation and current-host tests</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo htmlspecialchars(file_get_contents(__DIR__ . '/../docs/server-policy-report-1.1.33.md'), ENT_QUOTES, 'UTF-8'); ?></pre></details>
+            <details><summary>Operations, expected profile and verification scope</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo $uniselvHelpEscape($uniselvReadOptionalDoc('docs/release-1.1.33.md')); ?></pre></details>
+            <details><summary>Exact source replacement and insertion guide</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo $uniselvHelpEscape($uniselvReadOptionalDoc('docs/source-changes-1.1.33.md')); ?></pre></details>
+            <details><summary>Measured resource allocation and current-host tests</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere"><?php echo $uniselvHelpEscape($uniselvReadOptionalDoc('docs/server-policy-report-1.1.33.md')); ?></pre></details>
         </div>
 
 
@@ -155,7 +186,7 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                 <strong>What it does:</strong> Comprehensive inventory of all Webuzo accounts showing assigned plan, core-equivalent CPU %, allowance utilization %, memory footprint, task counts, and throttling incidents. Allows granting temporary plan upgrades that expire cleanly.<br>
                 <strong>Menu:</strong> <em>All Accounts</em> tab.<br>
                 <strong>Realistic Example:</strong> An e-commerce site experiences a flash-sale slowdown. First identify the limiting account, shared budget or queue. If the account is constrained and aggregate headroom exists, select a suitable higher plan using its displayed current limits and a bounded duration. A temporary boost does not create more physical RAM or CPU and cannot guarantee removal of 503 errors. Verify restoration or any reported failure after expiry.<br>
-                <strong>Reversal Steps:</strong> To cancel early, open the modal and select cancel, or wait for the timer to expire automatically.
+                <strong>Reversal Steps:</strong> To cancel early, click <strong>Revoke Now</strong> in the top <em>Active Temporary Resource Boosts</em> banner (via <code>cancel_temporary_override</code>), cancel from the account modal, or wait for automatic expiry.
             </div>
         </div>
 
@@ -221,7 +252,8 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                     <li>System Headroom: <strong>120%</strong> (15%)</li>
                 </ul>
                 <strong>Reboot Persistence:</strong> Drop-in file at <code>/etc/systemd/system/golden.slice.d/50-uniselv-limits.conf</code> stores limits for reboots and systemd reloads; verify effective limits after maintenance.<br>
-                <strong>Transactional Backups & Safe Restore:</strong> Before every policy modification, a timestamped backup is saved to <code>/var/lib/uniselv-resource-manager/golden-backups/</code>. When restoring, the manager validates schema integrity, sets drop-in limits, reloads systemd, and attempts a bounded rollback if live kernel verification fails. A failed rollback is reported as inconsistent and requires recovery review.<br>
+                <strong>Transactional Backups &amp; Safe Restore:</strong> Before every policy modification, a timestamped backup is saved to <code>/var/lib/uniselv-resource-manager/golden-backups/</code>. When restoring, the manager validates schema integrity, sets drop-in limits, reloads systemd, and attempts a bounded rollback if live kernel verification fails. A failed rollback is reported as inconsistent and requires recovery review.<br>
+                <strong>Vendor-Upgrade Self-Healing &amp; Scope Hygiene (v1.6.0):</strong> Every 60s and during lifecycle checks, <code>golden-shield.py heal-upgrades</code> detects Webuzo upgrades that overwrite <code>/usr/local/apps/apache2/bin/apachectl</code> or Shared Redis <code>redis.conf</code> directives, archives the vendor binary to <code>apachectl.original</code>, restores the Golden Shield wrapper/directives, and reconciles <code>shared-files.json</code> hashes alongside Redis <code>aclfile</code>. Transient session/worker units created by <code>webuzo-isolation.py</code> and <code>webuzo-session-guard.py</code> set <code>CollectMode=inactive-or-failed</code> so exited tasks do not leak stale failed scopes.<br>
                 <strong>Zero Fabricated Fallbacks:</strong> Hardware detection fails closed (RuntimeError) if physical metrics cannot be determined, preventing unsafe fabricated assumptions.
             </div>
             <div class="uniselv-code-block">
@@ -234,7 +266,7 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
             <span class="uniselv-help-badge badge-cat-golden">Maintenance</span>
             <h4 class="uniselv-help-card-title">Installation, Deactivation and Ownership</h4>
             <div class="uniselv-help-card-desc">
-                <strong>Installation:</strong> Activation installs missing bundled isolation, Golden Shield and session protection dependencies on a supported native layout, then checks effective protection. Unsupported or changed integrations stop activation and retain recovery files.<br>
+                <strong>Installation:</strong> Activation installs missing bundled isolation, Golden Shield and session protection dependencies on a supported native layout, runs Redis &amp; Golden Shield pre-verify healing, and checks effective protection. Scripted builds can pass <code>UNISELV_SKIP_FPM_RELOAD=1</code> to suppress FPM reloads deterministically even after INI normalization. Unsupported or changed integrations stop activation and retain recovery files.<br>
                 <strong>Deactivation:</strong> Pauses plugin monitoring and restores its PHP tracker settings. Existing kernel isolation remains active.<br>
                 <strong>Uninstallation:</strong> Restores protection components installed by this plugin. Previously adopted integrations remain installed. Changed files or failed restoration block cleanup rather than reporting success.<br>
                 <strong>Recovery:</strong> Keep the installation backup and ownership records. If a lifecycle action fails, read the reported error and verify services before retrying. Do not delete recovery manifests to bypass a failure. Existing-server lifecycle evidence does not certify every fresh operating-system or vendor layout.
@@ -340,6 +372,18 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
                 <code>systemctl list-units 'uniselv-app-*' --no-pager && cat /var/lib/uniselv-resource-manager/platform/dep_job.json</code>
                 <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
             </div>
+
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">8. Verify Redis ACL, Durable Backups &amp; Golden Shield Upgrade Self-Heal:</p>
+            <div class="uniselv-code-block">
+                <code>ls -la /usr/local/apps/redis/users.acl /var/lib/uniselv-resource-manager/backups/redis/ && python3 /usr/local/sbin/golden-shield.py heal-upgrades && python3 /usr/local/sbin/golden-shield.py check</code>
+                <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
+            </div>
+
+            <p style="margin:8px 0 4px 0; font-weight:600; font-size:0.85rem; color: var(--uniselv-text-main);">9. Verify Headless Chrome Hardening &amp; Transient Scope Hygiene:</p>
+            <div class="uniselv-code-block">
+                <code>ls -la /opt/google/chrome/chrome /opt/google/chrome/google-chrome && systemctl --failed --no-pager</code>
+                <button class="uniselv-copy-btn" onclick="UniselvResMan.copyToClipboard(this.previousElementSibling.textContent, this)">Copy</button>
+            </div>
         </div>
 
         <!-- 10. ABOUT & COMPATIBILITY -->
@@ -348,12 +392,14 @@ $uniselvSystemdRunOk = @is_executable('/usr/bin/systemd-run') || @is_executable(
             <h4 class="uniselv-help-card-title">About UNISELV Resource Manager & System Compatibility</h4>
             <div class="uniselv-help-card-desc">
                 <table class="uniselv-table" style="width:100%; border-collapse:collapse; font-size:0.88rem; color: var(--uniselv-text-main);">
-                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong> — OpenSwoole Runtime Governance &amp; Managed Laravel Platform Edition.</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600; width:220px;">Plugin Version:</td><td><strong><?php echo $uniselvHelpEscape($uniselvHelpVersion); ?></strong> — OpenSwoole, Headless Chrome &amp; Self-Healing Platform Governance Edition.</td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Host Operating System:</td><td><?php echo $uniselvHelpEscape($uniselvHelpOs['PRETTY_NAME'] ?? 'Unavailable'); ?></td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Active Linux Kernel:</td><td><?php echo $uniselvHelpEscape(php_uname('r') . ' (' . php_uname('m') . ')'); ?></td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Control Panel:</td><td>Webuzo <?php echo $uniselvHelpEscape($uniselvHelpPanel); ?></td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Detected PHP Stack:</td><td><?php echo $uniselvHelpEscape($uniselvPhpBranches ? implode(', ', $uniselvPhpBranches) : 'None detected'); ?></td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Platform Tooling:</td><td>Composer: <code><?php echo $uniselvHelpEscape($uniselvComposerPath); ?></code> &bull; Transient Sandbox: <code><?php echo $uniselvSystemdRunOk ? 'systemd-run OK' : 'Unavailable'; ?></code></td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Agent Service Ceiling:</td><td><code><?php echo $uniselvHelpEscape($uniselvAgentMemoryCap); ?></code> (SQLite WAL bounded footprint)</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Self-Healing Subsystems:</td><td>Redis <code>users.acl</code> durable recovery (60s), Golden Shield <code>heal-upgrades</code> (60s), Chrome <code>0750</code>+ACL heal (300s), Default PHP CLI Sync &amp; INI <code>0644</code> guard (60s)</td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Cgroups Implementation:</td><td>Cgroups v2 Unified Hierarchy (<code>/sys/fs/cgroup</code>)</td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Process Safety:</td><td>Process identity checks with <code>pidfd</code> where supported; strict account slice containment.</td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Ownership Manifest:</td><td><code>/var/lib/uniselv-resource-manager/ownership_manifest.json</code></td></tr>

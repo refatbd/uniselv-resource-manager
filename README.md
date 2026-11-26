@@ -1,4 +1,7 @@
-Current runtime release: **1.5.2**. Autonomous Environment Healing, Strict INI Permission Defense, Duplicate Extension Sanitization, Launcher Drift & Symlink Self-Healing, Precision Operations Console, Universal Light & Dark Mode Governance, Table Text Wrap & Layout Protection, Zero-Terminal Laravel Platform Operations, and Automated Webuzo Admin Governance across Admin (`act=uniselv-resman`) and Enduser (`act=uniselv-resman`), featuring instant 1-click diagnostic testing for Redis 6+, Supervisor, Laravel Queue Workers, Laravel Horizon, Laravel Reverb (WebSockets), Laravel Task Scheduler, Chrome Headless Engine, and OpenSwoole/RoadRunner, OS build preflight toolchain installers, multi-tenant Redis ACL isolation, group-governed headless rendering, and 100% technical English developer documentation. See [changelog](CHANGELOG.md).
+Current runtime release: **1.6.0**. Autonomous Redis ACL Backup & Upgrade Recovery, Golden Shield Vendor-Upgrade Healing (`apachectl` & Shared Redis), Systemd Transient Scope Leak Elimination, Strict PHP-JS-IPC Contract Hardening, Autonomous Environment Healing, Strict INI Permission Defense, Duplicate Extension Sanitization, Launcher Drift & Symlink Self-Healing, Precision Operations Console, Universal Light & Dark Mode Governance, Zero-Terminal Laravel Platform Operations, and Automated Webuzo Admin Governance across Admin (`act=uniselv-resman`) and Enduser (`act=uniselv-resman`), featuring instant 1-click diagnostic testing for Redis 6+, Supervisor, Laravel Queue Workers, Laravel Horizon, Laravel Reverb (WebSockets), Laravel Task Scheduler, Chrome Headless Engine, and OpenSwoole/RoadRunner, OS build preflight toolchain installers, multi-tenant Redis ACL isolation, group-governed headless rendering, and 100% technical English developer documentation. See [changelog](CHANGELOG.md).
+
+> Previous release **1.5.3**, 2026-11-22. Autonomous Webuzo Default PHP OS Symlink Governance & Zero-Drift CLI Alignment.
+> Previous release **1.5.2**, 2026-11-20. Autonomous Environment Healing, Strict INI Permission Defense & Duplicate Extension Sanitization.
 
 > Previous release **1.5.1**, 2026-11-20. Autonomous PHP Launcher Drift & Symlink Self-Healing System.
 > Previous release **1.5.0**, 2026-11-17. Precision Operations Console, Universal Theme Parity & Linux Containerization Hardening Edition.
@@ -35,7 +38,7 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
                                         v
 +-----------------------------------------------------------------------------------+
 |                Privileged Background Daemon (`uniselv-resman-agent`)              |
-|  - Systemd Service: MemoryMax=128M, TasksMax=64      |
+|  - Systemd Service: MemoryMax=256M, TasksMax=64      |
 |  - `collector.py`: High-resolution cgroups v2 delta accounting (10s interval)     |
 |  - `ipc_server.py`: Request router with caller authorization & IDOR isolation     |
 |  - `schema.py`: SQLite WAL bounded storage (`/var/lib/uniselv-resource-manager/`) |
@@ -95,11 +98,11 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
   - Configurable sliding-window thresholds: Telemetry Samples (default 30d), Diagnostic Snapshots (14d), Resource Throttling Events (30d), Audit Trail Logs (90d).
   - Storage quota monitor: Live progress bar showing exact SQLite database footprint against a 100 MiB safety threshold with table row counts.
   - On-Demand Optimization: One-click "Prune & Optimize Database Now" action triggering WAL checkpoint truncation and filesystem VACUUM.
-  - Continuous tracking of daemon RSS memory (bounded by `MemoryMax=128M`).
+  - Continuous tracking of daemon RSS memory (bounded by `MemoryMax=256M`).
 
 ### 3. Modern 8-Services Diagnostic Suite (`act=uniselv-resman`)
 - **Real-Time Interactive Service Matrix:** Instant health status, port binding, and operational diagnostics for 8 modern services:
-  - **Redis 6+ In-Memory Store:** Full Redis ACL authentication (`AUTH <username> <password>`) adhering to Webuzo prefix rules (`u_<user>`), eliminating dangerous passwordless exposures.
+  - **Redis 6+ In-Memory Store:** Full Redis ACL authentication (`AUTH <username> <password>`) adhering to Webuzo prefix rules (`u_<user>`), eliminating passwordless exposures, hashing tenant secrets (`SHA-256 Hash Stored`), and automatically recovering `/usr/local/apps/redis/users.acl` from root-only durable backups after Webuzo package upgrades.
   - **Supervisor Process Manager:** Resilient process supervision with container-hardened `/var/run/supervisord.pid` inspection bypassing `/proc` `hidepid=invisible` tenant restrictions.
   - **Laravel Queue Workers:** Managed asynchronous worker pools isolated inside tenant cgroups (`golden-<uid>.slice`).
   - **Laravel Horizon:** Redis queue metrics dashboard and worker balance controller.
@@ -108,7 +111,7 @@ UNISELV Resource Manager bridges native Webuzo Resource Limits (`/var/webuzo/cgr
   - **Chrome Browser Engine (Headless):** Google Chrome rendering engine secured under Unix group `uniselv-chrome` (`0750`).
   - **OpenSwoole / RoadRunner:** High-concurrency coroutine HTTP execution runtime with multi-PHP branch discovery.
 - **1-Click "Test All 8 Services":** Parallel diagnostic suite delivering sub-second execution with visual status pill indicators (`VERIFIED ACTIVE ✓`).
-- **100% Technical English Help & Developer Guide:** Comprehensive developer manual covering exact copy-paste `.env` values, Supervisor program blocks, and zero-terminal deployment instructions.
+- **100% Technical English Help & About Documentation:** Dynamic versioned Admin & Enduser Help/About tabs (`admin_help.php`, `enduser_help.php`) covering Redis `SHA-256` single-display ACL workflow, Chrome Engine ACL governance, live PHP branch discovery, diagnostic runbooks, and `docs/`-optional warning-safe rendering.
 
 ### 4. Enterprise Admin Automation & VPS Setup Tools
 - **OS Build Preflight Toolchain:** One-click preflight verification and automated background installer for system build tools (`gcc`, `g++`, `make`, `autoconf`, `curl`, `tar`, `unzip`, `git`, `systemd-run`, `composer`, `supervisord`, `redis-cli`) ensuring effortless onboarding on new VPS servers.
@@ -126,30 +129,34 @@ uniselv-resource-manager/
 │   ├── collector.py                # Cgroup v2 delta telemetry collector
 │   ├── ipc_server.py               # UNIX socket server & authorization logic
 │   ├── schema.py                   # SQLite database schema & retention engine
-│   └── uniselv-resman-agent.service# Systemd service definition
+│   ├── platform_manager.py         # Managed Laravel, Redis ACL & Chrome lifecycle manager
+│   └── uniselv-resman-agent.service# Systemd service definition (`MemoryHigh=192M`, `MemoryMax=256M`)
 ├── plugin/
-│   ├── info.json                   # Webuzo plugin metadata
+│   ├── info.json                   # Webuzo plugin metadata (`1.6.0`)
 │   ├── index.php                   # Plugin bootstrapper & location installer
 │   ├── uniselv-resman.php          # Main hook registrations & view controllers
 │   ├── api_client.php              # PHP UNIX domain socket client
-│   ├── install.php                 # Lifecycle activation script
+│   ├── install.php                 # Lifecycle activation & pre-verify healing script
 │   ├── deactivate.php              # Lifecycle deactivation script
 │   ├── uninstall.php               # Complete purge & cleanup script
 │   ├── admin_locations_uniselv-resman.conf # Nginx route for Webuzo Admin
 │   ├── enduser_locations_uniselv-resman.conf # Nginx route for Webuzo Enduser
+│   ├── views/
+│   │   ├── admin_help.php          # Searchable Admin Help & About view
+│   │   └── enduser_help.php        # Searchable Enduser 8-Services Guide & About view
 │   ├── assets/
 │   │   ├── style.css               # Accessible styling (contrast & explicit labels)
 │   │   └── app.js                  # Frontend controllers & SVG chart renderers
 │   └── images/
 │       └── logo.png                # Plugin brand asset
-├── uniselv-resman-1.5.0.zip        # Release archive for v1.5.0
+├── uniselv-resman-1.6.0.zip        # Release archive for v1.6.0
 ├── uniselv-resman.zip              # Packaged deployable archive
 ├── uniselv-resman.zip.sha256       # Cryptographic checksum
-├── IMPLEMENTATION-MATRIX.md        # Technical feature & constraint matrix
 ├── ARCHITECTURE.md                 # In-depth architectural design
 ├── USER-GUIDE.md                   # Enduser operational guide
 ├── ADMIN-GUIDE.md                  # Administrator governance guide
-└── REVIEW-HANDOFF.md               # Senior engineering audit & verification handoff
+├── ANTIGRAVITY.md                  # Release engineering notes
+└── PACK-README.md                  # Packaging overview
 ```
 
 ---
@@ -178,11 +185,12 @@ systemctl status uniselv-resman-agent.service
 
 ## Verification & Testing
 
-Execute the comprehensive automated test suite on the live host:
+Execute the automated Python unit test suite, PHP/JS syntax checks, and ZIP build verification:
 ```bash
-python3 test_suite.py
+python3 -m unittest discover -p "test_*.py" -v
+php -l plugin/uniselv-resman.php && php package_plugin.php
+node --check plugin/assets/app.js
 ```
-Test results and verification metrics are recorded in `TEST-REPORT.json`.
 
 ---
 

@@ -108,12 +108,24 @@ def native_cgroup_target(uid):
     return target
 
 
+def cleanup_failed_transient_scopes():
+    """Reset stale failed plugin transient scopes without touching other services."""
+    r=execute(['systemctl','list-units','--type=scope','--state=failed','--plain','--no-legend'],False,timeout=10)
+    if r.returncode!=0 or not r.stdout:return 0
+    stale=[line.split()[0] for line in r.stdout.splitlines() if line.strip() and re.fullmatch(r'(?:resman-native|webuzo-session)-u\d+-p\d+-\d+\.scope',line.split()[0])]
+    for i in range(0,len(stale),50):
+        execute(['systemctl','reset-failed',*stale[i:i+50]],False,timeout=15)
+    return len(stale)
+
+
 def native_cgroup_pass():
     """Preserve managed service subgroups; repair legacy UID placement once per sweep.
 
     This replaces only the vendor service command through an owned drop-in, never
     the vendor script. Native-only installations retain the original UID target.
     """
+    try:cleanup_failed_transient_scopes()
+    except Exception:pass
     uids=native_account_uids();targets={};moved=0;errors=[]
     for uid in uids:
         try:targets[uid]=native_cgroup_target(uid)
@@ -147,8 +159,8 @@ def place_native_process(uid,pid,target):
         unit='resman-native-u'+str(uid)+'-p'+str(pid)+'-'+str(time.time_ns())+'.scope'
         r=execute(['/usr/bin/busctl','call','org.freedesktop.systemd1','/org/freedesktop/systemd1',
                  'org.freedesktop.systemd1.Manager','StartTransientUnit','ssa(sv)a(sa(sv))',
-                 unit,'fail','3','Slice','s',account_slice(uid),'PIDs','au','1',str(pid),
-                 'MemorySwapMax','t','0','0'],False,timeout=10)
+                 unit,'fail','4','Slice','s',account_slice(uid),'PIDs','au','1',str(pid),
+                 'MemorySwapMax','t','0','CollectMode','s','inactive-or-failed','0'],False,timeout=10)
         if r.returncode!=0:execute(['systemctl','reset-failed',unit],False)
     else:(target/'cgroup.procs').write_text(str(pid))
 
@@ -1729,15 +1741,15 @@ def sync_default_php_symlinks(default_version=None, universal_path=UNIVERSAL_PHP
                 try:
                     if tmp_link.is_symlink() or tmp_link.exists():
                         tmp_link.unlink(missing_ok=True)
-                    tmp_link.symlink_to(source_bin)
-                    os.replace(tmp_link, link_path)
+                    os.symlink(str(source_bin), str(tmp_link))
+                    os.replace(str(tmp_link), str(link_path))
                     synced.append(str(link_path))
                 except OSError:
                     if tmp_link.is_symlink() or tmp_link.exists():
                         tmp_link.unlink(missing_ok=True)
                     if link_path.is_symlink() or link_path.exists():
                         link_path.unlink(missing_ok=True)
-                    link_path.symlink_to(source_bin)
+                    os.symlink(str(source_bin), str(link_path))
                     synced.append(str(link_path))
             except Exception as err:
                 errors.append(f"Failed linking {link_path} -> {source_bin}: {err}")
@@ -2031,6 +2043,7 @@ def main():
     elif ns.command=='native-cgroup-remove':remove_native_cgroup_guard()
     elif ns.command=='native-cgroup-guard':native_cgroup_guard()
     elif ns.command=='native-cgroup-repair':print(json.dumps(native_cgroup_pass()))
+    elif ns.command=='cleanup-scopes':print(json.dumps({'reset':cleanup_failed_transient_scopes()}))
     elif ns.command=='verify':sys.exit(0 if verify() else 1)
     elif ns.command=='reconcile':
         for version in json.loads((STATE/'installed.json').read_text())['versions']:reconcile(version,True)

@@ -540,9 +540,20 @@ const UniselvResMan = {
             });
             tabs.appendChild(select);
         }
+        if (tabs && !tabs.dataset.uniselvDelegated) {
+            tabs.dataset.uniselvDelegated = '1';
+            tabs.addEventListener('click', (e) => {
+                const targetBtn = e.target.closest('.uniselv-tab-btn');
+                if (!targetBtn || !tabs.contains(targetBtn)) return;
+                e.preventDefault();
+                const targetTab = targetBtn.getAttribute('data-tab');
+                if (targetTab) this.switchTab(targetTab, true);
+            });
+        }
         document.querySelectorAll('.uniselv-tab-btn').forEach(btn => {
             btn.setAttribute('aria-controls', 'tab-' + btn.dataset.tab);
             btn.setAttribute('role', 'tab');
+            if (!btn.type) btn.type = 'button';
             if (!btn.id) btn.id = 'uniselv-tab-' + btn.dataset.tab;
             const panel = document.getElementById('tab-' + btn.dataset.tab);
             if (panel) {
@@ -551,18 +562,14 @@ const UniselvResMan = {
             }
             btn.addEventListener('keydown', event => {
                 if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                const tabs = [...btn.closest('.uniselv-tabs').querySelectorAll('.uniselv-tab-btn')]
+                const allTabs = [...btn.closest('.uniselv-tabs').querySelectorAll('.uniselv-tab-btn')]
                     .filter(tab => tab.getClientRects().length);
-                const index = tabs.indexOf(btn);
+                const index = allTabs.indexOf(btn);
                 if (index < 0) return;
                 event.preventDefault();
-                const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 :
-                    (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-                tabs[next].focus();
-            });
-            btn.addEventListener('click', (e) => {
-                const targetTab = btn.getAttribute('data-tab');
-                this.switchTab(targetTab, true);
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? allTabs.length - 1 :
+                    (index + (event.key === 'ArrowRight' ? 1 : -1) + allTabs.length) % allTabs.length;
+                allTabs[next].focus();
             });
         });
 
@@ -2901,13 +2908,31 @@ const UniselvResMan = {
 
     openOverrideModal: function(user, currentPlan) {
         const quickUser = document.getElementById('quick-override-username');
+        const quickPlan = document.getElementById('quick-override-plan');
         const card = document.getElementById('card-temporary-boost');
         if (quickUser && card) {
-            quickUser.value = user;
             this.switchTab('accounts');
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            card.classList.add('uniselv-card-highlight');
-            setTimeout(() => card.classList.remove('uniselv-card-highlight'), 1800);
+            if (user && !Array.from(quickUser.options).some(opt => opt.value === user)) {
+                quickUser.add(new Option(user, user));
+            }
+            quickUser.value = user || '';
+            Array.from(quickUser.options).forEach(opt => {
+                opt.selected = (opt.value === (user || ''));
+            });
+            quickUser.dispatchEvent(new Event('change', { bubbles: true }));
+            if (quickPlan && currentPlan) {
+                const curNorm = String(currentPlan).toLowerCase();
+                if (String(quickPlan.value || '').toLowerCase() === curNorm) {
+                    const alt = Array.from(quickPlan.options).find(opt => opt.value && String(opt.value).toLowerCase() !== curNorm);
+                    if (alt) quickPlan.value = alt.value;
+                }
+            }
+            requestAnimationFrame(() => {
+                card.scrollIntoView({ behavior: 'auto', block: 'center' });
+                card.classList.add('uniselv-card-highlight');
+                if (quickPlan) quickPlan.focus({ preventScroll: true });
+                setTimeout(() => card.classList.remove('uniselv-card-highlight'), 1800);
+            });
             return;
         }
         const modal = document.getElementById('uniselv-override-modal');
@@ -2918,7 +2943,8 @@ const UniselvResMan = {
         }
     },
 
-    submitQuickOverride: function() {
+    submitQuickOverride: function(btnEl) {
+        const btn = btnEl || document.getElementById('btn-apply-quick-boost');
         const username = document.getElementById('quick-override-username') ? document.getElementById('quick-override-username').value : '';
         if (!username) {
             UniselvNotify.warning('Please select a target account to boost.');
@@ -2928,12 +2954,21 @@ const UniselvResMan = {
         const duration = document.getElementById('quick-override-duration') ? document.getElementById('quick-override-duration').value : 60;
         const reason = document.getElementById('quick-override-reason') ? document.getElementById('quick-override-reason').value : 'Temporary high-traffic event';
 
+        const origHtml = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Applying Boost...';
+        }
         this.callApi('set_override', {
             username: username,
             override_plan: plan,
             duration_minutes: duration,
             reason: reason
         }, (err, res) => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
             if (err || res.error) {
                 UniselvNotify.error(`Failed to set temporary override: ${err || res.error}`);
             } else {
@@ -3442,13 +3477,22 @@ const UniselvResMan = {
 
     renderActiveBoostsBanner: function(boostsData) {
         const banner = document.getElementById('uniselv-active-boosts-banner');
-        if (!banner) return;
         const list = boostsData?.boosts || [];
+        const qCount = document.getElementById('quick-overrides-count');
+        if (qCount) qCount.textContent = String(boostsData?.count ?? list.length);
+        if (!banner) return;
+        if (this._revokingBoostId) return;
         if (!list.length) {
+            this._lastBoostsBannerSig = '';
             banner.innerHTML = '';
             banner.style.display = 'none';
             return;
         }
+        const sig = JSON.stringify(list.map(b => [b.id, b.remaining_minutes, b.target_plan, b.reason]));
+        if (this._lastBoostsBannerSig === sig && banner.childElementCount > 0) {
+            return;
+        }
+        this._lastBoostsBannerSig = sig;
         banner.style.display = 'block';
         let itemsHtml = list.map(b => `
             <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.7);padding:6px 12px;border-radius:6px;margin-top:6px;font-size:0.83rem;">
@@ -3458,7 +3502,7 @@ const UniselvResMan = {
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;">
                     <span style="color:#b45309;font-weight:700;">⏳ ${b.remaining_minutes} min remaining</span>
-                    <button class="uniselv-btn btn-danger btn-sm" style="padding:2px 8px;font-size:0.75rem;" onclick="UniselvResMan.revokePlanOverride(${b.id}, '${this.escapeHtml(b.username)}')">Revoke Now</button>
+                    <button type="button" class="uniselv-btn btn-danger btn-sm" style="padding:2px 8px;font-size:0.75rem;" onclick="UniselvResMan.revokePlanOverride(${b.id}, '${this.escapeHtml(b.username)}', this)">Revoke Now</button>
                 </div>
             </div>
         `).join('');
@@ -3474,15 +3518,28 @@ const UniselvResMan = {
         `;
     },
 
-    revokePlanOverride: function(id, username) {
+    revokePlanOverride: function(id, username, btnEl) {
         if (!confirm(`Are you sure you want to revoke the temporary resource boost for ${username}? This will immediately restore their original plan limits.`)) return;
+        this._revokingBoostId = id;
+        const origText = btnEl ? btnEl.textContent : '';
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.textContent = '⏳ Revoking...';
+        }
         this.callApi('cancel_temporary_override', { id: id, username: username }, (err, res) => {
+            this._revokingBoostId = null;
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.textContent = origText;
+            }
             const d = res?.data || res;
             if (err || !d?.success) {
                 UniselvNotify.error(err || d?.error || 'Failed to revoke temporary override');
             } else {
+                this._lastBoostsBannerSig = null;
                 UniselvNotify.success(`Resource boost revoked for ${username}. Original plan restored.`);
                 this.loadAdminOverview();
+                setTimeout(() => location.reload(), 1200);
             }
         });
     },
@@ -5208,11 +5265,20 @@ const UniselvResMan = {
             const isoBox = mk('div', { style: 'background: var(--uniselv-bg-subtle);border: 1px solid var(--uniselv-border);border-radius:10px;padding:14px;margin-bottom:16px;' });
             const isoHead = mk('div', { style: 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;' });
             const redisGlobalEn = settings.platform_redis_acl_enabled !== '0';
-            isoHead.append(
-                mk('h6', { style: 'font-weight:700;margin:0;' }, `3. Redis ACL Tenant Isolation Policy (Redis ${redis.redis_version || 'N/A'}) & Dedicated Port Registry`),
+            const redisOnline = redis.redis_running !== false;
+            const redisBadges = mk('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;' });
+            redisBadges.append(
+                mk('span', { class: `uniselv-badge ${redisOnline ? 'badge-normal' : 'badge-critical'}` }, redisOnline ? 'REDIS ONLINE' : 'REDIS SERVICE STOPPED'),
                 mk('span', { class: `uniselv-badge ${redis.default_protected ? 'badge-normal' : 'badge-warning'}` }, redis.default_protected ? 'DEFAULT USER PROTECTED' : 'PASSWORDLESS ACCESS ENABLED')
             );
+            isoHead.append(
+                mk('h6', { style: 'font-weight:700;margin:0;' }, `3. Redis ACL Tenant Isolation Policy (Redis ${redis.redis_version || 'N/A'}) & Dedicated Port Registry`),
+                redisBadges
+            );
             isoBox.append(isoHead);
+            if (!redisOnline) {
+                isoBox.append(mk('div', { style: 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:0.82rem;margin-bottom:10px;' }, `Redis service is currently stopped or unreachable${redis.error ? `: ${redis.error}` : '. Check redis.service and ACL file.'}`));
+            }
             const rBar = mk('div', { style: 'display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px 12px;background: var(--uniselv-bg-card);border: 1px solid var(--uniselv-border);border-radius:8px;margin-bottom:10px;' });
             const rSaveEn = mk('button', { class: 'uniselv-btn btn-primary btn-sm', type: 'button' }, 'Save Redis Policy');
             rSaveEn.onclick = () => this.savePlatformSettings();
@@ -5245,7 +5311,7 @@ const UniselvResMan = {
                     const rvBtn = mk('button', { class: 'uniselv-btn btn-danger btn-sm', type: 'button', style: 'padding:3px 8px;font-size:0.74rem;' }, 'Revoke');
                     rvBtn.onclick = () => this.runAdminRedisAction('revoke', false, a.username);
                     acts.append(tBtn, rvBtn);
-                    [a.username, a.redis_user, a.key_prefix, a.enabled ? 'ENABLED' : 'DISABLED', a.password_masked || 'configured', acts].forEach(v => {
+                    [a.username, a.redis_user, a.key_prefix, a.enabled ? 'ENABLED' : 'DISABLED', a.password_masked || 'SHA-256 Hash Stored', acts].forEach(v => {
                         const td = tr.insertCell();
                         if (v instanceof Node) td.append(v);
                         else td.textContent = String(v ?? '-');
@@ -5852,8 +5918,8 @@ const UniselvResMan = {
                 accent: '#ef4444',
                 iconSvg: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>',
                 iconBg: 'linear-gradient(135deg, #ef4444, #b91c1c)',
-                status: (redisData.accounts || []).length ? 'ACTIVE (ACL Provisioned)' : 'READY (127.0.0.1:6379)',
-                statusType: (redisData.accounts || []).length ? 'active' : 'ready',
+                status: redisData.redis_running === false ? 'OFFLINE (Service Stopped)' : ((redisData.accounts || []).length ? 'ACTIVE (ACL Provisioned)' : 'READY (127.0.0.1:6379)'),
+                statusType: redisData.redis_running === false ? 'warning' : ((redisData.accounts || []).length ? 'active' : 'ready'),
                 metrics: [
                     ['Host', '127.0.0.1'],
                     ['Port', '6379'],
@@ -6476,7 +6542,12 @@ const UniselvResMan = {
             } else if (this._euRedisProvision?.env_snippet) {
                 rBox.append(this._mkCodeCopyBox(this._euRedisProvision.env_snippet, 'Copy settings'));
             } else if (euR) {
-                rBox.append(mk('p', {}, 'Redis credentials are shown only when generated. Store them in your application settings.'));
+                const infoRow = mk('div', { style: 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:0.84rem;' });
+                infoRow.append(
+                    mk('span', { class: 'uniselv-badge badge-normal' }, euR.password_masked || 'SHA-256 Hash Stored'),
+                    mk('span', {}, 'Redis credentials are shown only when generated. Store them in your application settings or click Rotate Redis Password.')
+                );
+                rBox.append(infoRow);
             } else {
                 rBox.append(mk('p', { style: 'font-size:0.83rem;color: var(--uniselv-text-muted);margin:0;' }, 'Click "Create My Redis ACL" to generate dedicated prefix-locked Redis credentials for your Laravel queues & cache.'));
             }

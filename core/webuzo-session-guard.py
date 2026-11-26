@@ -20,7 +20,7 @@ def main():
   if (root/name).read_text().strip().startswith('max'):raise RuntimeError('Unbounded account '+name)
  if (root/'memory.swap.max').read_text().strip()!='0':raise RuntimeError('Account swap must be zero')
  unit='webuzo-session-u'+str(uid)+'-p'+str(parent)+'-'+str(time.time_ns())+'.scope'
- args=['/usr/bin/busctl','call','org.freedesktop.systemd1','/org/freedesktop/systemd1','org.freedesktop.systemd1.Manager','StartTransientUnit','ssa(sv)a(sa(sv))',unit,'fail','3','Slice','s','golden-'+str(uid)+'.slice','PIDs','au','1',str(parent),'MemorySwapMax','t','0','0']
+ args=['/usr/bin/busctl','call','org.freedesktop.systemd1','/org/freedesktop/systemd1','org.freedesktop.systemd1.Manager','StartTransientUnit','ssa(sv)a(sa(sv))',unit,'fail','4','Slice','s','golden-'+str(uid)+'.slice','PIDs','au','1',str(parent),'MemorySwapMax','t','0','CollectMode','s','inactive-or-failed','0']
  r=subprocess.run(args,capture_output=True,text=True,timeout=20)
  if r.returncode:raise RuntimeError('Scope creation failed: '+r.stderr[-300:])
  for _ in range(100):

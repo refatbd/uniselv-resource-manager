@@ -4,7 +4,7 @@
  * Role-specific, searchable, responsive documentation tailored for Webuzo hosting customers.
  */
 $uniselvEuInfo = @json_decode(@file_get_contents(__DIR__ . '/../info.json'), true) ?: [];
-$uniselvEuVersion = htmlspecialchars((string)($uniselvEuInfo['version'] ?? '1.2.0'), ENT_QUOTES, 'UTF-8');
+$uniselvEuVersion = htmlspecialchars((string)($uniselvEuInfo['version'] ?? '1.6.0'), ENT_QUOTES, 'UTF-8');
 $uniselvEuPhp = [];
 foreach ((array)@glob('/usr/local/apps/php*/bin/php') as $_euPhpBin) {
     if (preg_match('#/apps/(php\d{2,3})/bin/php$#', (string)$_euPhpBin, $_euM) && @is_executable($_euPhpBin)) {
@@ -68,7 +68,7 @@ sort($uniselvEuPhp);
                         <tr><td><code>REDIS_HOST</code></td><td><code>127.0.0.1</code></td><td>Local loopback host for minimal socket latency</td></tr>
                         <tr><td><code>REDIS_PORT</code></td><td><code>6379</code></td><td>Standard Redis TCP listener port</td></tr>
                         <tr><td><code>REDIS_USERNAME</code></td><td><code>u_&lt;your_username&gt;</code></td><td>Dedicated ACL username provisioned for your account</td></tr>
-                        <tr><td><code>REDIS_PASSWORD</code></td><td>Copy from Redis card in Dashboard</td><td>Secure ACL password provisioned by UNISELV</td></tr>
+                        <tr><td><code>REDIS_PASSWORD</code></td><td>Shown once on Generate / Rotate</td><td>Credentials are stored as SHA-256 hashes (card displays <code>SHA-256 Hash Stored</code> afterward). Save it immediately or click <strong>Rotate Credentials</strong> to issue a new password.</td></tr>
                         <tr><td><code>REDIS_PREFIX</code></td><td><code>&lt;your_username&gt;:</code></td><td>Mandatory: Enforced namespace prefix for tenant isolation</td></tr>
                         <tr><td><code>CACHE_PREFIX</code></td><td><code>&lt;your_username&gt;:cache:</code></td><td>Cache subsystem namespace isolation prefix</td></tr>
                     </tbody>
@@ -79,7 +79,7 @@ sort($uniselvEuPhp);
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_USERNAME=u_yourusername
-REDIS_PASSWORD=your_acl_password_here
+REDIS_PASSWORD=your_acl_password_shown_once
 REDIS_PREFIX=yourusername:
 CACHE_PREFIX=yourusername:cache:
 HORIZON_PREFIX=yourusername:horizon:
@@ -98,7 +98,7 @@ Cache::put('latest_products', $products, 3600);
 Redis::set('daily_visitors', 1250);
 $visitors = Redis::get('daily_visitors');</code></pre>
 
-                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click the <strong>⚡ Test</strong> button on the <em>Redis</em> card in your UNISELV dashboard to instantly verify connection latency, prefix write permissions, cross-tenant denial guards, and administrative command protection.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification &amp; Service Status:</strong> Click the <strong>⚡ Test</strong> button on the <em>Redis</em> card inside <em>App Services &amp; Tools</em> to verify connection latency, active ACL rules, prefix isolation, and admin command protection. If the card badge displays <code>REDIS SERVICE STOPPED</code> or <code>OFFLINE (Service Stopped)</code>, host Redis is stopped or undergoing automated recovery—contact support if it persists.</p>
             </div>
         </div>
 
@@ -141,7 +141,7 @@ redirect_stderr=true
 stdout_logfile=/home/username/.uniselv-logs/worker.log
 stdout_logfile_maxbytes=10MB
 stdout_logfile_backups=2</code></pre>
-                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Once saved, the UNISELV agent automatically registers the drop-in. Click <strong>⚡ Test</strong> on the <em>Supervisor</em> card to inspect daemon status and active drop-in configuration files.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>PHP Binary Path Tip &amp; Dashboard Verification:</strong> Replace <code>php84</code> with your site's PHP branch (or use <code>/usr/local/bin/php</code>, which tracks the server's active Default PHP CLI). Once saved, the UNISELV agent automatically registers the drop-in. Click <strong>⚡ Test</strong> on the <em>Supervisor</em> card to inspect daemon status and active drop-in configuration files.</p>
             </div>
         </div>
 
@@ -334,7 +334,7 @@ $pdfData = Browsershot::html('&lt;h1&gt;Customer Invoice #1024&lt;/h1&gt;&lt;p&g
     ->pdf();
 
 return response($pdfData)->header('Content-Type', 'application/pdf');</code></pre>
-                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>⚡ Test</strong> on the <em>Chrome Browser Engine</em> card to run a live headless DOM rendering smoke test inside your account's containment slice.</p>
+                <p style="font-size:0.8rem;color: var(--uniselv-text-muted);margin-top:6px;"><strong>Dashboard Verification:</strong> Click <strong>🧪 Test Health</strong> on the <em>Chrome &amp; Automation Hub</em> card directly on your <em>Dashboard</em> tab (or <strong>⚡ Test</strong> in <em>App Services &amp; Tools</em>) to run a live headless DOM smoke test inside your account's slice (use <strong>🧹 Free RAM</strong> to reclaim idle Chrome memory). Requires administrator-enabled Chrome access for your account.</p>
             </div>
         </div>
 
@@ -345,7 +345,7 @@ return response($pdfData)->header('Content-Type', 'application/pdf');</code></pr
             <div class="uniselv-help-card-desc">
                 <p><strong>Overview &amp; Architecture:</strong> In standard PHP-FPM, the entire Laravel framework bootstraps on every single request. OpenSwoole and Laravel Octane keep the application booted in memory, serving incoming requests via high-concurrency event loops, achieving up to 10x throughput and sub-10ms response times.</p>
 
-                <p class="uniselv-alert-box alert-success" style="padding:6px 10px;margin-top:6px;font-size:0.82rem;"><strong>Pre-Compiled Extensions:</strong> OpenSwoole is pre-compiled across PHP 7.4, 8.1, 8.2, and 8.4 on the UNISELV server. A dedicated port is reserved specifically for your account's Octane server.</p>
+                <p class="uniselv-alert-box alert-success" style="padding:6px 10px;margin-top:6px;font-size:0.82rem;"><strong>Available Runtimes:</strong> Detected host PHP runtimes: <?php echo htmlspecialchars($uniselvEuPhp ? implode(', ', $uniselvEuPhp) : 'Standard Webuzo PHP branches', ENT_QUOTES, 'UTF-8'); ?>. A dedicated port is reserved specifically for your account's Octane server.</p>
 
                 <h5 style="margin:10px 0 4px 0;font-size:0.88rem;color: var(--uniselv-text-main);">1. Installation &amp; <code>.env</code> Configuration:</h5>
                 <pre class="uniselv-code-block"><code>composer require laravel/octane
@@ -438,7 +438,7 @@ OCTANE_TASK_WORKERS=1</code></pre>
                 <ul style="margin:6px 0 6px 18px; padding:0; line-height:1.55;">
                     <li><strong>Managed Laravel Services:</strong> Auto-detects your Laravel projects and lets you install, start, stop, restart, enable/disable, test, or inspect logs for <strong>Queue Workers</strong>, <strong>Horizon</strong>, <strong>Reverb WebSocket</strong>, and <strong>Scheduler</strong> when enabled by your administrator (Horizon and Reverb require at least <code>512 MiB</code> plan RAM).</li>
                     <li><strong>Dedicated Ports, Unix Sockets &amp; Copy Helpers:</strong> Shows your reserved, conflict-free ports for Octane, Reverb, Horizon, Node, and Python plus your private socket directory, with one-click Copy buttons for Reverb Apache proxy snippets.</li>
-                    <li><strong>Isolated Redis ACL:</strong> When permitted by host policy, generate or rotate your private Redis ACL username/password locked strictly to your account key prefix with one-click <code>.env</code> snippet copy.</li>
+                    <li><strong>Isolated Redis ACL:</strong> When permitted by host policy, generate or rotate your private Redis ACL username/password locked strictly to your account key prefix. Passwords are shown once at generation/rotation and masked as <code>SHA-256 Hash Stored</code> afterward; if Redis is offline, the badge reports <code>OFFLINE (Service Stopped)</code>.</li>
                     <li><strong>App Log Watchdog:</strong> Scan oversized logs (e.g. <code>storage/logs/laravel.log</code>) and safely trim when enabled by host policy, preserving the newest 1,000 lines.</li>
                 </ul>
             </div>
@@ -478,7 +478,7 @@ OCTANE_TASK_WORKERS=1</code></pre>
                 <strong>Scenario 1: My website is loading slowly or freezing:</strong>
                 <ol style="margin:6px 0 10px 20px; padding:0;">
                     <li>Check the <strong>CPU Usage</strong> gauge on the Dashboard. If it shows <em>ELEVATED</em> or <em>LIMIT EXCEEDED</em>, your site is using all available processing time.</li>
-                    <li>Navigate to the <strong>Processes</strong> tab to check if a specific script (like a backup plugin, import tool, or scraper) is consuming CPU.</li>
+                    <li>Navigate to the <strong>Current Usage</strong> tab to check if a specific script (like a backup plugin, import tool, or scraper) is consuming CPU.</li>
                     <li>If an unwanted background script is stuck, click <strong>Stop</strong> to terminate it.</li>
                 </ol>
                 <strong>Scenario 2: Visitors are seeing "503 Service Unavailable" or "Resource Limit Reached":</strong>
@@ -529,7 +529,7 @@ OCTANE_TASK_WORKERS=1</code></pre>
                 <pre style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:8px;font-size:0.78rem;overflow-x:auto;margin:0 0 10px 0;"><code>REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REDIS_USERNAME=u_yourusername
-REDIS_PASSWORD=your_isolated_acl_password
+REDIS_PASSWORD=your_acl_password_shown_once
 REDIS_PREFIX=yourusername:
 HORIZON_PREFIX=yourusername:horizon:
 CACHE_PREFIX=yourusername:cache:</code></pre>
@@ -577,10 +577,10 @@ stdout_logfile_backups=2</code></pre>
             <h4 class="uniselv-help-card-title">About Your Hosting Environment</h4>
             <div class="uniselv-help-card-desc">
                 <table class="uniselv-table" style="width:100%; border-collapse:collapse; font-size:0.86rem; color: var(--uniselv-text-main); margin-bottom:10px;">
-                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600; width:190px;">Resource Manager Version:</td><td><strong>v<?php echo $uniselvEuVersion; ?></strong> (OpenSwoole &amp; Managed Laravel Platform)</td></tr>
+                    <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600; width:190px;">Resource Manager Version:</td><td><strong>v<?php echo $uniselvEuVersion; ?></strong> (OpenSwoole, Headless Chrome &amp; Managed Laravel Platform)</td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Kernel Isolation:</td><td>Linux <strong>Cgroups v2</strong> per-account resource slice</td></tr>
                     <tr style="border-bottom:1px solid var(--uniselv-border);"><td style="padding:6px 0; font-weight:600;">Available PHP Runtimes:</td><td><?php echo htmlspecialchars($uniselvEuPhp ? implode(', ', $uniselvEuPhp) : 'Standard Webuzo PHP', ENT_QUOTES, 'UTF-8'); ?></td></tr>
-                    <tr><td style="padding:6px 0; font-weight:600;">Managed App Features:</td><td>One-Click Laravel Queue / Horizon / Reverb / Scheduler, Isolated Redis ACL &amp; Dedicated Port Registry</td></tr>
+                    <tr><td style="padding:6px 0; font-weight:600;">Managed App Features:</td><td>One-Click Laravel Queue / Horizon / Reverb / Scheduler, Headless Chrome Engine (PDF &amp; Screenshots), Isolated Redis ACL (<code>SHA-256</code> hashed) &amp; Dedicated Port Registry</td></tr>
                 </table>
                 Account limits and the shared hosting pool reduce resource contention. Shared database, storage and host pressure can still affect site performance; this is not complete container or filesystem isolation. For questions regarding your plan allocation or upgrading your limits, contact your hosting provider.
             </div>

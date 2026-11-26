@@ -102,6 +102,20 @@ class AgentDaemon:
             print(f"[Agent Default PHP Init Error] {e}", file=sys.stderr)
 
         try:
+            redis_heal = platform_manager.reconcile_redis_health(self.db_path, restart_service=True)
+            if redis_heal and (redis_heal.get('repaired_acl') or redis_heal.get('repaired_conf') or redis_heal.get('restarted_service')):
+                print(f"[Agent Redis Self-Heal Init] {json.dumps(redis_heal)}", file=sys.stderr)
+        except Exception as e:
+            print(f"[Agent Redis Self-Heal Init Error] {e}", file=sys.stderr)
+
+        try:
+            chr_heal = platform_manager.reconcile_chrome_permissions(self.collector, self.db_path)
+            if chr_heal and chr_heal.get('repaired'):
+                print(f"[Agent Chrome Self-Heal Init] {json.dumps(chr_heal)}", file=sys.stderr)
+        except Exception as e:
+            print(f"[Agent Chrome Self-Heal Init Error] {e}", file=sys.stderr)
+
+        try:
             if getattr(self.collector, 'circuit_breaker_active', False):
                 print(f"[Agent Startup] Circuit breaker active with {len(self.collector.circuit_breaker_throttled_users)} throttled users. Checking load...", file=sys.stderr)
                 load1, _, _ = os.getloadavg()
@@ -142,6 +156,7 @@ class AgentDaemon:
         """Periodic background collection thread."""
         last_prune = 0
         last_drift_check = 0
+        last_redis_check = 0
         last_report_check = 0
         last_log_scan = 0
         last_policy_enforcement = 0
@@ -186,7 +201,7 @@ class AgentDaemon:
                     self.collector.prune_retention()
                     last_prune = time.time()
 
-                # 4. Check hardware capacity changes & reconcile every 5 minutes
+                # 4. Check hardware capacity changes & Chrome permission drift every 5 minutes
                 if time.time() - last_drift_check > 300:
                     try:
                         rec = self.golden_shield.reconcile_hardware_changes()
@@ -194,9 +209,24 @@ class AgentDaemon:
                             print(f"[Agent Hardware Reconciled] {rec['description']}", file=sys.stderr)
                     except Exception as e:
                         print(f"[Agent Hardware Check Error] {e}", file=sys.stderr)
+                    try:
+                        chr_heal = platform_manager.reconcile_chrome_permissions(self.collector, self.db_path)
+                        if chr_heal and chr_heal.get('repaired'):
+                            print(f"[Agent Chrome Self-Heal] {json.dumps(chr_heal)}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"[Agent Chrome Check Error] {e}", file=sys.stderr)
                     last_drift_check = time.time()
 
-                # 5. Check background scheduled reports
+                # 5. Check background scheduled reports & Redis self-healing every 60s
+                if time.time() - last_redis_check >= 60:
+                    try:
+                        redis_heal = platform_manager.reconcile_redis_health(self.db_path, restart_service=not self.handler.maintenance_mode)
+                        if redis_heal and (redis_heal.get('repaired_acl') or redis_heal.get('repaired_conf') or redis_heal.get('restarted_service')):
+                            print(f"[Agent Redis Self-Heal] {json.dumps(redis_heal)}", file=sys.stderr)
+                    except Exception as red_err:
+                        print(f"[Agent Redis Self-Heal Error] {red_err}", file=sys.stderr)
+                    last_redis_check = time.time()
+
                 if time.time() - last_report_check > 60:
                     self.check_scheduled_reports()
                     last_report_check = time.time()

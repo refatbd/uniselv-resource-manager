@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: UNISELV Resource Manager
-Version: 1.5.3
+Version: 1.6.0
 Description: Enterprise Resource Management, Cgroups v2 Isolation, Real-Time Monitoring & Telemetry for Webuzo.
 Author: Refat Rahman
 Author URI: https://refat.ovh
@@ -398,7 +398,7 @@ function uniselv_resman_admin() {
         }
 
         $mutation_actions = [
-            'set_override', 'cancel_override', 'sync_plans', 'save_plan',
+            'set_override', 'cancel_override', 'cancel_temporary_override', 'sync_plans', 'save_plan',
             'set_maintenance', 'save_storage_settings', 'prune_database',
             'golden_reconfigure', 'golden_disable', 'golden_restore', 'golden_enable',
             'save_feature_settings', 'adapter_sync', 'delete_plan', 'dispatch_report',
@@ -408,7 +408,7 @@ function uniselv_resman_admin() {
             'clear_audit_logs', 'purge_snapshots', 'onboard_php', 'retire_php', 'run_governance',
             'openswoole_save_settings', 'openswoole_php_action', 'openswoole_save_policy', 'openswoole_enforce',
             'openswoole_selftest', 'stop_process',
-            'platform_save_settings', 'platform_install_deps', 'platform_selftest_laravel',
+            'platform_save_settings', 'platform_install_deps', 'install_build_dependencies', 'platform_selftest_laravel',
             'platform_redis_action', 'platform_enforce_runtimes', 'platform_import_policy',
             'platform_supervisor_action', 'save_user_platform_permissions',
             'save_laravel_service', 'control_laravel_service', 'truncate_app_log',
@@ -433,6 +433,7 @@ function uniselv_resman_admin() {
             'out_of_bounds' => 'get_admin_out_of_boundary',
             'set_override' => 'set_temporary_override',
             'cancel_override' => 'cancel_temporary_override',
+            'cancel_temporary_override' => 'cancel_temporary_override',
             'sync_plans' => 'sync_native_plans',
             'save_plan' => 'save_native_plan',
             'delete_plan' => 'delete_native_plan',
@@ -492,6 +493,7 @@ function uniselv_resman_admin() {
             'platform_dep_status' => 'get_platform_dep_status',
             'platform_save_settings' => 'save_platform_settings',
             'platform_install_deps' => 'platform_install_deps',
+            'install_build_dependencies' => 'platform_install_deps',
             'platform_selftest_laravel' => 'platform_selftest_laravel',
             'platform_redis_action' => 'platform_redis_action',
             'platform_scan_logs' => 'platform_scan_logs',
@@ -518,8 +520,23 @@ function uniselv_resman_admin() {
         ];
 
         if (isset($action_map[$subact])) {
-            $long_ops = ['sync_plans', 'platform_import_policy', 'openswoole_selftest', 'platform_selftest_laravel', 'platform_install_deps', 'platform_redis_action', 'platform_supervisor_action', 'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes', 'install_chrome_engine', 'uninstall_chrome_engine', 'run_admin_chrome_test'];
-            $ipc_timeout = in_array($subact, $long_ops) ? 60 : 15;
+            $long_ops = [
+                'set_override', 'cancel_override', 'cancel_temporary_override',
+                'sync_plans', 'save_plan', 'delete_plan', 'adapter_sync',
+                'golden_enable', 'golden_reconfigure', 'golden_disable', 'golden_restore',
+                'onboard_php', 'retire_php', 'run_governance',
+                'openswoole_php_action', 'openswoole_enforce', 'openswoole_selftest',
+                'platform_import_policy', 'platform_selftest_laravel', 'platform_install_deps', 'install_build_dependencies',
+                'platform_redis_action', 'platform_enforce_runtimes', 'platform_supervisor_action',
+                'save_user_platform_permissions', 'control_laravel_service', 'save_laravel_service',
+                'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy',
+                'kill_stuck_cli_processes', 'install_chrome_engine', 'uninstall_chrome_engine', 'run_admin_chrome_test'
+            ];
+            $is_long = in_array($subact, $long_ops, true);
+            $ipc_timeout = $is_long ? 90 : 20;
+            if ($is_long && function_exists('set_time_limit')) {
+                @set_time_limit(max(90, $ipc_timeout + 15));
+            }
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, true, $ipc_timeout);
             echo json_encode($resp);
         } else {
@@ -568,13 +585,13 @@ function uniselv_resman_admin_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.5.3' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.6.0' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.5.3' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.6.0' . '"></script>';
 
     echo '<div class="uniselv-container" id="uniselv-main-container">';
     echo '<script>(function(){try{var t=localStorage.getItem("uniselv_theme")||"light";document.getElementById("uniselv-main-container").setAttribute("data-theme",t);}catch(e){}})();</script>';
@@ -616,43 +633,43 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     // Tabs
     echo '<div class="uniselv-tabs" role="tablist" aria-label="Resource Manager sections">
-        <button class="uniselv-tab-btn active" data-tab="overview">
+        <button type="button" class="uniselv-tab-btn active" data-tab="overview">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> ' . __u('server_overview', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="accounts">
+        <button type="button" class="uniselv-tab-btn" data-tab="accounts">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg> ' . __u('all_accounts', $locale) . ' (' . (isset($accounts['count']) ? $accounts['count'] : 0) . ')
         </button>
-        <button class="uniselv-tab-btn" data-tab="analytics">
+        <button type="button" class="uniselv-tab-btn" data-tab="analytics">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg> ' . __u('user_analytics', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="audit">
+        <button type="button" class="uniselv-tab-btn" data-tab="audit">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('audit', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="goldenshield">
+        <button type="button" class="uniselv-tab-btn" data-tab="goldenshield">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg> ' . __u('golden_shield', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="capacity">
+        <button type="button" class="uniselv-tab-btn" data-tab="capacity">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg> ' . __u('capacity_planning', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="reports">
+        <button type="button" class="uniselv-tab-btn" data-tab="reports">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ' . __u('scheduled_reports', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="integrations">
+        <button type="button" class="uniselv-tab-btn" data-tab="integrations">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg> ' . __u('branding_locale', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="auditlog">
+        <button type="button" class="uniselv-tab-btn" data-tab="auditlog">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('audit_log', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="openswoole">
+        <button type="button" class="uniselv-tab-btn" data-tab="openswoole">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> OpenSwoole
         </button>
-        <button class="uniselv-tab-btn" data-tab="platform">
+        <button type="button" class="uniselv-tab-btn" data-tab="platform">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg> Platform &amp; Laravel
         </button>
-        <button class="uniselv-tab-btn" data-tab="health">
+        <button type="button" class="uniselv-tab-btn" data-tab="health">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ' . __u('system_health', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="help">
+        <button type="button" class="uniselv-tab-btn" data-tab="help">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('help_about', $locale) . '
         </button>
     </div>';
@@ -1063,7 +1080,7 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
                     <label class="uniselv-form-label">Reason</label>
                     <input type="text" id="quick-override-reason" value="Temporary high-traffic event" class="uniselv-form-input" style="width: 100%;">
                 </div>
-                <button class="uniselv-btn btn-primary" onclick="UniselvResMan.submitQuickOverride()">
+                <button type="button" id="btn-apply-quick-boost" class="uniselv-btn btn-primary" onclick="UniselvResMan.submitQuickOverride(this)">
                     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Apply Temporary Boost
                 </button>
             </div>
@@ -2402,7 +2419,11 @@ function uniselv_resman_enduser() {
 
         if (isset($action_map[$subact])) {
             $long_ops = ['save_laravel_service', 'control_laravel_service', 'enduser_redis_action', 'sync_laravel_workers', 'manage_laravel_scheduler_cron', 'manage_reverb_vhost_proxy', 'kill_stuck_cli_processes', 'enduser_chrome_test', 'enduser_chrome_kill', 'service_test'];
-            $ipc_timeout = in_array($subact, $long_ops) ? 35 : 15;
+            $is_long = in_array($subact, $long_ops, true);
+            $ipc_timeout = $is_long ? 60 : 20;
+            if ($is_long && function_exists('set_time_limit')) {
+                @set_time_limit(max(60, $ipc_timeout + 15));
+            }
             $resp = UniselvApiClient::call($action_map[$subact], $params, $current_user, false, $ipc_timeout);
             echo json_encode($resp);
         } else {
@@ -2443,13 +2464,13 @@ function uniselv_resman_enduser_theme() {
     $panel_url = !empty($globals['panel_url']) ? rtrim($globals['panel_url'], '/') : '';
     $i18n_dict = uniselv_get_i18n_dict();
 
-    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.5.3' . '">';
+    echo '<link rel="stylesheet" href="' . $panel_url . '/uniselv-resman/assets/style.css?v=' . filemtime(__DIR__ . '/assets/style.css') . '-1.6.0' . '">';
     echo '<style>.uniselv-container { --uniselv-primary: ' . $brand_color . '; }</style>';
     echo '<script>
 window.UNISELV_LOCALE = ' . json_encode($locale) . ';
 window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict['en']) . ';
 </script>';
-    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.5.3' . '"></script>';
+    echo '<script src="' . $panel_url . '/uniselv-resman/assets/app.js?v=' . filemtime(__DIR__ . '/assets/app.js') . '-1.6.0' . '"></script>';
 
     echo '<div class="uniselv-container" id="uniselv-main-container">';
     echo '<script>(function(){try{var t=localStorage.getItem("uniselv_theme")||"light";document.getElementById("uniselv-main-container").setAttribute("data-theme",t);}catch(e){}})();</script>';
@@ -2486,25 +2507,25 @@ window.UNISELV_TRANSLATIONS = ' . json_encode($i18n_dict[$locale] ?? $i18n_dict[
 
     // Tabs
     echo '<div class="uniselv-tabs" role="tablist" aria-label="Resource Manager sections">
-        <button class="uniselv-tab-btn active" data-tab="dashboard" id="tab-btn-dashboard">
+        <button type="button" class="uniselv-tab-btn active" data-tab="dashboard" id="tab-btn-dashboard">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg> ' . __u('dashboard', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="processes" id="tab-btn-processes">
+        <button type="button" class="uniselv-tab-btn" data-tab="processes" id="tab-btn-processes">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> ' . __u('current_usage', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="history" id="tab-btn-history">
+        <button type="button" class="uniselv-tab-btn" data-tab="history" id="tab-btn-history">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg> ' . __u('historical_charts', $locale) . '
         </button>
-        <button class="uniselv-tab-btn" data-tab="snapshots" id="tab-btn-snapshots">
+        <button type="button" class="uniselv-tab-btn" data-tab="snapshots" id="tab-btn-snapshots">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ' . __u('snapshots_tab', $locale) . ' (<span id="uniselv-snaps-count-badge">' . (isset($snaps['count']) ? $snaps['count'] : 0) . '</span>)
         </button>
-        <button class="uniselv-tab-btn" data-tab="notifications" id="tab-btn-notifications">
+        <button type="button" class="uniselv-tab-btn" data-tab="notifications" id="tab-btn-notifications">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg> ' . __u('notifications_tab', $locale) . ' (<span id="uniselv-notif-count-badge">' . count(isset($notifs['events']) ? $notifs['events'] : []) . '</span>)
         </button>
-        <button class="uniselv-tab-btn" data-tab="services" id="tab-btn-services">
+        <button type="button" class="uniselv-tab-btn" data-tab="services" id="tab-btn-services">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg> App Services &amp; Tools
         </button>
-        <button class="uniselv-tab-btn" data-tab="help" id="tab-btn-help">
+        <button type="button" class="uniselv-tab-btn" data-tab="help" id="tab-btn-help">
             <svg class="uniselv-tab-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> ' . __u('help_about', $locale) . '
         </button>
     </div>';

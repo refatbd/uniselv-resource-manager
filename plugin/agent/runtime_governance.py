@@ -127,15 +127,15 @@ def sync_default_php_symlinks(default_version=None, universal_path=UNIVERSAL_PHP
                 try:
                     if tmp_link.is_symlink() or tmp_link.exists():
                         tmp_link.unlink(missing_ok=True)
-                    tmp_link.symlink_to(source_bin)
-                    os.replace(tmp_link, link_path)
+                    os.symlink(str(source_bin), str(tmp_link))
+                    os.replace(str(tmp_link), str(link_path))
                     synced.append(str(link_path))
                 except OSError:
                     if tmp_link.is_symlink() or tmp_link.exists():
                         tmp_link.unlink(missing_ok=True)
                     if link_path.is_symlink() or link_path.exists():
                         link_path.unlink(missing_ok=True)
-                    link_path.symlink_to(source_bin)
+                    os.symlink(str(source_bin), str(link_path))
                     synced.append(str(link_path))
             except Exception as err:
                 errors.append(f"Failed linking {link_path} -> {source_bin}: {err}")

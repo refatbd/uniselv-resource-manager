@@ -39,18 +39,33 @@ class UniselvApiClient {
             ];
         }
 
-        $stream_timeout = max(5, min(60, intval($timeout)));
+        $stream_timeout = max(5, min(120, intval($timeout)));
         stream_set_timeout($socket, $stream_timeout);
         fwrite($socket, $json_data);
 
         $response = '';
+        $timed_out = false;
         while (!feof($socket)) {
             $chunk = fgets($socket, 8192);
-            if ($chunk === false) break;
+            if ($chunk === false) {
+                $meta = stream_get_meta_data($socket);
+                if (!empty($meta['timed_out'])) {
+                    $timed_out = true;
+                }
+                break;
+            }
             $response .= $chunk;
             if (strpos($chunk, "\n") !== false) break;
         }
         fclose($socket);
+
+        if ($timed_out) {
+            return [
+                'error' => "Background agent request timed out after {$stream_timeout}s ({$action})",
+                'timed_out' => true,
+                'raw' => $response
+            ];
+        }
 
         $decoded = json_decode(trim($response), true);
         if ($decoded === null) {

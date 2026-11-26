@@ -234,10 +234,8 @@ if (file_exists($tracker_script)) {
             glob('/etc/php/*/fpm/php.ini') ?: []
         ));
     }
-    $reloaded_fpm = false;
-    if (getenv('UNISELV_SKIP_FPM_RELOAD') === '1') {
-        $reloaded_fpm = false;
-    }
+    $ini_mutated = false;
+    $skip_fpm_reload = (getenv('UNISELV_SKIP_FPM_RELOAD') === '1');
     $install_errors = [];
 
     foreach ($php_inies as $pini) {
@@ -346,47 +344,49 @@ if (file_exists($tracker_script)) {
                 $install_errors[] = "Atomic rename failed for {$pini}";
                 continue;
             }
-            $reloaded_fpm = true;
+            $ini_mutated = true;
         }
     }
 
     // Fail even when every mutation failed, so no reload/health-check branch was entered.
-    if (!$reloaded_fpm && !empty($install_errors)) {
+    if (!$ini_mutated && !empty($install_errors)) {
         foreach ($install_errors as $err) echo "[UNISELV] INSTALLATION BLOCKED: {$err}\n";
         exit(1);
     }
     // A failed final persistence check must also enter verified rollback after partial mutation.
     if (!uniselv_atomic_persist_manifest($tracker_manifest_file, $tracker_manifest)) {
         $install_errors[] = 'Final recovery manifest persistence failed';
-        if (!$reloaded_fpm) {
+        if (!$ini_mutated) {
             echo "[UNISELV] INSTALLATION BLOCKED: Final recovery manifest persistence failed\n";
             exit(1);
         }
     }
 
-    if ($reloaded_fpm) {
-        // Dynamic discovery of installed and active PHP-FPM services
+    if ($ini_mutated) {
+        // Dynamic discovery of installed and active PHP-FPM services unless skipped
         $reload_services = [];
-        exec("systemctl list-unit-files --no-legend --type=service 'php*-fpm*.service' 'php-fpm*.service' 2>/dev/null", $unit_files);
-        foreach ($unit_files as $line) {
-            $parts = preg_split('/\s+/', trim($line));
-            if (!empty($parts[0])) {
-                $svc_name = $parts[0];
-                exec("systemctl is-active " . escapeshellarg($svc_name) . " 2>/dev/null", $st_out, $st_code);
-                if ($st_code === 0) {
-                    $reload_services[] = $svc_name;
+        if (!$skip_fpm_reload) {
+            exec("systemctl list-unit-files --no-legend --type=service 'php*-fpm*.service' 'php-fpm*.service' 2>/dev/null", $unit_files);
+            foreach ($unit_files as $line) {
+                $parts = preg_split('/\s+/', trim($line));
+                if (!empty($parts[0])) {
+                    $svc_name = $parts[0];
+                    exec("systemctl is-active " . escapeshellarg($svc_name) . " 2>/dev/null", $st_out, $st_code);
+                    if ($st_code === 0) {
+                        $reload_services[] = $svc_name;
+                    }
                 }
             }
-        }
-        $reload_services = array_unique($reload_services);
-        foreach ($reload_services as $svc) {
-            $rc_out = [];
-            $rc_code = 0;
-            exec("systemctl reload " . escapeshellarg($svc) . " 2>&1", $rc_out, $rc_code);
-            if ($rc_code !== 0) {
-                exec("systemctl restart " . escapeshellarg($svc) . " 2>&1", $rc_out, $rc_code);
+            $reload_services = array_unique($reload_services);
+            foreach ($reload_services as $svc) {
+                $rc_out = [];
+                $rc_code = 0;
+                exec("systemctl reload " . escapeshellarg($svc) . " 2>&1", $rc_out, $rc_code);
                 if ($rc_code !== 0) {
-                    $install_errors[] = "Failed reloading/restarting service {$svc}: " . implode(' ', $rc_out);
+                    exec("systemctl restart " . escapeshellarg($svc) . " 2>&1", $rc_out, $rc_code);
+                    if ($rc_code !== 0) {
+                        $install_errors[] = "Failed reloading/restarting service {$svc}: " . implode(' ', $rc_out);
+                    }
                 }
             }
         }
@@ -576,6 +576,13 @@ uniselv_checked_command("python3 -c " . escapeshellarg($init_script));
 @chmod($db_file, 0660);
 @chown($db_file, 'root');
 @chgrp($db_file, 'webuzo');
+
+// Heal managed Redis ACL/conf or vendor upgrade drifts before running lifecycle verification.
+if (is_file('/usr/local/sbin/golden-shield.py') && is_file('/var/lib/golden-shield/installed.json')) {
+    @exec('/usr/bin/python3 /usr/local/sbin/golden-shield.py heal-upgrades >/dev/null 2>&1');
+}
+$redis_heal_script = "import sys; sys.path.insert(0, '$agent_dir/agent'); import platform_manager; print(platform_manager.reconcile_redis_health('$db_file', restart_service=True))";
+@exec('/usr/bin/python3 -c ' . escapeshellarg($redis_heal_script) . ' >/dev/null 2>&1');
 
 // Verify/install missing dependencies from the bundle; never invoke nonexistent CLI actions.
 uniselv_checked_command('/usr/bin/python3 ' . escapeshellarg($agent_dir . '/core/protection-lifecycle.py') . ' install');

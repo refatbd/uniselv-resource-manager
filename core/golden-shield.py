@@ -15,7 +15,7 @@ def atomic(path,text,mode=0o600):
  if path.is_symlink():raise RuntimeError('Refusing symlink: '+str(path))
  temp=path.with_name(path.name+'.golden-'+str(time.time_ns()))
  try:
-  with open(temp,'w',encoding='utf-8') as f:f.write(text);f.flush();os.fsync(f.fileno())
+  with open(temp,'w',encoding='utf-8',newline='\n') as f:f.write(text);f.flush();os.fsync(f.fileno())
   os.chmod(temp,mode);os.replace(temp,path)
  finally:
   if temp.exists() or temp.is_symlink():
@@ -72,6 +72,68 @@ def reconcile_cpu_weight_registry():
    atomic(STATE/('shared-files.before-cpu-weight-'+str(time.time_ns())+'.json'),registry.read_text())
    atomic(registry,json.dumps(data,indent=2))
   return reconciled,unresolved
+
+def reconcile_redis_conf_registry():
+ """Allow managed aclfile coexistence inside Golden Shield shared-files.json."""
+ registry=STATE/'shared-files.json'
+ if not registry.exists():return (0,0)
+ with open(STATE/'managed-files.lock','a') as registry_lock:
+  fcntl.flock(registry_lock,fcntl.LOCK_EX)
+  data=files();key=str(REDIS_CONFIG)
+  if key not in data or not REDIS_CONFIG.is_file() or REDIS_CONFIG.is_symlink():
+   return (0,0)
+  current_bytes=REDIS_CONFIG.read_bytes()
+  digest=hashlib.sha256(current_bytes).hexdigest()
+  if digest==data[key].get('hash'):return (0,0)
+  current_text=current_bytes.decode('utf-8',errors='replace')
+  stripped=re.sub(r'(?m)^\s*aclfile\s+[^\r\n]+\r?\n?','',current_text)
+  if (hashlib.sha256((stripped.rstrip()+'\n').encode()).hexdigest()==data[key].get('hash') or
+      hashlib.sha256(stripped.rstrip().encode()).hexdigest()==data[key].get('hash')):
+   data[key]['hash']=digest
+   atomic(registry,json.dumps(data,indent=2))
+   return (1,0)
+  return (0,1)
+
+def heal_managed_upgrades():
+ """Detect Webuzo vendor updates to apachectl or redis.conf and re-apply Golden Shield integration safely."""
+ if not (STATE/'installed.json').exists():
+  return {'apachectl_repaired':False,'redis_conf_repaired':False}
+ reconcile_redis_conf_registry()
+ result={'apachectl_repaired':False,'redis_conf_repaired':False}
+ with open(STATE/'managed-files.lock','a') as registry_lock:
+  fcntl.flock(registry_lock,fcntl.LOCK_EX)
+  data=files()
+  if APACHE.is_file() and not APACHE.is_symlink():
+   apache_text=APACHE.read_text(encoding='utf-8',errors='replace')
+   if '# Golden Shield shared Apache launcher' not in apache_text and ('httpd' in apache_text or 'ARGV' in apache_text):
+    original=STATE/'apachectl.original'
+    atomic(original,apache_text,0o755)
+    wrapper=apache_launcher(original)
+    atomic(APACHE,wrapper,0o755)
+    row=data.setdefault(str(APACHE),{'backup':str(original),'mode':0o755,'uid':0,'gid':0})
+    row['hash']=hashlib.sha256(APACHE.read_bytes()).hexdigest()
+    atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
+    result['apachectl_repaired']=True
+    if properties('golden-apache.service',['ActiveState']).get('ActiveState')!='active':
+     command(['systemctl','restart','golden-apache.service'],False)
+  policy_file=BASE/'shared-redis-policy.json'
+  if policy_file.is_file() and REDIS_CONFIG.is_file() and not REDIS_CONFIG.is_symlink():
+   rtxt=REDIS_CONFIG.read_text(encoding='utf-8',errors='replace')
+   if '# BEGIN Webuzo Planner Shared Redis' not in rtxt:
+    model=json.loads(policy_file.read_text())
+    acl_lines=[ln.strip() for ln in rtxt.splitlines() if re.match(r'^\s*aclfile\s+',ln)]
+    rebuilt=shared_redis_config(rtxt,model)
+    if acl_lines and not any(re.match(r'^\s*aclfile\s+',l) for l in rebuilt.splitlines()):
+     rebuilt=rebuilt.rstrip()+'\n'+acl_lines[-1]+'\n'
+    st=REDIS_CONFIG.stat()
+    atomic(REDIS_CONFIG,rebuilt,st.st_mode&0o777)
+    if hasattr(os,'chown'):os.chown(REDIS_CONFIG,st.st_uid,st.st_gid)
+    row=data.setdefault(str(REDIS_CONFIG),{'backup':None,'mode':0o644,'uid':st.st_uid,'gid':st.st_gid})
+    row['hash']=hashlib.sha256(REDIS_CONFIG.read_bytes()).hexdigest()
+    atomic(STATE/'shared-files.json',json.dumps(data,indent=2))
+    result['redis_conf_repaired']=True
+    command(['systemctl','restart','redis.service'],False)
+ return result
 
 def derive_auto_policy(cpus, total_ram):
  if total_ram < 1024:
@@ -313,7 +375,7 @@ def serve():
  while alive:
   now=time.monotonic()
   if now-last_constrain>=60.0:
-   try:constrain_customers();last_constrain=now
+   try:constrain_customers();heal_managed_upgrades();last_constrain=now
    except Exception as e:print('GUARD ERROR (protection incomplete): '+str(e),flush=True)
   try:pressure_tick(p,state,now)
   except Exception as e:print('GUARD ERROR (pressure tick): '+str(e),flush=True)
@@ -545,7 +607,7 @@ def uninstall():
 
 def main():
  if os.geteuid()!=0:raise RuntimeError('Run through sudo.')
- parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','reconcile-cpu-weight','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()
+ parser=argparse.ArgumentParser();parser.add_argument('action',choices=['install','resume','check','serve','uninstall','prepare-account','preflight','repair-native-ownership','reconcile-cpu-weight','reconcile-redis-conf','heal-upgrades','apply-memory-cap','apply-shared-redis'],nargs='?',default='install');parser.add_argument('uid',nargs='?');parser.add_argument('--cache-only',action='store_true');args=parser.parse_args()
  if args.action=='install':install()
  elif args.action=='resume':resume_install()
  elif args.action=='preflight':p=effective_memory_cap(policy());prerequisites(p);print('New policy preflight passed.')
@@ -558,6 +620,11 @@ def main():
  elif args.action=='reconcile-cpu-weight':
   reconciled,unresolved=reconcile_cpu_weight_registry()
   print(f'Golden Shield registry: reconciled {reconciled} account slices; {unresolved} require review.')
+ elif args.action=='reconcile-redis-conf':
+  reconciled,unresolved=reconcile_redis_conf_registry()
+  print(json.dumps({'reconciled':reconciled,'unresolved':unresolved}))
+ elif args.action=='heal-upgrades':
+  print(json.dumps(heal_managed_upgrades()))
  else:sys.exit(0 if check() else 1)
 if __name__=='__main__':
  try:main()

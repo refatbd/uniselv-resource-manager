@@ -39,6 +39,10 @@ APACHE_CONF_DIR = pathlib.Path('/var/webuzo-data/apache2/custom/domains')
 LEGACY_APACHE_CONF_DIR = pathlib.Path('/usr/local/apps/apache2/etc/conf.d')
 APACHECTL = pathlib.Path('/usr/local/apps/apache2/bin/apachectl')
 REDIS_ADMIN_FILE = pathlib.Path('/etc/uniselv-resman/redis-admin.json')
+REDIS_ACL_FILE = pathlib.Path('/usr/local/apps/redis/users.acl')
+REDIS_CONF_FILE = pathlib.Path('/usr/local/apps/redis/redis.conf')
+REDIS_BACKUP_ROOT = pathlib.Path('/usr/local/apps/backup')
+REDIS_DURABLE_BACKUP_DIR = pathlib.Path('/var/lib/uniselv-resource-manager/backups/redis')
 _REDIS_LOCK = threading.RLock()
 WEBUZO_DOMAINS_DB = pathlib.Path('/var/webuzo/db/domains.db')
 SUDOERS_DIR = pathlib.Path('/etc/sudoers.d')
@@ -707,6 +711,9 @@ def _is_port_open(port: int) -> bool:
 
 def ensure_account_port_allocation(collector: Any, db_path: str, username: str) -> Dict[str, Any]:
     """Assign a collision-free 10-port non-privileged block (20000-59990) and private socket dir per account."""
+    username = str(username or '').strip()
+    if not username or not re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', username):
+        return {'success': False, 'error': 'Invalid account username'}
     users = {}
     if collector and hasattr(collector, 'get_webuzo_users'):
         try:
@@ -715,14 +722,18 @@ def ensure_account_port_allocation(collector: Any, db_path: str, username: str) 
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
         except Exception:
             pass
+    if users and username not in users:
+        return {'success': False, 'error': f'Unknown hosting account: {username}'}
     uinfo = users.get(username, {})
     uid, gid, _ = _resolve_user_ids(username, int(uinfo.get('uid', 0) or 0))
+    if os.name != 'nt' and username not in users and (uid < 1000 or not pathlib.Path('/var/webuzo/users', username).is_dir()):
+        return {'success': False, 'error': f'Account {username} is not an active Webuzo account'}
 
     socket_dir = str(APP_SOCKET_ROOT / username)
     web_gid = gid
@@ -831,7 +842,7 @@ def list_all_port_allocations(collector: Any, db_path: str) -> List[Dict[str, An
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -854,11 +865,288 @@ def _find_redis_cli() -> str:
 
 
 def _find_redis_conf() -> Optional[pathlib.Path]:
-    for c in ('/usr/local/apps/redis/redis.conf', '/etc/redis/redis.conf', '/etc/redis.conf'):
+    for c in (str(REDIS_CONF_FILE), '/usr/local/apps/redis/redis.conf', '/etc/redis/redis.conf', '/etc/redis.conf'):
         p = pathlib.Path(c)
         if p.is_file():
             return p
     return None
+
+
+def _resolve_redis_owner_ids() -> Tuple[int, int]:
+    uid = gid = 0
+    if os.name == 'nt':
+        return uid, gid
+    try:
+        if pwd is not None:
+            pw = pwd.getpwnam('redis')
+            uid, gid = pw.pw_uid, pw.pw_gid
+    except Exception:
+        pass
+    try:
+        if grp is not None:
+            gid = grp.getgrnam('redis').gr_gid
+    except Exception:
+        pass
+    return uid, gid
+
+
+def _extract_aclfile_from_conf(conf_path: pathlib.Path) -> Optional[pathlib.Path]:
+    try:
+        text = conf_path.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return None
+    acl_path = None
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            continue
+        m = re.match(r'^aclfile\s+(?:"([^"]+)"|\'([^\']+)\'|(\S+))', stripped, re.I)
+        if m:
+            raw = m.group(1) or m.group(2) or m.group(3)
+            acl_path = pathlib.Path(raw)
+    return acl_path
+
+
+def _is_valid_redis_acl_text(text: str) -> bool:
+    lines = [ln.strip() for ln in (text or '').splitlines() if ln.strip() and not ln.strip().startswith('#')]
+    return bool(lines) and all(ln.startswith('user ') for ln in lines)
+
+
+def backup_redis_state() -> Dict[str, Any]:
+    """Atomically snapshot active users.acl and redis.conf to root-only durable plugin storage."""
+    saved_acl = False
+    saved_conf = False
+    with _REDIS_LOCK:
+        conf_path = _find_redis_conf()
+        acl_path = (_extract_aclfile_from_conf(conf_path) if conf_path else None) or REDIS_ACL_FILE
+        try:
+            REDIS_DURABLE_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+            if os.name != 'nt':
+                os.chmod(REDIS_DURABLE_BACKUP_DIR, 0o700)
+        except OSError as exc:
+            return {'success': False, 'error': str(exc), 'saved_acl': False, 'saved_conf': False}
+
+        if acl_path and acl_path.is_file() and not acl_path.is_symlink():
+            try:
+                acl_text = acl_path.read_text(encoding='utf-8', errors='replace')
+                if _is_valid_redis_acl_text(acl_text):
+                    normalized = acl_text.rstrip() + '\n'
+                    bak_acl = REDIS_DURABLE_BACKUP_DIR / 'users.acl.bak'
+                    if not bak_acl.is_file() or bak_acl.read_text(encoding='utf-8', errors='replace') != normalized:
+                        _atomic_write_text(bak_acl, normalized, mode=0o600)
+                    saved_acl = True
+            except OSError:
+                pass
+
+        if conf_path and conf_path.is_file() and not conf_path.is_symlink():
+            try:
+                conf_text = conf_path.read_text(encoding='utf-8', errors='replace')
+                if conf_text.strip():
+                    bak_conf = REDIS_DURABLE_BACKUP_DIR / 'redis.conf.bak'
+                    if not bak_conf.is_file() or bak_conf.read_text(encoding='utf-8', errors='replace') != conf_text:
+                        _atomic_write_text(bak_conf, conf_text, mode=0o600)
+                    saved_conf = True
+            except OSError:
+                pass
+    return {'success': True, 'saved_acl': saved_acl, 'saved_conf': saved_conf}
+
+
+def _synthesize_redis_acl_text(db_path: str) -> str:
+    """Reconstruct valid Redis ACL rules from admin credentials and SQLite tenant records."""
+    settings = load_platform_settings(db_path) if (db_path and os.path.exists(db_path)) else {}
+    lock_default = settings.get('platform_redis_lock_default', '0') == '1'
+    lines = ['user default off' if lock_default else 'user default on nopass ~* &* +@all']
+
+    if REDIS_ADMIN_FILE.is_file() and not REDIS_ADMIN_FILE.is_symlink():
+        try:
+            creds = json.loads(REDIS_ADMIN_FILE.read_text(encoding='utf-8'))
+            admin_u = str(creds.get('username') or '').strip()
+            admin_p = str(creds.get('password') or '')
+            if admin_u and admin_p and re.fullmatch(r'[a-zA-Z0-9_.-]{1,64}', admin_u):
+                ahash = hashlib.sha256(admin_p.encode('utf-8')).hexdigest()
+                lines.append(f'user {admin_u} on #{ahash} ~* &* +@all')
+        except Exception:
+            pass
+
+    if db_path and os.path.exists(db_path):
+        try:
+            with closing(sqlite3.connect(db_path)) as conn:
+                rows = conn.execute(
+                    'SELECT redis_user, key_prefix, password_hash, enabled FROM redis_acl_accounts ORDER BY username ASC'
+                ).fetchall()
+            for r_user, pfx, p_hash, enabled in rows:
+                if not r_user or not pfx or not p_hash:
+                    continue
+                state_tok = 'on' if int(enabled or 0) else 'off'
+                cmds = ' '.join('+' + c for c in REDIS_TENANT_COMMANDS)
+                lines.append(f'user {r_user} {state_tok} #{p_hash} ~{pfx}* &{pfx}* {cmds}')
+        except sqlite3.Error:
+            pass
+    return '\n'.join(lines) + '\n'
+
+
+def _write_redis_acl_file(acl_path: pathlib.Path, content: str) -> None:
+    if acl_path.is_symlink():
+        raise RuntimeError(f'Refusing symlink ACL path: {acl_path}')
+    acl_path.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write_text(acl_path, content.rstrip() + '\n', mode=0o640)
+    if os.name != 'nt':
+        r_uid, r_gid = _resolve_redis_owner_ids()
+        os.chown(acl_path, r_uid, r_gid)
+
+
+def _is_posix_host() -> bool:
+    return os.name != 'nt'
+
+
+def reconcile_redis_health(db_path: str, *, restart_service: bool = True) -> Dict[str, Any]:
+    """Detect and heal Webuzo upgrade ACL/conf loss and crashed redis.service safely."""
+    repaired_acl = False
+    repaired_conf = False
+    restarted_service = False
+    recovery_source = ''
+    errors: List[str] = []
+
+    with _REDIS_LOCK:
+        conf_path = _find_redis_conf()
+        if not conf_path or conf_path.is_symlink():
+            return {'success': True, 'skipped': True, 'reason': 'No redis.conf detected',
+                    'repaired_acl': False, 'repaired_conf': False, 'restarted_service': False}
+
+        # Reconcile Golden Shield Shared Redis markers + aclfile if vendor upgrade wiped redis.conf
+        gs_policy = pathlib.Path('/etc/golden-shield/shared-redis-policy.json')
+        try:
+            conf_text = conf_path.read_text(encoding='utf-8', errors='replace')
+        except OSError as exc:
+            return {'success': False, 'error': str(exc), 'repaired_acl': False, 'repaired_conf': False, 'restarted_service': False}
+
+        acl_path = _extract_aclfile_from_conf(conf_path)
+        durable_bak_acl = REDIS_DURABLE_BACKUP_DIR / 'users.acl.bak'
+        has_managed_acls = durable_bak_acl.is_file() or REDIS_ADMIN_FILE.is_file()
+        if not has_managed_acls and db_path and os.path.exists(db_path):
+            try:
+                with closing(sqlite3.connect(db_path)) as conn:
+                    has_managed_acls = bool(conn.execute('SELECT 1 FROM redis_acl_accounts LIMIT 1').fetchone())
+            except sqlite3.Error:
+                pass
+
+        if acl_path is None and has_managed_acls and (REDIS_ACL_FILE.exists() or durable_bak_acl.is_file()):
+            acl_path = REDIS_ACL_FILE
+            conf_text = conf_text.rstrip() + f'\naclfile {acl_path}\n'
+            st = conf_path.stat()
+            _atomic_write_text(conf_path, conf_text, mode=st.st_mode & 0o777 or 0o644)
+            if os.name != 'nt':
+                os.chown(conf_path, st.st_uid, st.st_gid)
+            repaired_conf = True
+
+        if gs_policy.is_file() and '# BEGIN Webuzo Planner Shared Redis' not in conf_text:
+            try:
+                gs_script = pathlib.Path('/usr/local/sbin/golden-shield.py')
+                if _is_posix_host() and gs_script.is_file():
+                    r_gs = subprocess.run(['/usr/bin/python3', str(gs_script), 'heal-upgrades'], capture_output=True, text=True, timeout=30)
+                    if r_gs.returncode == 0 and 'redis_conf_repaired' in (r_gs.stdout or ''):
+                        repaired_conf = True
+            except Exception as exc:
+                errors.append(f'Golden Shield Redis conf heal failed: {exc}')
+
+        if acl_path is not None:
+            current_valid = False
+            if acl_path.is_file() and not acl_path.is_symlink():
+                try:
+                    cur_txt = acl_path.read_text(encoding='utf-8', errors='replace')
+                    current_valid = _is_valid_redis_acl_text(cur_txt)
+                except OSError:
+                    cur_txt = ''
+            if current_valid:
+                # Ensure readable by redis daemon & refresh durable backup
+                if os.name != 'nt':
+                    try:
+                        st_acl = acl_path.stat()
+                        r_uid, r_gid = _resolve_redis_owner_ids()
+                        if r_gid and (st_acl.st_gid != r_gid or (st_acl.st_mode & 0o040) == 0):
+                            os.chown(acl_path, r_uid, r_gid)
+                            os.chmod(acl_path, 0o640)
+                    except OSError:
+                        pass
+                backup_redis_state()
+            else:
+                # Recover newest valid ACL backup from durable store or Webuzo upgrade backup dir
+                candidates: List[Tuple[float, str, str]] = []
+                if durable_bak_acl.is_file() and not durable_bak_acl.is_symlink():
+                    try:
+                        txt = durable_bak_acl.read_text(encoding='utf-8', errors='replace')
+                        if _is_valid_redis_acl_text(txt):
+                            candidates.append((durable_bak_acl.stat().st_mtime, 'durable_backup', txt))
+                    except OSError:
+                        pass
+                if REDIS_BACKUP_ROOT.is_dir():
+                    for cand in sorted(REDIS_BACKUP_ROOT.glob('redis_*/users.acl')):
+                        if cand.is_file() and not cand.is_symlink():
+                            try:
+                                txt = cand.read_text(encoding='utf-8', errors='replace')
+                                if _is_valid_redis_acl_text(txt):
+                                    candidates.append((cand.stat().st_mtime, str(cand), txt))
+                            except OSError:
+                                pass
+                if candidates:
+                    candidates.sort(key=lambda item: item[0], reverse=True)
+                    _, recovery_source, recovered_txt = candidates[0]
+                    # Merge any DB accounts missing from the chosen snapshot
+                    existing_users = {ln.split()[1] for ln in recovered_txt.splitlines() if ln.strip().startswith('user ') and len(ln.split()) >= 2}
+                    synth_lines = [ln for ln in _synthesize_redis_acl_text(db_path).splitlines() if ln.startswith('user ')]
+                    missing = [ln for ln in synth_lines if len(ln.split()) >= 2 and ln.split()[1] not in existing_users]
+                    if missing:
+                        recovered_txt = recovered_txt.rstrip() + '\n' + '\n'.join(missing) + '\n'
+                else:
+                    recovery_source = 'synthesized_db'
+                    recovered_txt = _synthesize_redis_acl_text(db_path)
+
+                try:
+                    _write_redis_acl_file(acl_path, recovered_txt)
+                    repaired_acl = True
+                    backup_redis_state()
+                except Exception as exc:
+                    errors.append(f'ACL restoration failed: {exc}')
+
+        # Check redis.service state on Linux; only restart if enabled AND crashed/repaired
+        if restart_service and _is_posix_host():
+            try:
+                en = subprocess.run(['systemctl', 'is-enabled', 'redis.service'], capture_output=True, text=True, timeout=5)
+                is_enabled = en.returncode == 0 and en.stdout.strip() in ('enabled', 'enabled-runtime', 'static')
+                if is_enabled:
+                    sh = subprocess.run(['systemctl', 'show', 'redis.service', '-p', 'ActiveState', '-p', 'SubState', '-p', 'Result'],
+                                        capture_output=True, text=True, timeout=5)
+                    props = dict(line.split('=', 1) for line in (sh.stdout or '').splitlines() if '=' in line)
+                    act_st = props.get('ActiveState', '')
+                    res_st = props.get('Result', '')
+                    crashed = (act_st == 'failed') or (act_st in ('inactive', 'deactivating') and res_st not in ('', 'success'))
+                    should_restart = crashed or (repaired_acl and act_st != 'active') or (repaired_conf and act_st != 'active')
+                    if should_restart:
+                        subprocess.run(['systemctl', 'reset-failed', 'redis.service'], capture_output=True, text=True, timeout=5)
+                        rr = subprocess.run(['systemctl', 'restart', 'redis.service'], capture_output=True, text=True, timeout=25)
+                        if rr.returncode == 0:
+                            restarted_service = True
+                        else:
+                            errors.append(f'redis.service restart failed: {(rr.stderr or rr.stdout).strip()}')
+            except Exception as exc:
+                errors.append(f'redis.service recovery error: {exc}')
+
+        if (repaired_acl or repaired_conf or restarted_service) and db_path and os.path.exists(db_path):
+            _record_audit(db_path, 'system', 'platform_redis_auto_healed', 'redis', {
+                'repaired_acl': repaired_acl,
+                'repaired_conf': repaired_conf,
+                'restarted_service': restarted_service,
+                'recovery_source': recovery_source,
+            })
+
+    return {
+        'success': not errors,
+        'repaired_acl': repaired_acl,
+        'repaired_conf': repaired_conf,
+        'restarted_service': restarted_service,
+        'recovery_source': recovery_source,
+        'errors': errors,
+    }
 
 
 def _run_redis(args: List[str], auth_user: str = '', auth_pass: str = '', timeout: float = 5.0,
@@ -889,11 +1177,15 @@ def _run_redis(args: List[str], auth_user: str = '', auth_pass: str = '', timeou
 def _save_redis_acl() -> Optional[str]:
     rc, out, err = _run_redis(['ACL', 'SAVE'])
     if not rc and out == 'OK':
+        try:
+            backup_redis_state()
+        except Exception:
+            pass
         return None
     # Webuzo runs Redis with a read-only application directory. Its ACL file
     # is readable by Redis, while the root agent can atomically replace it.
     rc, config, _ = _run_redis(['CONFIG', 'GET', 'aclfile'])
-    webuzo_acl = pathlib.Path('/usr/local/apps/redis/users.acl')
+    webuzo_acl = REDIS_ACL_FILE
     if rc or config.splitlines() != ['aclfile', str(webuzo_acl)]:
         return err or out or 'Redis ACL persistence failed'
     rc, rules, _ = _run_redis(['ACL', 'LIST'])
@@ -918,6 +1210,10 @@ def _save_redis_acl() -> Optional[str]:
                 pathlib.Path(tmp).unlink(missing_ok=True)
             rc, out, err = _run_redis(['ACL', 'LOAD'])
             if content == rules + '\n' and not rc and out == 'OK':
+                try:
+                    backup_redis_state()
+                except Exception:
+                    pass
                 return None
         return 'Redis rejected the ACL snapshot; previous file restored'
     except OSError as exc:
@@ -1361,14 +1657,10 @@ def _parse_user_supervisor_dropin(
         if not raw_dir and art_tok.endswith('/artisan'):
             raw_dir = str(pathlib.Path(art_tok).parent)
         safe_dir = _safe_home_subpath(username, raw_dir, home_override=home_dir if os.name == 'nt' else None)
+        if raw_dir and not safe_dir:
+            continue
         if not safe_dir:
-            if raw_dir:
-                try:
-                    safe_dir = pathlib.Path(raw_dir)
-                except Exception:
-                    safe_dir = pathlib.Path(home_dir)
-            else:
-                safe_dir = pathlib.Path(home_dir)
+            safe_dir = pathlib.Path(home_dir)
         art_exists = bool(safe_dir and (safe_dir / 'artisan').is_file())
         if require_artisan and not art_exists:
             continue
@@ -1436,12 +1728,15 @@ def sync_user_supervisor_scope(
         users = collector.get_webuzo_users()
         if username not in users:
             return {'success': False, 'error': f'Account {username} not found'}
+        uinfo = users[username]
     else:
         try:
-            pwd.getpwnam(username)
+            pw = pwd.getpwnam(username)
+            if pw is None:
+                raise KeyError(username)
+            uinfo = {'uid': pw.pw_uid, 'homedir': pw.pw_dir}
         except (KeyError, Exception):
             return {'success': False, 'error': f'Account {username} not found'}
-    uinfo = users[username]
     uid = int(uinfo.get('uid', 0) or 0)
     _, gid, home_dir = _resolve_user_ids(username, uid)
 
@@ -1617,7 +1912,7 @@ def enforce_platform_permissions(collector: Any, db_path: str, target_user: Opti
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -1684,7 +1979,7 @@ def compute_laravel_service_budget(collector: Any, username: str, db_path: str) 
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -1884,6 +2179,18 @@ def _query_supervisor_program(uid: int, slug: str, app_path: str = '') -> Dict[s
     return res
 
 
+def _discover_available_php_branches(apps_root: Optional[pathlib.Path] = None) -> List[str]:
+    root = apps_root or pathlib.Path('/usr/local/apps')
+    found: List[str] = []
+    if root.is_dir():
+        for p in root.glob('php*/bin/php'):
+            name = p.parent.parent.name
+            if re.fullmatch(r'php\d{2,3}', name) and (os.name == 'nt' or os.access(p, os.X_OK)):
+                found.append(name)
+    found = sorted(set(found), key=lambda b: (int(b[3:]), b))
+    return found or ['php84']
+
+
 def list_laravel_services(collector: Any, db_path: str, target_user: Optional[str] = None) -> Dict[str, Any]:
     users = {}
     if collector and hasattr(collector, 'get_webuzo_users'):
@@ -1893,22 +2200,13 @@ def list_laravel_services(collector: Any, db_path: str, target_user: Optional[st
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
         except Exception:
             pass
-    apps_root = pathlib.Path('/usr/local/apps')
-    available_php = []
-    if apps_root.is_dir():
-        available_php = sorted(
-            p.parent.parent.name
-            for p in apps_root.glob('php*/bin/php')
-            if re.fullmatch(r'php\d{2,3}', p.parent.parent.name) and os.access(p, os.X_OK)
-        )
-    if not available_php:
-        available_php = ['php84']
+    available_php = _discover_available_php_branches()
 
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -2398,7 +2696,7 @@ def sync_and_reconcile_laravel_workers(collector: Any, db_path: str, actor: str,
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -2648,12 +2946,14 @@ def manage_reverb_vhost_proxy(
 
 def get_active_resource_boosts(collector: Any, db_path: str) -> Dict[str, Any]:
     """Retrieve all currently active temporary plan overrides with remaining countdown minutes."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
     boosts = []
     now = time.time()
-    try:
-        rows = conn.execute("SELECT * FROM temporary_overrides WHERE expires_at > ? ORDER BY expires_at ASC", (now,)).fetchall()
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM temporary_overrides WHERE status IN ('applying', 'active', 'failed_restoration') AND expires_at > ? ORDER BY expires_at ASC",
+            (now,),
+        ).fetchall()
         for r in rows:
             d = dict(r)
             rem_sec = max(0, int(d['expires_at'] - now))
@@ -2669,8 +2969,6 @@ def get_active_resource_boosts(collector: Any, db_path: str) -> Dict[str, Any]:
                 'remaining_minutes': (rem_sec + 59) // 60,
                 'reason': d.get('reason') or '',
             })
-    finally:
-        conn.close()
     return {'success': True, 'count': len(boosts), 'boosts': boosts}
 
 
@@ -2690,7 +2988,7 @@ def kill_stuck_cli_processes(collector: Any, db_path: str, actor: str, username:
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -2754,7 +3052,7 @@ def run_laravel_services_selftest(collector: Any, db_path: str, username: str, p
                 pass
         if not users and os.path.exists(db_path):
             try:
-                with sqlite3.connect(db_path) as c:
+                with closing(sqlite3.connect(db_path)) as c:
                     for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                         if row[0]:
                             users[row[0]] = {}
@@ -2865,7 +3163,7 @@ def scan_tenant_runtimes_and_binaries(collector: Any, db_path: str) -> Dict[str,
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -3101,7 +3399,7 @@ def enforce_platform_tick(collector: Any, db_path: str) -> Dict[str, Any]:
     try:
         if collector and os.name != 'nt':
             for uname in sorted((collector.get_webuzo_users() or {}).keys()):
-                if not (APP_SOCKET_ROOT / uname / 'ports.json').is_file():
+                if uname and re.fullmatch(r'[a-z_][a-z0-9_-]{0,31}', uname) and not (APP_SOCKET_ROOT / uname / 'ports.json').is_file():
                     ensure_account_port_allocation(collector, db_path, uname)
     except Exception:
         pass
@@ -3137,7 +3435,7 @@ def scan_app_logs_and_inodes(collector: Any, db_path: str, target_user: Optional
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -3316,7 +3614,7 @@ def import_policy_bundle(collector: Any, db_path: str, actor: str, bundle: Dict[
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -3482,7 +3780,7 @@ def get_chrome_engine_status(collector: Any, db_path: str) -> Dict[str, Any]:
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -3548,19 +3846,26 @@ def _refresh_user_process_groups(username: str) -> None:
     if os.name == 'nt':
         return
     try:
-        # 1. Touch restart.txt in any Passenger/WSGI/Node app directories under /home/<username>/*/tmp/
-        user_home = f"/home/{username}"
+        # 1. Touch restart.txt in any Passenger/WSGI/Node app directories under user home/*/tmp/
+        _, _, pw_home = _resolve_user_ids(username)
+        user_home = pw_home or f"/home/{username}"
         if os.path.isdir(user_home):
             for entry in os.scandir(user_home):
                 if entry.is_dir():
                     tmp_dir = os.path.join(entry.path, "tmp")
                     if os.path.isdir(tmp_dir):
                         try:
-                            Path(os.path.join(tmp_dir, "restart.txt")).touch()
+                            pathlib.Path(os.path.join(tmp_dir, "restart.txt")).touch()
                         except Exception:
                             pass
-        # 2. Reload/restart user PHP-FPM service if present (e.g. Webuzo wpiso-fpm)
-        subprocess.run(['systemctl', 'reload-or-restart', f'wpiso-fpm-php*-{username}.service'], capture_output=True, timeout=5)
+        # 2. Reload/restart active user PHP-FPM services cleanly without passing literal globs
+        lu = subprocess.run(
+            ['systemctl', 'list-units', '--type=service', '--state=active', '--plain', '--no-legend', f'wpiso-fpm-php*-{username}.service'],
+            capture_output=True, text=True, timeout=5,
+        )
+        units = [ln.split()[0] for ln in (lu.stdout or '').splitlines() if ln.strip()]
+        for unit_name in units:
+            subprocess.run(['systemctl', 'reload-or-restart', unit_name], capture_output=True, timeout=5)
     except Exception:
         pass
 
@@ -3613,7 +3918,7 @@ def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -3673,6 +3978,55 @@ def sync_chrome_os_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
         'synced_count': len(synced),
         'users': synced
     }
+
+
+def _chrome_bin_mode_gid(path: str) -> Tuple[int, int]:
+    st = os.stat(path)
+    return st.st_mode & 0o777, st.st_gid
+
+
+def reconcile_chrome_permissions(collector: Any, db_path: str) -> Dict[str, Any]:
+    """Heal Chrome binary group ownership (uniselv-chrome), mode (0750/0700), and ACLs after apt upgrades."""
+    found = _find_chrome_binary()
+    if not found or not _is_posix_host():
+        return {'success': True, 'repaired': False, 'reason': 'not_installed_or_non_posix'}
+
+    settings = load_platform_settings(db_path)
+    chrome_globally_on = settings.get('platform_chrome_enabled', '1') != '0'
+    expected_mode = 0o750 if chrome_globally_on else 0o700
+
+    targets: List[str] = []
+    seen = set()
+    for cand in list(CHROME_BINARY_CANDIDATES) + ['/opt/google/chrome/chrome', '/opt/google/chrome/google-chrome']:
+        if os.path.exists(cand):
+            real = os.path.realpath(cand)
+            for p in (cand, real):
+                if p not in seen and os.path.isfile(p) and not os.path.islink(p):
+                    seen.add(p)
+                    targets.append(p)
+
+    drifted: List[str] = []
+    for t in targets:
+        try:
+            mode_val, gid_val = _chrome_bin_mode_gid(t)
+            grp_name = ''
+            if grp is not None:
+                try:
+                    grp_name = grp.getgrgid(gid_val).gr_name
+                except Exception:
+                    grp_name = str(gid_val)
+            if grp_name != CHROME_GROUP_NAME or mode_val != expected_mode:
+                drifted.append(f'{t}:{oct(mode_val)}:{grp_name}')
+        except OSError:
+            continue
+
+    if not drifted:
+        return {'success': True, 'repaired': False}
+
+    sync_res = sync_chrome_os_permissions(collector, db_path)
+    if db_path and os.path.exists(db_path):
+        _record_audit(db_path, 'system', 'platform_chrome_permissions_auto_healed', 'server', {'drifted': drifted})
+    return {'success': bool(sync_res.get('success', True)), 'repaired': True, 'drifted': drifted}
 
 
 def install_chrome_engine(collector: Any, db_path: str, actor: str = 'admin') -> Dict[str, Any]:
@@ -3766,7 +4120,7 @@ def save_user_chrome_permissions(collector: Any, db_path: str, admin_user: str, 
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -3896,7 +4250,7 @@ def run_user_chrome_test(username: str, db_path: str, is_admin: bool = False) ->
         if os.name != 'nt' and shutil.which('systemd-run'):
             unit = f'uniselv-chr-test-{int(time.time() * 1000) % 100000}'
             cmd = [
-                'systemd-run', f'--unit={unit}', '--pipe', '--wait', '--collect',
+                'systemd-run', '--quiet', f'--unit={unit}', '--pipe', '--wait', '--collect',
                 '-p', 'MemoryMax=1G', '-p', 'TasksMax=256',
                 '--', 'su', '-', username, '-s', '/bin/bash', '-c', inner_cmd
             ]
@@ -3955,7 +4309,7 @@ def run_enduser_service_test(collector: Any, db_path: str, username: str, servic
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -4004,19 +4358,24 @@ def run_enduser_service_test(collector: Any, db_path: str, username: str, servic
 
         if acl_row:
             r_user, r_pfx = acl_row
+            rc_get, out_get, err_get = _run_redis(['ACL', 'GETUSER', r_user], management=True)
+            user_exists = (rc_get == 0 and bool((out_get or '').strip()) and 'not found' not in (out_get + err_get).lower())
+
             rc_own, out_own, err_own = _run_redis(['ACL', 'DRYRUN', r_user, 'SET', f'{r_pfx}__health_probe', '1'], management=True)
-            own_ok = (out_own or '').strip().upper() == 'OK' or rc_own == 0
-            steps.append({'name': 'acl_own', 'label': f'Own Key-Prefix Write ({r_pfx}*)', 'passed': own_ok, 'detail': 'Granted' if own_ok else (out_own or err_own)})
+            own_ok = user_exists and rc_own == 0 and (out_own or '').strip().upper() == 'OK'
+            steps.append({'name': 'acl_own', 'label': f'Own Key-Prefix Write ({r_pfx}*)', 'passed': own_ok, 'detail': 'Granted' if own_ok else (out_own or err_own or 'ACL user not loaded in Redis')})
 
             rc_f, out_f, err_f = _run_redis(['ACL', 'DRYRUN', r_user, 'SET', '__foreign__:key', '1'], management=True)
-            f_denied = 'no permissions' in (out_f or '').lower() or 'noperm' in (out_f or '').lower() or 'denied' in (out_f or '').lower() or (out_f or '').strip().upper() != 'OK'
-            steps.append({'name': 'acl_cross_tenant', 'label': 'Cross-Tenant Access Denial (Foreign Keys)', 'passed': f_denied, 'detail': 'Blocked safely' if f_denied else 'Unrestricted'})
+            f_txt = (out_f or err_f or '').lower()
+            f_denied = user_exists and ('no permissions' in f_txt or 'noperm' in f_txt or 'denied' in f_txt)
+            steps.append({'name': 'acl_cross_tenant', 'label': 'Cross-Tenant Access Denial (Foreign Keys)', 'passed': f_denied, 'detail': 'Blocked safely' if f_denied else (out_f or err_f or 'User ACL missing or unrestricted')})
 
             rc_cmd, out_cmd, err_cmd = _run_redis(['ACL', 'DRYRUN', r_user, 'FLUSHALL'], management=True)
-            cmd_denied = 'no permissions' in (out_cmd or '').lower() or 'noperm' in (out_cmd or '').lower() or 'denied' in (out_cmd or '').lower() or (out_cmd or '').strip().upper() != 'OK'
-            steps.append({'name': 'acl_admin_cmd', 'label': 'Privileged Command Guard (FLUSHALL/CONFIG)', 'passed': cmd_denied, 'detail': 'Protected' if cmd_denied else 'Allowed'})
+            cmd_txt = (out_cmd or err_cmd or '').lower()
+            cmd_denied = user_exists and ('no permissions' in cmd_txt or 'noperm' in cmd_txt or 'denied' in cmd_txt)
+            steps.append({'name': 'acl_admin_cmd', 'label': 'Privileged Command Guard (FLUSHALL/CONFIG)', 'passed': cmd_denied, 'detail': 'Protected' if cmd_denied else (out_cmd or err_cmd or 'User ACL missing or unrestricted')})
         else:
-            steps.append({'name': 'acl_status', 'label': 'Tenant ACL Instance', 'passed': True, 'detail': 'Redis active. Click "Create My Redis ACL" for dedicated key-prefix isolation.'})
+            steps.append({'name': 'acl_status', 'label': 'Tenant ACL Instance', 'passed': pong, 'detail': 'Redis active. Click "Create My Redis ACL" for dedicated key-prefix isolation.' if pong else (err or 'Redis service unreachable')})
 
         all_passed = all(s['passed'] for s in steps)
         return {
@@ -4231,7 +4590,7 @@ def run_enduser_service_test(collector: Any, db_path: str, username: str, servic
                 pass
 
         if not active_php:
-            for b in ['php84', 'php82', 'php81', 'php74']:
+            for b in reversed(_discover_available_php_branches()):
                 p = f'/usr/local/apps/{b}/bin/php'
                 if os.path.isfile(p):
                     try:
@@ -4322,7 +4681,7 @@ def get_enduser_implementation_data(collector: Any, db_path: str, username: str)
             pass
     if not users and os.path.exists(db_path):
         try:
-            with sqlite3.connect(db_path) as c:
+            with closing(sqlite3.connect(db_path)) as c:
                 for row in c.execute('SELECT DISTINCT username FROM account_permissions').fetchall():
                     if row[0]:
                         users[row[0]] = {}
@@ -4350,17 +4709,15 @@ def get_enduser_implementation_data(collector: Any, db_path: str, username: str)
     if os.path.isfile(db_path):
         try:
             with closing(sqlite3.connect(db_path)) as conn:
-                row = conn.execute('SELECT redis_user, key_prefix, password FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
+                row = conn.execute('SELECT redis_user, key_prefix, enabled FROM redis_acl_accounts WHERE username = ?', (username,)).fetchone()
                 if row:
                     acl_user = row[0] or acl_user
                     acl_prefix = row[1] or acl_prefix
-                    if len(row) > 2 and row[2]:
-                        acl_pass = row[2]
         except Exception:
             pass
 
-    php_branches = ['php84', 'php82', 'php81', 'php74']
-    latest_php = 'php84'
+    php_branches = list(reversed(_discover_available_php_branches()))
+    latest_php = php_branches[0] if php_branches else 'php84'
     for b in php_branches:
         if os.path.isfile(f'/usr/local/apps/{b}/bin/php'):
             latest_php = b

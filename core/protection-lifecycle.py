@@ -155,6 +155,13 @@ def lifecycle(action):
         owned['pam'] = True; data['state'] = 'installing-pam'; save(data)
         run(['/usr/bin/python3', '/usr/local/sbin/webuzo-session-guard-manager.py', 'install', '/usr/local/sbin/webuzo-session-guard.py'])
     run(['/usr/bin/python3', '/usr/local/sbin/webuzo-session-guard-manager.py', 'check'])
+    if STATES['golden'].exists():
+        run(['/usr/bin/python3', '/usr/local/sbin/golden-shield.py', 'heal-upgrades'])
+    try:
+        import platform_manager
+        platform_manager.reconcile_redis_health('/var/lib/uniselv-resource-manager/resman.sqlite', restart_service=True)
+    except Exception:
+        pass
     verify = manager.verify_until_ready()
     if not verify.get('success'): raise RuntimeError('Final protection verification failed: ' + json.dumps(verify))
     data['state'] = 'verified'; save(data)

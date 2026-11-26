@@ -923,6 +923,10 @@ class PlatformManagerTestCase(unittest.TestCase):
                 INSERT INTO temporary_overrides (username, uid, original_plan, override_plan, created_at, expires_at, reason, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, ('starter1', 1001, 'starter', 'turbo', now - 100, now + 1800, 'Flash sale promo', 'active'))
+            conn.execute("""
+                INSERT INTO temporary_overrides (username, uid, original_plan, override_plan, created_at, expires_at, reason, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, ('pro1', 1002, 'starter', 'pro', now - 200, now + 1800, 'Cancelled early', 'cancelled'))
             conn.commit()
         finally:
             conn.close()
@@ -1023,6 +1027,315 @@ class PlatformManagerTestCase(unittest.TestCase):
             self.assertEqual(k_res['stopped_count'], 1)
             self.assertEqual(k_res['pids'], [7001])
             stop_mock.assert_called_once_with(1001, 7001, 0)
+
+        # 8. Chrome permission drift reconciliation (e.g., after unattended apt chrome upgrade)
+        fake_chrome = self.base / 'chrome-bin'
+        fake_chrome.write_text('#!/bin/sh\n', encoding='utf-8')
+        os.chmod(fake_chrome, 0o755)
+        fake_grp_root = types.SimpleNamespace(gr_name='root')
+        fake_grp_chrome = types.SimpleNamespace(gr_name='uniselv-chrome')
+        with mock.patch.object(pm, '_find_chrome_binary', return_value=str(fake_chrome)), \
+             mock.patch.object(pm, 'CHROME_BINARY_CANDIDATES', [str(fake_chrome)]), \
+             mock.patch.object(pm, '_is_posix_host', return_value=True), \
+             mock.patch.object(pm, '_chrome_bin_mode_gid', return_value=(0o755, 0)), \
+             mock.patch.object(pm.grp, 'getgrgid', return_value=fake_grp_root, create=True), \
+             mock.patch.object(pm, 'sync_chrome_os_permissions', return_value={'success': True, 'synced_count': 3}) as sync_mock:
+            rec_drift = pm.reconcile_chrome_permissions(self.collector, self.db_path)
+        self.assertTrue(rec_drift['repaired'])
+        sync_mock.assert_called_once()
+
+        with mock.patch.object(pm, '_find_chrome_binary', return_value=str(fake_chrome)), \
+             mock.patch.object(pm, 'CHROME_BINARY_CANDIDATES', [str(fake_chrome)]), \
+             mock.patch.object(pm, '_is_posix_host', return_value=True), \
+             mock.patch.object(pm, '_chrome_bin_mode_gid', return_value=(0o750, 998)), \
+             mock.patch.object(pm.grp, 'getgrgid', return_value=fake_grp_chrome, create=True), \
+             mock.patch.object(pm, 'sync_chrome_os_permissions') as sync_noop:
+            rec_ok = pm.reconcile_chrome_permissions(self.collector, self.db_path)
+        self.assertFalse(rec_ok['repaired'])
+        sync_noop.assert_not_called()
+
+    def test_redis_acl_backup_and_upgrade_recovery(self):
+        bak_dir = self.base / 'durable_redis_bak'
+        webuzo_bak_root = self.base / 'webuzo_backups'
+        acl_file = self.base / 'redis_app' / 'users.acl'
+        conf_file = self.base / 'redis_app' / 'redis.conf'
+        admin_file = self.base / 'redis-admin.json'
+        acl_file.parent.mkdir(parents=True)
+        (webuzo_bak_root / 'redis_20261126063618').mkdir(parents=True)
+
+        conf_text = f'bind 127.0.0.1\nport 6379\naclfile {acl_file}\n'
+        acl_text = 'user default off\nuser uniselv_manager on >mgrpass ~* &* +@all\nuser u_starter1 on #abc123 ~starter1:* &starter1:* +ping +get +set\n'
+        conf_file.write_text(conf_text, encoding='utf-8')
+        acl_file.write_text(acl_text, encoding='utf-8')
+        admin_file.write_text(json.dumps({'username': 'uniselv_manager', 'password': 'mgrpass'}), encoding='utf-8')
+
+        with mock.patch.object(pm, 'REDIS_ACL_FILE', acl_file), \
+             mock.patch.object(pm, 'REDIS_CONF_FILE', conf_file), \
+             mock.patch.object(pm, 'REDIS_BACKUP_ROOT', webuzo_bak_root), \
+             mock.patch.object(pm, 'REDIS_DURABLE_BACKUP_DIR', bak_dir), \
+             mock.patch.object(pm, 'REDIS_ADMIN_FILE', admin_file), \
+             mock.patch.object(pm, '_find_redis_conf', return_value=conf_file):
+            b_res = pm.backup_redis_state()
+            self.assertTrue(b_res['success'])
+            self.assertTrue((bak_dir / 'users.acl.bak').is_file())
+            self.assertTrue((bak_dir / 'redis.conf.bak').is_file())
+
+            # Simulate Webuzo Redis upgrade: wipe live users.acl, leave newer Webuzo backup with extra site ACL
+            acl_file.unlink()
+            extra_bak = webuzo_bak_root / 'redis_20261126063618' / 'users.acl'
+            extra_bak.write_text(acl_text + 'user uniselv_site_tunix on #def456 ~site:* +@all\n', encoding='utf-8')
+            os.utime(extra_bak, (os.stat(bak_dir / 'users.acl.bak').st_mtime + 10, os.stat(bak_dir / 'users.acl.bak').st_mtime + 10))
+
+            sys_calls = []
+
+            def fake_subproc(cmd, **kw):
+                sys_calls.append(list(cmd))
+                if cmd[:2] == ['systemctl', 'is-enabled']:
+                    return types.SimpleNamespace(returncode=0, stdout='enabled\n', stderr='')
+                if cmd[:2] == ['systemctl', 'show']:
+                    return types.SimpleNamespace(returncode=0, stdout='ActiveState=failed\nSubState=failed\nResult=exit-code\n', stderr='')
+                return types.SimpleNamespace(returncode=0, stdout='OK\n', stderr='')
+
+            with mock.patch.object(pm, '_is_posix_host', return_value=True), \
+                 mock.patch.object(pm, '_resolve_redis_owner_ids', return_value=(0, 0)), \
+                 mock.patch.object(pm.subprocess, 'run', side_effect=fake_subproc), \
+                 mock.patch.object(pm, '_run_redis', return_value=(0, 'PONG', '')):
+                heal = pm.reconcile_redis_health(self.db_path, restart_service=True)
+
+            self.assertTrue(heal['success'], msg=heal)
+            self.assertTrue(heal['repaired_acl'])
+            self.assertTrue(heal['restarted_service'])
+            restored = acl_file.read_text(encoding='utf-8')
+            self.assertIn('user uniselv_site_tunix', restored)
+            self.assertIn('user u_starter1', restored)
+            self.assertIn(['systemctl', 'restart', 'redis.service'], sys_calls)
+
+            # Intentional admin stop (ActiveState=inactive, Result=success) must NOT trigger auto-restart
+            sys_calls.clear()
+
+            def fake_subproc_stopped(cmd, **kw):
+                sys_calls.append(list(cmd))
+                if cmd[:2] == ['systemctl', 'is-enabled']:
+                    return types.SimpleNamespace(returncode=0, stdout='enabled\n', stderr='')
+                if cmd[:2] == ['systemctl', 'show']:
+                    return types.SimpleNamespace(returncode=0, stdout='ActiveState=inactive\nSubState=dead\nResult=success\n', stderr='')
+                return types.SimpleNamespace(returncode=0, stdout='', stderr='')
+
+            with mock.patch.object(pm, '_is_posix_host', return_value=True), \
+                 mock.patch.object(pm, '_resolve_redis_owner_ids', return_value=(0, 0)), \
+                 mock.patch.object(pm.subprocess, 'run', side_effect=fake_subproc_stopped), \
+                 mock.patch.object(pm, '_run_redis', return_value=(1, '', 'Connection refused')):
+                heal_stop = pm.reconcile_redis_health(self.db_path, restart_service=True)
+
+            self.assertFalse(heal_stop['restarted_service'])
+            self.assertNotIn(['systemctl', 'restart', 'redis.service'], sys_calls)
+
+            # Fallback synthesis when all backups are absent: rebuild from redis-admin.json + SQLite
+            acl_file.unlink()
+            extra_bak.unlink()
+            (bak_dir / 'users.acl.bak').unlink()
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('platform_redis_lock_default', '1')")
+            conn.execute(
+                "INSERT OR REPLACE INTO redis_acl_accounts (username, redis_user, key_prefix, password_hash, password_plain_enc, enabled, max_commands_policy, updated_at) "
+                "VALUES ('starter1', 'u_starter1', 'starter1:', 'deadbeef01', '', 1, 'tenant_allowlist', 100)"
+            )
+            conn.commit()
+            conn.close()
+            with mock.patch.object(pm, '_is_posix_host', return_value=True), \
+                 mock.patch.object(pm, '_resolve_redis_owner_ids', return_value=(0, 0)), \
+                 mock.patch.object(pm.subprocess, 'run', side_effect=fake_subproc), \
+                 mock.patch.object(pm, '_run_redis', return_value=(0, 'PONG', '')):
+                heal_synth = pm.reconcile_redis_health(self.db_path, restart_service=True)
+            self.assertTrue(heal_synth['success'])
+            synth_txt = acl_file.read_text(encoding='utf-8')
+            self.assertIn('user default off', synth_txt)
+            self.assertIn('user uniselv_manager on #', synth_txt)
+            self.assertIn('user u_starter1 on #deadbeef01 ~starter1:* &starter1:*', synth_txt)
+
+    def test_port_allocation_rejects_empty_and_invalid_usernames(self):
+        sock_root = self.base / 'run_apps_guard'
+        with mock.patch.object(pm, 'APP_SOCKET_ROOT', sock_root), \
+             mock.patch.object(pm, '_is_port_open', return_value=False):
+            for bad in ('', '   ', '../etc', 'nonexistent_account'):
+                res = pm.ensure_account_port_allocation(self.collector, self.db_path, bad)
+                self.assertFalse(res.get('success'), msg=f'Should reject {bad!r}: {res}')
+        self.assertFalse((sock_root / 'ports.json').exists())
+        conn = sqlite3.connect(self.db_path)
+        rows = conn.execute("SELECT username FROM account_port_allocations WHERE username = '' OR username = 'nonexistent_account'").fetchall()
+        conn.close()
+        self.assertEqual(rows, [])
+
+    def test_supervisor_dropin_rejects_traversal_and_none_collector(self):
+        home_dir = self.base / 'home_sup_sec'
+        (home_dir / 'public_html').mkdir(parents=True)
+        bad_conf = home_dir / '.uniselv-supervisor' / 'conf.d' / 'escape.conf'
+        bad_conf.parent.mkdir(parents=True)
+        bad_conf.write_text(
+            '[program:evil]\n'
+            'command=/usr/local/apps/php84/bin/php /etc/passwd/artisan queue:work\n'
+            'directory=/etc\n',
+            encoding='utf-8',
+        )
+        progs = pm._parse_user_supervisor_dropin(bad_conf, 'starter1', str(home_dir), max_workers=2, require_artisan=False)
+        self.assertEqual(progs, [])
+
+        fake_pw = types.SimpleNamespace(pw_uid=1001, pw_gid=1001, pw_dir=str(home_dir))
+        with mock.patch.object(pm.pwd, 'getpwnam', return_value=fake_pw, create=True), \
+             mock.patch.object(pm, 'get_supervisor_status', return_value={'installed': False, 'runtime_active': False}):
+            res = pm.sync_user_supervisor_scope(None, self.db_path, 'starter1')
+        self.assertFalse(res['success'])
+        self.assertNotIn('UnboundLocalError', res.get('error', ''))
+
+    def test_enduser_impl_data_process_refresh_and_redis_test_accuracy(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            "INSERT OR REPLACE INTO redis_acl_accounts (username, redis_user, key_prefix, password_hash, password_plain_enc, enabled, max_commands_policy, updated_at) "
+            "VALUES ('pro1', 'u_pro1', 'pro1:', 'hashval', '', 1, 'tenant_allowlist', 100)"
+        )
+        conn.commit()
+        conn.close()
+
+        apps_dir = self.base / 'apps_dyn'
+        for br in ('php83', 'php84'):
+            (apps_dir / br / 'bin').mkdir(parents=True)
+            (apps_dir / br / 'bin' / 'php').write_text('#!/bin/sh\n', encoding='utf-8')
+            os.chmod(apps_dir / br / 'bin' / 'php', 0o755)
+
+        with mock.patch.object(pm, 'APP_SOCKET_ROOT', self.base / 'run_impl'), \
+             mock.patch.object(pm, '_is_port_open', return_value=False), \
+             mock.patch.object(pm, '_discover_available_php_branches', return_value=['php84', 'php83']):
+            impl = pm.get_enduser_implementation_data(self.collector, self.db_path, 'pro1')
+        self.assertEqual(impl['redis']['env']['REDIS_USERNAME'], 'u_pro1')
+        self.assertEqual(impl['redis']['env']['REDIS_PREFIX'], 'pro1:')
+        self.assertEqual(impl['redis']['env']['REDIS_PASSWORD'], '[YOUR_REDIS_ACL_PASSWORD]')
+
+        # Missing ACL user in Redis must FAIL even cross-tenant checks in run_enduser_service_test
+        def missing_user_redis(args, **kw):
+            if args[0] == 'PING':
+                return 0, 'PONG', ''
+            if args[:2] == ['ACL', 'GETUSER']:
+                return 0, '', ''
+            if args[:2] == ['ACL', 'DRYRUN']:
+                return 1, "ERR User 'u_pro1' not found", ''
+            return 0, '', ''
+
+        with mock.patch.object(pm, 'APP_SOCKET_ROOT', self.base / 'run_impl'), \
+             mock.patch.object(pm, '_is_port_open', return_value=False), \
+             mock.patch.object(pm, '_find_redis_cli', return_value='/usr/bin/redis-cli'), \
+             mock.patch.object(pm, '_run_redis', side_effect=missing_user_redis):
+            t_res = pm.run_enduser_service_test(self.collector, self.db_path, 'pro1', service='redis')['result']
+        self.assertFalse(t_res['success'])
+        step_map = {s['name']: s for s in t_res['steps']}
+        self.assertFalse(step_map['acl_own']['passed'])
+        self.assertFalse(step_map['acl_cross_tenant']['passed'])
+
+        # _refresh_user_process_groups must not hit NameError: Path and must expand FPM units instead of literal wildcard
+        home_p = self.base / 'home_starter1_refresh'
+        (home_p / 'app' / 'tmp').mkdir(parents=True)
+        run_cmds = []
+
+        def fake_ref_run(cmd, **kw):
+            run_cmds.append(list(cmd))
+            if cmd[:2] == ['systemctl', 'list-units']:
+                return types.SimpleNamespace(returncode=0, stdout='wpiso-fpm-php84-starter1.service\n', stderr='')
+            return types.SimpleNamespace(returncode=0, stdout='', stderr='')
+
+        fake_pw = types.SimpleNamespace(pw_uid=1001, pw_gid=1001, pw_dir=str(home_p))
+        with mock.patch.object(pm.os, 'name', 'posix'), \
+             mock.patch.object(pm, '_resolve_user_ids', return_value=(1001, 1001, str(home_p))), \
+             mock.patch.object(pm.pwd, 'getpwnam', return_value=fake_pw, create=True), \
+             mock.patch.object(pm.subprocess, 'run', side_effect=fake_ref_run):
+            pm._refresh_user_process_groups('starter1')
+        self.assertTrue((home_p / 'app' / 'tmp' / 'restart.txt').is_file())
+        self.assertIn(['systemctl', 'reload-or-restart', 'wpiso-fpm-php84-starter1.service'], run_cmds)
+        self.assertFalse(any('*' in arg for cmd in run_cmds if cmd[:2] == ['systemctl', 'reload-or-restart'] for arg in cmd))
+
+    def test_php_js_ipc_contract_and_install_reload_flag(self):
+        import re
+        php_src = (ROOT / 'plugin' / 'uniselv-resman.php').read_text(encoding='utf-8')
+        js_src = (ROOT / 'plugin' / 'assets' / 'app.js').read_text(encoding='utf-8')
+        ipc_src = (ROOT / 'agent' / 'ipc_server.py').read_text(encoding='utf-8')
+        inst_src = (ROOT / 'plugin' / 'install.php').read_text(encoding='utf-8')
+
+        admin_part = php_src.split('function uniselv_resman_admin()')[1].split('function uniselv_brand_locale')[0]
+        enduser_part = php_src.split('function uniselv_resman_enduser()')[1].split('function uniselv_resman_enduser_theme')[0]
+        admin_map = dict(re.findall(r"['\"]([a-zA-Z0-9_]+)['\"]\s*=>\s*['\"]([a-zA-Z0-9_]+)['\"]", admin_part))
+        enduser_map = dict(re.findall(r"['\"]([a-zA-Z0-9_]+)['\"]\s*=>\s*['\"]([a-zA-Z0-9_]+)['\"]", enduser_part))
+        enduser_map['reseller_accounts'] = 'get_admin_accounts'
+        mut_m = re.search(r'\$mutation_actions\s*=\s*\[(.*?)\];', admin_part, re.S)
+        admin_mut = set(re.findall(r"['\"]([a-zA-Z0-9_]+)['\"]", mut_m.group(1)))
+
+        exposed = set(admin_map) | set(enduser_map)
+        js_calls = set(re.findall(r"(?:this|self|app)\.(?:callApi|latestRead)\((?:[^,]+,\s*)?['\"]([a-zA-Z0-9_]+)['\"]", js_src))
+        # Direct check specifically for callApi/latestRead
+        for m in re.finditer(r"(?:this|self|app)\.callApi\(\s*['\"]([a-zA-Z0-9_]+)['\"]", js_src):
+            self.assertIn(m.group(1), exposed, msg=f'JS callApi({m.group(1)!r}) missing in PHP action_map')
+        self.assertIn('cancel_temporary_override', admin_map)
+        self.assertIn('cancel_temporary_override', admin_mut)
+        self.assertIn('install_build_dependencies', admin_map)
+        self.assertIn('install_build_dependencies', admin_mut)
+        # Ensure long-running Webuzo/systemd mutations are inside $long_ops and api_client reports timeouts explicitly
+        long_m = re.search(r'\$long_ops\s*=\s*\[(.*?)\];', admin_part, re.S)
+        admin_long = set(re.findall(r"['\"]([a-zA-Z0-9_]+)['\"]", long_m.group(1)))
+        for op in ('set_override', 'cancel_override', 'cancel_temporary_override', 'save_plan', 'delete_plan', 'adapter_sync', 'golden_reconfigure', 'golden_restore'):
+            self.assertIn(op, admin_long, msg=f'{op} missing from Admin $long_ops')
+        api_src = (ROOT / 'plugin' / 'api_client.php').read_text(encoding='utf-8')
+        self.assertIn('timed_out', api_src)
+        self.assertIn('min(120', api_src)
+        # Ensure Enduser Redis ACL panel surfaces SHA-256 Hash Stored badge and openOverrideModal guards option existence
+        self.assertIn('SHA-256 Hash Stored', js_src.split('3. Isolated Redis ACL Credentials')[1].split('4. App Logs Cleanup')[0])
+        self.assertIn('new Option(user, user', js_src.split('openOverrideModal:')[1].split('submitQuickOverride:')[0])
+        self.assertIn('_lastBoostsBannerSig', js_src.split('renderActiveBoostsBanner:')[1].split('revokePlanOverride:')[0])
+        self.assertIn('quick-overrides-count', js_src.split('renderActiveBoostsBanner:')[1].split('revokePlanOverride:')[0])
+        # Ensure UNISELV_SKIP_FPM_RELOAD is respected after loop mutation flag
+        self.assertNotIn("if (getenv('UNISELV_SKIP_FPM_RELOAD') === '1') {\n        $reloaded_fpm = false;\n    }", inst_src)
+        self.assertIn('UNISELV_SKIP_FPM_RELOAD', inst_src)
+        # Ensure install/lifecycle self-heals Redis & Golden Shield before final verify
+        life_src = (ROOT / 'core' / 'protection-lifecycle.py').read_text(encoding='utf-8')
+        self.assertIn('reconcile_redis_health', inst_src)
+        self.assertIn('reconcile_redis_health', life_src)
+        self.assertIn('heal-upgrades', life_src)
+        self.assertLess(life_src.index('reconcile_redis_health'), life_src.index('verify_until_ready'))
+
+    def test_help_about_and_readme_sync_and_missing_docs_safety(self):
+        admin_help = (ROOT / 'plugin' / 'views' / 'admin_help.php').read_text(encoding='utf-8')
+        enduser_help = (ROOT / 'plugin' / 'views' / 'enduser_help.php').read_text(encoding='utf-8')
+        readme_txt = (ROOT / 'README.md').read_text(encoding='utf-8')
+        info_ver = json.loads((ROOT / 'plugin' / 'info.json').read_text(encoding='utf-8'))['version']
+
+        # 1. admin_help.php must guard optional docs reads (excluded in package_plugin.php)
+        self.assertNotIn("file_get_contents(__DIR__ . '/../docs/release-1.1.33.md')", admin_help)
+        self.assertIn('is_file(', admin_help)
+
+        # 2. admin_help.php Help & About must document v1.6.0 Chrome, Redis/Golden/Scope self-healing, Cancel Boost, and 256M ceiling
+        self.assertIn('id="help-topic-chrome"', admin_help)
+        self.assertIn('heal-upgrades', admin_help)
+        self.assertIn('CollectMode=inactive-or-failed', admin_help)
+        self.assertIn('users.acl', admin_help)
+        self.assertIn('Revoke Now', admin_help)
+        self.assertIn('MemoryMax=256M', admin_help)
+        self.assertNotIn('OpenSwoole Runtime Governance &amp; Managed Laravel Platform Edition.', admin_help)
+
+        # 3. enduser_help.php Help & About must avoid stale fallbacks/tabs/hardcoded PHP matrices and clarify SHA-256 Redis policy + Chrome
+        self.assertNotIn("?? '1.2.0'", enduser_help)
+        self.assertIn(f"?? '{info_ver}'", enduser_help)
+        self.assertNotIn('PHP 7.4, 8.1, 8.2, and 8.4', enduser_help)
+        self.assertIn('implode(', enduser_help.split('help-topic-guide-openswoole')[1].split('<!-- ==================== END 8 MODERN SERVICES')[0])
+        self.assertNotIn('Processes tab', enduser_help)
+        self.assertIn('<strong>Current Usage</strong> tab', enduser_help)
+        self.assertIn('SHA-256 Hash Stored', enduser_help)
+        self.assertIn('REDIS SERVICE STOPPED', enduser_help)
+        self.assertIn('Chrome &amp; Automation Hub', enduser_help)
+        self.assertIn('Test Health', enduser_help)
+        eu_about = enduser_help.split('id="help-topic-about"')[1].split('<!-- 7. DEVELOPER INFORMATION -->')[0]
+        self.assertIn('Headless Chrome', eu_about)
+
+        # 4. README.md must reflect v1.6.0 archive & real unittest runner
+        self.assertNotIn('uniselv-resman-1.5.0.zip', readme_txt)
+        self.assertIn(f'uniselv-resman-{info_ver}.zip', readme_txt)
+        self.assertNotIn('test_suite.py', readme_txt)
+        self.assertIn('unittest discover', readme_txt)
 
 
 if __name__ == '__main__':
